@@ -1,8 +1,15 @@
 # ui/main_menu.py
 
 import tkinter as tk
-from ui.customer_ui import CustomerManagement
-from ui.service_ui import ServiceManagement
+from ui.customer import CustomerManagement
+
+
+from ui.service import ServiceManagement
+from ui.vehicle import VehicleManagement
+
+
+
+from ui.service import ServiceStatusView
 from ui.admin import AdminPanel
 import os
 from dotenv import load_dotenv

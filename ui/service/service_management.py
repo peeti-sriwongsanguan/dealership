@@ -1,5 +1,4 @@
 # ui/service/service_management.py
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import os
@@ -429,3 +428,93 @@ class ServiceManagement:
 
         # Bind Enter key to search
         entry.bind("<Return>", lambda event: search_vehicle())
+
+    def add_service(self, vehicle_id=None):
+        """Show form to add a new service"""
+        # If no vehicle_id provided, use the filtered vehicle
+        if vehicle_id is None and self.filter_vehicle:
+            vehicle_id = self.vehicle_id
+
+        if not vehicle_id:
+            messagebox.showinfo("Info", "No vehicle selected")
+            return
+
+        # Create the service form
+        ServiceForm(
+            self.parent,
+            vehicle_id,
+            lambda service_id: self.after_service_added(service_id),
+            None,
+            self.user
+        )
+
+    def after_service_added(self, service_id):
+        """Handle after a service is added"""
+        if service_id:
+            self.load_services()
+
+            # Offer to view the service details
+            if messagebox.askyesno("View Service", "Service added successfully. Would you like to view the details?"):
+                self.view_service_details_by_id(service_id)
+
+    def update_status(self):
+        """Update the status of the selected service"""
+        service_id = self.get_selected_service_id()
+        if service_id:
+            self.view_service_details_by_id(service_id)
+
+    def view_selected_service(self):
+        """View details of the selected service"""
+        service_id = self.get_selected_service_id()
+        if service_id:
+            self.view_service_details_by_id(service_id)
+
+    def delete_service(self):
+        """Delete the selected service"""
+        service_id = self.get_selected_service_id()
+        if service_id:
+            confirm_delete_service(self.parent, service_id, self.load_services)
+
+    def view_service_details(self, event):
+        """View details of a service (double-click handler)"""
+        selected_item = self.service_tree.selection()
+        if not selected_item:
+            return
+
+        # Get service ID
+        service_id = self.service_tree.item(selected_item[0], 'values')[0]
+
+        # Show service details
+        self.view_service_details_by_id(service_id)
+
+    def view_service_details_by_id(self, service_id):
+        """Show the service details screen for a specific service ID"""
+        # Hide current frame
+        self.frame.pack_forget()
+
+        # Show service details screen
+        ServiceStatusView(self.parent, self.user, service_id, self.show_service_management)
+
+    def get_selected_service_id(self):
+        """Get the ID of the selected service"""
+        selected_item = self.service_tree.selection()
+        if not selected_item:
+            messagebox.showinfo("Info", "Please select a service")
+            return None
+
+        service_id = self.service_tree.item(selected_item[0], 'values')[0]
+        return service_id
+
+    def on_back(self):
+        """Return to the main menu or previous screen"""
+        self.destroy()
+        self.callback()
+
+    def show_service_management(self):
+        """Show the service management screen again"""
+        self.frame.pack(fill=tk.BOTH, expand=True)
+        self.load_services()
+
+    def destroy(self):
+        """Clean up resources"""
+        self.frame.destroy()
