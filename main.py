@@ -7,7 +7,7 @@ from ui.login_screen import LoginScreen
 from database.db_setup import setup_database
 from ui.customer import CustomerManagement
 from ui.vehicle import VehicleManagement
-from ui.service_ui import ServiceManagement
+from ui.service import ServiceManagement
 from ui.admin import AdminPanel
 
 from ui.customer import CustomerManagement

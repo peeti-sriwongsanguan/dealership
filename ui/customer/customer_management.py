@@ -54,7 +54,7 @@ class CustomerManagement:
 
         # Back button
         back_button = tk.Button(header_frame, text="Back to Menu",
-                                font=("Arial", 10), bg="#9E9E9E", fg="white",
+                                font=("Arial", 10), bg="#9E9E9E", fg="black",
                                 command=self.on_back)
         back_button.pack(side=tk.RIGHT, padx=20, pady=10)
 
@@ -109,37 +109,37 @@ class CustomerManagement:
 
         # New customer button
         new_customer_button = tk.Button(action_frame, text="New Customer",
-                                        font=("Arial", 12, "bold"), bg="#4CAF50", fg="white",
+                                        font=("Arial", 12, "bold"), bg="#4CAF50", fg="black",
                                         height=2, width=20, command=self.new_customer)
         new_customer_button.pack(pady=10)
 
         # View/Edit customer button
         view_customer_button = tk.Button(action_frame, text="View/Edit Customer",
-                                         font=("Arial", 12, "bold"), bg="#2196F3", fg="white",
+                                         font=("Arial", 12, "bold"), bg="#2196F3", fg="black",
                                          height=2, width=20, command=self.view_customer)
         view_customer_button.pack(pady=10)
 
         # Manage vehicles button
         vehicles_button = tk.Button(action_frame, text="Manage Vehicles",
-                                    font=("Arial", 12, "bold"), bg="#FF9800", fg="white",
+                                    font=("Arial", 12, "bold"), bg="#FF9800", fg="black",
                                     height=2, width=20, command=self.manage_vehicles)
         vehicles_button.pack(pady=10)
 
         # New check-in button
         checkin_button = tk.Button(action_frame, text="New Service Check-In",
-                                   font=("Arial", 12, "bold"), bg="#9C27B0", fg="white",
+                                   font=("Arial", 12, "bold"), bg="#9C27B0", fg="black",
                                    height=2, width=20, command=self.new_checkin)
         checkin_button.pack(pady=10)
 
         # View photos button
         photos_button = tk.Button(action_frame, text="View Customer Photos",
-                                  font=("Arial", 12, "bold"), bg="#00BCD4", fg="white",
+                                  font=("Arial", 12, "bold"), bg="#00BCD4", fg="black",
                                   height=2, width=20, command=self.view_photos)
         photos_button.pack(pady=10)
 
         # Delete customer button
         delete_button = tk.Button(action_frame, text="Delete Customer",
-                                  font=("Arial", 12, "bold"), bg="#F44336", fg="white",
+                                  font=("Arial", 12, "bold"), bg="#F44336", fg="black",
                                   height=2, width=20, command=self.delete_customer)
         delete_button.pack(pady=10)
 

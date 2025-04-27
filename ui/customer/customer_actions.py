@@ -73,7 +73,7 @@ def handle_vehicle_selection(parent, user, vehicle_id, callback):
         return
 
     # Import here to avoid circular imports
-    from ui.checkin_ui import CustomerCheckIn
+    from ui.checkin import CustomerCheckIn
 
     # Start check-in
     CustomerCheckIn(parent, user, vehicle_id, callback)
@@ -128,7 +128,7 @@ def manage_customer_vehicles(parent, user, customer_id, callback):
         return False
 
     # Import here to avoid circular imports
-    from ui.vehicle_ui import VehicleManagement
+    from ui.vehicle import VehicleManagement
 
     # Show vehicle management
     VehicleManagement(parent, user, customer_id, callback)
@@ -144,7 +144,7 @@ def add_vehicle_for_customer(parent, customer_id, callback):
         callback: Function to call after adding the vehicle
     """
     # Import here to avoid circular imports
-    from ui.vehicle_ui import VehicleForm
+    from ui.vehicle import VehicleForm
 
     # Get customer details
     customer = get_customer_by_id(customer_id)

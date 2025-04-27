@@ -42,7 +42,7 @@ class PhotoGallery:
 
         # Close button
         close_button = tk.Button(header_frame, text="Close",
-                                 font=("Arial", 10), bg="#9E9E9E", fg="white",
+                                 font=("Arial", 10), bg="#9E9E9E", fg="black",
                                  command=self.window.destroy)
         close_button.pack(side=tk.RIGHT, padx=20, pady=10)
 

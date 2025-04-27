@@ -51,26 +51,26 @@ class MainMenu:
 
         # Customer management button
         customer_button = tk.Button(buttons_frame, text="Customer Management",
-                                    font=("Arial", 12, "bold"), bg="#4CAF50", fg="white",
+                                    font=("Arial", 12, "bold"), bg="#4CAF50", fg="black",
                                     height=3, width=25, command=self.show_customer_management)
         customer_button.grid(row=0, column=0, padx=10, pady=10)
 
         # Service management button
         service_button = tk.Button(buttons_frame, text="Service Management",
-                                   font=("Arial", 12, "bold"), bg="#2196F3", fg="white",
+                                   font=("Arial", 12, "bold"), bg="#2196F3", fg="black",
                                    height=3, width=25, command=self.show_service_management)
         service_button.grid(row=0, column=1, padx=10, pady=10)
 
         # Admin button - only show if user is admin
         if self.user['role'] == 'admin':
             admin_button = tk.Button(buttons_frame, text="Admin Panel",
-                                     font=("Arial", 12, "bold"), bg="#FF5722", fg="white",
+                                     font=("Arial", 12, "bold"), bg="#FF5722", fg="black",
                                      height=3, width=25, command=self.show_admin_panel)
             admin_button.grid(row=1, column=0, padx=10, pady=10)
 
         # Logout button
         logout_button = tk.Button(buttons_frame, text="Logout",
-                                  font=("Arial", 12, "bold"), bg="#9E9E9E", fg="white",
+                                  font=("Arial", 12, "bold"), bg="#9E9E9E", fg="black",
                                   height=3, width=25, command=self.logout)
         logout_button.grid(row=1, column=1, padx=10, pady=10)
 

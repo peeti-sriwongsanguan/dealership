@@ -50,7 +50,7 @@ class LoginScreen:
         # Login button
         login_button = tk.Button(login_frame, text="Login",
                                  font=("Arial", 12, "bold"),
-                                 bg="#4CAF50", fg="white", padx=10,
+                                 bg="#4CAF50", fg="black", padx=10,
                                  command=self.login)
         login_button.grid(row=3, column=0, columnspan=2, pady=20)
 

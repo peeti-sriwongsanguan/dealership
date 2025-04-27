@@ -1,6 +1,6 @@
 # Deploying to AWS ECS (Elastic Container Service)
 
-This guide provides detailed instructions for deploying the Car Dealer POS web version to AWS ECS for a scalable, production-ready environment.
+This guide provides detailed instructions for deploying the OL Service Dealer POS web version to AWS ECS for a scalable, production-ready environment.
 
 ## Prerequisites
 

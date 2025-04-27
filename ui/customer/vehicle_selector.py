@@ -83,11 +83,11 @@ class VehicleSelector:
         button_frame.pack(fill=tk.X, pady=10)
 
         select_button = tk.Button(button_frame, text="Select", font=("Arial", 12, "bold"),
-                                  bg="#4CAF50", fg="white", padx=10, command=self.on_select)
+                                  bg="#4CAF50", fg="black", padx=10, command=self.on_select)
         select_button.pack(side=tk.LEFT, padx=10)
 
         cancel_button = tk.Button(button_frame, text="Cancel", font=("Arial", 12, "bold"),
-                                  bg="#F44336", fg="white", padx=10, command=self.on_cancel)
+                                  bg="#F44336", fg="black", padx=10, command=self.on_cancel)
         cancel_button.pack(side=tk.RIGHT, padx=10)
 
     def on_double_click(self, event):

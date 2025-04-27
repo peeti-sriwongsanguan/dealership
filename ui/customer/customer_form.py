@@ -96,12 +96,12 @@ class CustomerForm:
 
         # Save button
         save_button = tk.Button(buttons_frame, text="Save", font=("Arial", 12, "bold"),
-                                bg="#4CAF50", fg="white", padx=10, command=self.save_customer)
+                                bg="#4CAF50", fg="black", padx=10, command=self.save_customer)
         save_button.grid(row=0, column=0, padx=10)
 
         # Cancel button
         cancel_button = tk.Button(buttons_frame, text="Cancel", font=("Arial", 12, "bold"),
-                                  bg="#F44336", fg="white", padx=10, command=self.window.destroy)
+                                  bg="#F44336", fg="black", padx=10, command=self.window.destroy)
         cancel_button.grid(row=0, column=1, padx=10)
 
     def save_customer(self):
