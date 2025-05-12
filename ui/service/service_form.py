@@ -6,6 +6,9 @@ import datetime
 from dotenv import load_dotenv
 from database.service_db import create_service, update_service, get_service_by_id
 from database.vehicle_db import get_vehicle_by_id
+from ui.ui_utils import (create_form_window, create_form_frame, create_label,
+                         create_entry, create_text_area, create_combobox,
+                         create_buttons_frame, create_button, create_info_section)
 
 # Load environment variables
 load_dotenv()
@@ -40,29 +43,33 @@ class ServiceForm:
             messagebox.showerror("Error", "Vehicle not found")
             return
 
-        # Create window
-        self.window = tk.Toplevel(parent)
-
-        # Set window title
+        # Get service info if editing
         if service_id:
             self.service = get_service_by_id(service_id)
             if not self.service:
                 messagebox.showerror("Error", "Service not found")
-                self.window.destroy()
                 return
-            self.window.title(f"Edit Service for {self.vehicle['make']} {self.vehicle['model']}")
+            title = f"Edit Service for {self.vehicle['make']} {self.vehicle['model']}"
         else:
             self.service = None
-            self.window.title(f"New Service for {self.vehicle['make']} {self.vehicle['model']}")
+            title = f"New Service for {self.vehicle['make']} {self.vehicle['model']}"
 
-        self.window.geometry("500x550")
-        self.window.configure(bg="#f0f0f0")
+        # Create window
+        self.window = create_form_window(parent, title, height=550)
 
-        # Get mechanics list
+        # Fetch data from database
+        self.fetch_data()
+
+        # Setup UI
+        self.setup_ui()
+
+    def fetch_data(self):
+        """Fetch necessary data from the database"""
         import sqlite3
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
+        # Get mechanics list
         cursor.execute("""
         SELECT id, username FROM users 
         WHERE role = 'mechanic' OR role = 'admin'
@@ -77,65 +84,11 @@ class ServiceForm:
         ORDER BY service_type
         """)
 
-        service_types = [row[0] for row in cursor.fetchall()]
-        if not service_types:
-            service_types = ["Maintenance", "Repair", "Diagnosis", "Warranty Work", "Other"]
+        self.service_types = [row[0] for row in cursor.fetchall()]
+        if not self.service_types:
+            self.service_types = ["Maintenance", "Repair", "Diagnosis", "Warranty Work", "Other"]
 
         conn.close()
-
-        # Setup UI
-        self.setup_ui(service_types)
-
-    def setup_ui(self, service_types):
-        """Set up the form UI"""
-        # Service data frame
-        form_frame = tk.Frame(self.window, bg="#f0f0f0", padx=20, pady=20)
-        form_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Vehicle and customer info
-        vehicle_info = f"{self.vehicle['year']} {self.vehicle['make']} {self.vehicle['model']}"
-        if self.vehicle['license_plate']:
-            vehicle_info += f" ({self.vehicle['license_plate']})"
-
-        info_label = tk.Label(form_frame,
-                              text=f"Vehicle: {vehicle_info}\nCustomer: {self.vehicle['customer_name']}",
-                              font=("Arial", 12), bg="#f0f0f0", justify=tk.LEFT)
-        info_label.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=10)
-
-        # Service Type
-        type_label = tk.Label(form_frame, text="Service Type:", font=("Arial", 12), bg="#f0f0f0")
-        type_label.grid(row=1, column=0, sticky=tk.W, pady=5)
-
-        self.service_type_var = tk.StringVar()
-
-        # Allow custom types by using Combobox
-        self.type_entry = ttk.Combobox(form_frame, textvariable=self.service_type_var,
-                                       values=service_types, width=28)
-        self.type_entry.grid(row=1, column=1, pady=5, padx=5, sticky=tk.W)
-
-        # Description
-        desc_label = tk.Label(form_frame, text="Description:", font=("Arial", 12), bg="#f0f0f0")
-        desc_label.grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.desc_text = tk.Text(form_frame, font=("Arial", 12), width=30, height=4)
-        self.desc_text.grid(row=2, column=1, pady=5, padx=5, sticky=tk.W)
-
-        # Status
-        status_label = tk.Label(form_frame, text="Status:", font=("Arial", 12), bg="#f0f0f0")
-        status_label.grid(row=3, column=0, sticky=tk.W, pady=5)
-
-        statuses = ["Pending", "In Progress", "Awaiting Parts", "On Hold", "Completed", "Cancelled"]
-        self.status_var = tk.StringVar()
-        self.status_var.set(statuses[0])  # Default to pending
-
-        status_dropdown = ttk.Combobox(form_frame, textvariable=self.status_var,
-                                       values=statuses, width=28)
-        status_dropdown.grid(row=3, column=1, pady=5, padx=5, sticky=tk.W)
-
-        # Mechanic assignment
-        mech_label = tk.Label(form_frame, text="Assign To:", font=("Arial", 12), bg="#f0f0f0")
-        mech_label.grid(row=4, column=0, sticky=tk.W, pady=5)
-
-        self.mechanic_var = tk.StringVar()
 
         # Create map of mechanic names to IDs
         self.mechanic_names = []
@@ -145,45 +98,77 @@ class ServiceForm:
             self.mechanic_names.append(mech_name)
             self.mechanic_id_map[mech_name] = mech_id
 
+    def setup_ui(self):
+        """Set up the form UI"""
+        # Service data frame
+        form_frame = create_form_frame(self.window)
+        form_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Vehicle and customer info
+        vehicle_info = f"{self.vehicle['year']} {self.vehicle['make']} {self.vehicle['model']}"
+        if self.vehicle['license_plate']:
+            vehicle_info += f" ({self.vehicle['license_plate']})"
+
+        info_text = f"Vehicle: {vehicle_info}\nCustomer: {self.vehicle['customer_name']}"
+        create_info_section(form_frame, info_text, 0, 0)
+
+        # Service Type
+        create_label(form_frame, "Service Type:", 1, 0)
+        self.service_type_var = tk.StringVar()
+        self.type_entry = create_combobox(
+            form_frame, 1, 1,
+            values=self.service_types,
+            textvariable=self.service_type_var
+        )
+
+        # Description
+        create_label(form_frame, "Description:", 2, 0)
+        self.desc_text = create_text_area(form_frame, 2, 1)
+
+        # Status
+        create_label(form_frame, "Status:", 3, 0)
+        statuses = ["Pending", "In Progress", "Awaiting Parts", "On Hold", "Completed", "Cancelled"]
+        self.status_var = tk.StringVar()
+        self.status_var.set(statuses[0])  # Default to pending
+        create_combobox(
+            form_frame, 3, 1,
+            values=statuses,
+            textvariable=self.status_var
+        )
+
+        # Mechanic assignment
+        create_label(form_frame, "Assign To:", 4, 0)
+        self.mechanic_var = tk.StringVar()
+
         # Default to current user if they're a mechanic
         if self.user and self.user['role'] in ['mechanic', 'admin'] and self.mechanic_names:
             self.mechanic_var.set(self.user['username'])
         elif self.mechanic_names:
             self.mechanic_var.set(self.mechanic_names[0])
 
-        mech_dropdown = ttk.Combobox(form_frame, textvariable=self.mechanic_var,
-                                     values=self.mechanic_names, width=28)
-        mech_dropdown.grid(row=4, column=1, pady=5, padx=5, sticky=tk.W)
+        create_combobox(
+            form_frame, 4, 1,
+            values=self.mechanic_names,
+            textvariable=self.mechanic_var
+        )
 
         # Estimated completion
-        est_label = tk.Label(form_frame, text="Est. Completion:", font=("Arial", 12), bg="#f0f0f0")
-        est_label.grid(row=5, column=0, sticky=tk.W, pady=5)
-
+        create_label(form_frame, "Est. Completion:", 5, 0)
         tomorrow = datetime.datetime.now() + datetime.timedelta(days=1)
         self.est_date = tk.StringVar()
         self.est_date.set(tomorrow.strftime("%Y-%m-%d"))
-
-        est_entry = tk.Entry(form_frame, font=("Arial", 12), width=30,
-                             textvariable=self.est_date)
-        est_entry.grid(row=5, column=1, pady=5, padx=5, sticky=tk.W)
+        create_entry(form_frame, 5, 1, textvariable=self.est_date)
 
         # Cost estimate
-        cost_label = tk.Label(form_frame, text="Cost Estimate ($):", font=("Arial", 12), bg="#f0f0f0")
-        cost_label.grid(row=6, column=0, sticky=tk.W, pady=5)
-
+        create_label(form_frame, "Cost Estimate ($):", 6, 0)
         self.cost_var = tk.StringVar()
         self.cost_var.set("0.00")
-
-        cost_entry = tk.Entry(form_frame, font=("Arial", 12), width=30,
-                              textvariable=self.cost_var)
-        cost_entry.grid(row=6, column=1, pady=5, padx=5, sticky=tk.W)
+        create_entry(form_frame, 6, 1, textvariable=self.cost_var)
 
         # Check-in notes (for new services)
         if not self.service_id:
-            notes_label = tk.Label(form_frame, text="Check-in Notes:", font=("Arial", 12), bg="#f0f0f0")
-            notes_label.grid(row=7, column=0, sticky=tk.W, pady=5)
-            self.notes_text = tk.Text(form_frame, font=("Arial", 12), width=30, height=4)
-            self.notes_text.grid(row=7, column=1, pady=5, padx=5, sticky=tk.W)
+            create_label(form_frame, "Check-in Notes:", 7, 0)
+            self.notes_text = create_text_area(form_frame, 7, 1)
 
         # Fill values if editing
         if self.service:
@@ -203,18 +188,26 @@ class ServiceForm:
                 self.cost_var.set(f"{self.service['cost']:.2f}")
 
         # Buttons frame
-        buttons_frame = tk.Frame(form_frame, bg="#f0f0f0")
-        buttons_frame.grid(row=8, column=0, columnspan=2, pady=20)
+        buttons_frame = create_buttons_frame(form_frame, 8, 0)
 
         # Save button
-        save_button = tk.Button(buttons_frame, text="Save", font=("Arial", 12, "bold"),
-                                bg="#4CAF50", fg="white", padx=10, command=self.save_service)
-        save_button.grid(row=0, column=0, padx=10)
+        create_button(
+            buttons_frame,
+            "Save",
+            self.save_service,
+            column=0,
+            is_primary=True
+        )
 
         # Cancel button
-        cancel_button = tk.Button(buttons_frame, text="Cancel", font=("Arial", 12, "bold"),
-                                  bg="#F44336", fg="white", padx=10, command=self.window.destroy)
-        cancel_button.grid(row=0, column=1, padx=10)
+        create_button(
+            buttons_frame,
+            "Cancel",
+            self.window.destroy,
+            column=1,
+            is_primary=False,
+            is_danger=True
+        )
 
     def save_service(self):
         """Save the service to the database"""

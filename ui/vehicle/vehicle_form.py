@@ -1,10 +1,13 @@
-#ui/vehicle/vehicle_form.py
+# ui/vehicle/vehicle_form.py
 import tkinter as tk
 from tkinter import messagebox
 import os
 from dotenv import load_dotenv
 from database.vehicle_db import create_vehicle, update_vehicle, get_vehicle_by_id
 from database.customer_db import get_customer_by_id
+from ui.ui_utils import (create_form_window, create_form_frame, create_label,
+                        create_entry, create_buttons_frame, create_button,
+                        FONTS)
 
 # Load environment variables
 load_dotenv()
@@ -37,19 +40,16 @@ class VehicleForm:
             messagebox.showerror("Error", "Customer not found")
             return
 
-        # Create window
-        self.window = tk.Toplevel(parent)
-
         # Load vehicle data if editing
         self.vehicle = None
         if vehicle_id:
             self.vehicle = get_vehicle_by_id(vehicle_id)
-            self.window.title(f"Edit Vehicle: {self.vehicle['make']} {self.vehicle['model']}")
+            title = f"Edit Vehicle: {self.vehicle['make']} {self.vehicle['model']}"
         else:
-            self.window.title(f"Add Vehicle for {self.customer['name']}")
+            title = f"Add Vehicle for {self.customer['name']}"
 
-        self.window.geometry("500x400")
-        self.window.configure(bg="#f0f0f0")
+        # Create window
+        self.window = create_form_window(parent, title)
 
         # Setup UI
         self.setup_ui()
@@ -57,44 +57,36 @@ class VehicleForm:
     def setup_ui(self):
         """Set up the form UI"""
         # Vehicle data frame
-        form_frame = tk.Frame(self.window, bg="#f0f0f0", padx=20, pady=20)
+        form_frame = create_form_frame(self.window)
         form_frame.pack(fill=tk.BOTH, expand=True)
 
         # Customer info
-        customer_label = tk.Label(form_frame,
-                                  text=f"Customer: {self.customer['name']}",
-                                  font=("Arial", 12, "bold"), bg="#f0f0f0")
-        customer_label.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=10)
+        create_label(form_frame,
+                    f"Customer: {self.customer['name']}",
+                    0, 0,
+                    columnspan=2,
+                    font=FONTS['normal_bold'],
+                    pady=10)
 
         # Make
-        make_label = tk.Label(form_frame, text="Make:", font=("Arial", 12), bg="#f0f0f0")
-        make_label.grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.make_entry = tk.Entry(form_frame, font=("Arial", 12), width=30)
-        self.make_entry.grid(row=1, column=1, pady=5, padx=5, sticky=tk.W)
+        create_label(form_frame, "Make:", 1, 0)
+        self.make_entry = create_entry(form_frame, 1, 1)
 
         # Model
-        model_label = tk.Label(form_frame, text="Model:", font=("Arial", 12), bg="#f0f0f0")
-        model_label.grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.model_entry = tk.Entry(form_frame, font=("Arial", 12), width=30)
-        self.model_entry.grid(row=2, column=1, pady=5, padx=5, sticky=tk.W)
+        create_label(form_frame, "Model:", 2, 0)
+        self.model_entry = create_entry(form_frame, 2, 1)
 
         # Year
-        year_label = tk.Label(form_frame, text="Year:", font=("Arial", 12), bg="#f0f0f0")
-        year_label.grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.year_entry = tk.Entry(form_frame, font=("Arial", 12), width=30)
-        self.year_entry.grid(row=3, column=1, pady=5, padx=5, sticky=tk.W)
+        create_label(form_frame, "Year:", 3, 0)
+        self.year_entry = create_entry(form_frame, 3, 1)
 
         # VIN
-        vin_label = tk.Label(form_frame, text="VIN:", font=("Arial", 12), bg="#f0f0f0")
-        vin_label.grid(row=4, column=0, sticky=tk.W, pady=5)
-        self.vin_entry = tk.Entry(form_frame, font=("Arial", 12), width=30)
-        self.vin_entry.grid(row=4, column=1, pady=5, padx=5, sticky=tk.W)
+        create_label(form_frame, "VIN:", 4, 0)
+        self.vin_entry = create_entry(form_frame, 4, 1)
 
         # License Plate
-        plate_label = tk.Label(form_frame, text="License Plate:", font=("Arial", 12), bg="#f0f0f0")
-        plate_label.grid(row=5, column=0, sticky=tk.W, pady=5)
-        self.plate_entry = tk.Entry(form_frame, font=("Arial", 12), width=30)
-        self.plate_entry.grid(row=5, column=1, pady=5, padx=5, sticky=tk.W)
+        create_label(form_frame, "License Plate:", 5, 0)
+        self.plate_entry = create_entry(form_frame, 5, 1)
 
         # Fill values if editing
         if self.vehicle:
@@ -105,18 +97,26 @@ class VehicleForm:
             self.plate_entry.insert(0, self.vehicle.get('license_plate', ''))
 
         # Buttons frame
-        buttons_frame = tk.Frame(form_frame, bg="#f0f0f0")
-        buttons_frame.grid(row=6, column=0, columnspan=2, pady=20)
+        buttons_frame = create_buttons_frame(form_frame, 6, 0)
 
         # Save button
-        save_button = tk.Button(buttons_frame, text="Save", font=("Arial", 12, "bold"),
-                                bg="#4CAF50", fg="white", padx=10, command=self.save_vehicle)
-        save_button.grid(row=0, column=0, padx=10)
+        create_button(
+            buttons_frame,
+            "Save",
+            self.save_vehicle,
+            column=0,
+            is_primary=True
+        )
 
         # Cancel button
-        cancel_button = tk.Button(buttons_frame, text="Cancel", font=("Arial", 12, "bold"),
-                                  bg="#F44336", fg="white", padx=10, command=self.window.destroy)
-        cancel_button.grid(row=0, column=1, padx=10)
+        create_button(
+            buttons_frame,
+            "Cancel",
+            self.window.destroy,
+            column=1,
+            is_primary=False,
+            is_danger=True
+        )
 
     def save_vehicle(self):
         """Save the vehicle to the database"""

@@ -1,0 +1,168 @@
+/*  static/styles.css */
+
+/* Main application styles */
+:root {
+  /* Color variables */
+  --primary-color: #4CAF50;
+  --danger-color: #F44336;
+  --bg-color: #f0f0f0;
+  --text-color: #333;
+  --border-color: #ccc;
+
+  /* Spacing */
+  --padding-sm: 5px;
+  --padding-md: 10px;
+  --padding-lg: 20px;
+
+  /* Font sizes */
+  --font-sm: 0.9rem;
+  --font-md: 1rem;
+  --font-lg: 1.2rem;
+}
+
+/* Base styling for the application */
+.app {
+  background-color: var(--bg-color);
+  font-family: Arial, sans-serif;
+  color: var(--text-color);
+}
+
+/* Form styling */
+.form-container {
+  padding: var(--padding-lg);
+  background-color: var(--bg-color);
+}
+
+.form-row {
+  margin-bottom: var(--padding-md);
+}
+
+.form-label {
+  font-size: var(--font-md);
+  font-weight: normal;
+}
+
+.form-bold-label {
+  font-size: var(--font-lg);
+  font-weight: bold;
+}
+
+.form-entry {
+  font-size: var(--font-md);
+  padding: var(--padding-sm);
+  width: 300px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+}
+
+.form-textarea {
+  font-size: var(--font-md);
+  padding: var(--padding-sm);
+  width: 300px;
+  height: 80px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+}
+
+/* Button styles */
+.button-container {
+  margin-top: var(--padding-lg);
+}
+
+.button {
+  font-size: var(--font-md);
+  font-weight: bold;
+  padding: var(--padding-sm) var(--padding-md);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-right: var(--padding-md);
+}
+
+.primary-button {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.primary-button:hover {
+  background-color: #45a049;
+}
+
+.danger-button {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.danger-button:hover {
+  background-color: #d32f2f;
+}
+
+/* Dropdown/Combobox styling */
+.dropdown {
+  font-size: var(--font-md);
+  padding: var(--padding-sm);
+  width: 300px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+}
+
+/* Info section styling */
+.info-section {
+  padding: var(--padding-md);
+  margin-bottom: var(--padding-md);
+  background-color: #e8f5e9;
+  border-radius: 3px;
+}
+
+/* Table styling for lists */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  background-color: var(--primary-color);
+  color: white;
+  padding: var(--padding-sm);
+  text-align: left;
+}
+
+.table td {
+  padding: var(--padding-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.table tr:nth-child(even) {
+  background-color: #e9e9e9;
+}
+
+.table tr:hover {
+  background-color: #d9d9d9;
+}
+
+/* Header and logo styling */
+.header {
+  width: 100%;
+  background-color: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: var(--padding-md) 0;
+  display: flex;
+  align-items: center;
+}
+
+.header-with-title {
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  height: 60px;
+  margin-left: var(--padding-lg);
+  margin-right: var(--padding-md);
+}
+
+.app-title {
+  color: var(--primary-color);
+  font-size: 1.8rem;
+  font-weight: bold;
+}
