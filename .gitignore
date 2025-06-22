@@ -28,6 +28,11 @@ env/
 ENV/
 .env
 
+assets/van sketch gpt.png
+
+.ebextensions/
+.ebignore
+
 # IDE files
 .idea/
 .vscode/
