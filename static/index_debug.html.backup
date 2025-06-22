@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>OL Service POS - Debug</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; color: white; padding: 20px;
+        }
+        .header {
+            background: rgba(44, 62, 80, 0.9); padding: 20px; border-radius: 15px;
+            text-align: center; margin-bottom: 20px;
+        }
+        .nav-button {
+            display: block; width: 100%; padding: 20px; margin: 15px 0;
+            background: rgba(255, 255, 255, 0.9); color: #2c3e50; border: none;
+            border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer;
+        }
+        .test-area {
+            background: rgba(255, 255, 255, 0.9); color: #2c3e50;
+            border-radius: 15px; padding: 20px; margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚐 OL Service POS</h1>
+        <p>Debug Mode - iPhone Testing</p>
+        <div style="margin-top: 10px;">
+            <span style="display: inline-block; width: 10px; height: 10px; background: #27ae60; border-radius: 50%; margin-right: 8px;"></span>
+            System Online
+        </div>
+    </div>
+
+    <button class="nav-button" onclick="testAPI()">📡 Test API Connection</button>
+    <button class="nav-button" onclick="testCustomers()">👥 Test Customers</button>
+    <button class="nav-button" onclick="testTouch()">👆 Test Touch</button>
+
+    <div id="results" class="test-area" style="display: none;">
+        <h3>Test Results</h3>
+        <div id="output">Ready for testing...</div>
+    </div>
+
+    <script>
+        console.log('🚀 Debug script starting...');
+        
+        function showResults() {
+            document.getElementById('results').style.display = 'block';
+        }
+        
+        async function testAPI() {
+            showResults();
+            const output = document.getElementById('output');
+            output.innerHTML = 'Testing API...';
+            
+            try {
+                const response = await fetch('/api');
+                const data = await response.json();
+                output.innerHTML = `✅ API Working!<br>Name: ${data.name}<br>Version: ${data.version}`;
+                if (navigator.vibrate) navigator.vibrate(50);
+            } catch (error) {
+                output.innerHTML = `❌ API Error: ${error.message}`;
+            }
+        }
+        
+        async function testCustomers() {
+            showResults();
+            const output = document.getElementById('output');
+            output.innerHTML = 'Loading customers...';
+            
+            try {
+                const response = await fetch('/api/customers');
+                const data = await response.json();
+                const customers = data.customers || [];
+                output.innerHTML = `✅ Loaded ${customers.length} customers<br>${customers.map(c => c.name).join(', ')}`;
+            } catch (error) {
+                output.innerHTML = `❌ Customer Error: ${error.message}`;
+            }
+        }
+        
+        function testTouch() {
+            showResults();
+            const output = document.getElementById('output');
+            output.innerHTML = `
+                <div style="background: #f0f0f0; height: 100px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin: 10px 0;" onclick="handleTouch(event)">
+                    Tap here to test touch
+                </div>
+                <div id="touchOutput">Waiting for touch...</div>
+            `;
+        }
+        
+        function handleTouch(event) {
+            document.getElementById('touchOutput').innerHTML = '✅ Touch detected!';
+            if (navigator.vibrate) navigator.vibrate(100);
+        }
+        
+        // Auto-test API on load
+        setTimeout(testAPI, 500);
+        console.log('✅ Debug ready');
+    </script>
+</body>
+</html>

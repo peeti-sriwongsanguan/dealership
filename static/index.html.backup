@@ -1,4 +1,4 @@
-<!-- static/index.html production -->
+<!-- static/index.html not working -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,28 +6,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>OL Service POS - Professional Mobile Interface</title>
 
-    <!-- Meta tags -->
-    <meta name="theme-color" content="#2c3e50">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="OL Service POS">
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/mobile.css">
+    <link rel="stylesheet" href="/static/css/components.css">
 
     <!-- Favicon and PWA manifest -->
     <link rel="icon" type="image/svg+xml" href="/static/icons/favicon.svg">
     <link rel="manifest" href="/static/manifest.json">
-    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#2c3e50">
 
-    <!-- CSS Files -->
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <link rel="stylesheet" href="/static/css/components.css">
-    <link rel="stylesheet" href="/static/css/mobile.css">
+    <!-- Apple specific meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OL Service POS">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
 </head>
 <body>
     <!-- Loading screen -->
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-content">
             <div class="logo-container">
-                <img src="/static/icons/logo.svg" alt="OL Service" class="loading-logo" onerror="this.innerHTML='🚐'; this.style.display='flex'; this.style.alignItems='center'; this.style.justifyContent='center'; this.style.fontSize='2rem';">
+                <img src="/static/icons/logo.svg" alt="OL Service" class="loading-logo">
             </div>
             <div class="loading-spinner"></div>
             <p class="loading-text">Loading OL Service POS...</p>
@@ -40,7 +40,7 @@
         <header class="app-header">
             <div class="header-content">
                 <div class="logo-section">
-                    <img src="/static/icons/logo.svg" alt="OL Service" class="header-logo" onerror="this.innerHTML='🚐'; this.style.display='flex'; this.style.alignItems='center'; this.style.justifyContent='center'; this.style.fontSize='1.5rem';">
+                    <img src="/static/icons/logo.svg" alt="OL Service" class="header-logo">
                     <div class="header-text">
                         <h1 class="app-title">OL Service POS</h1>
                         <p class="app-subtitle">Professional Vehicle Service Management</p>
@@ -182,22 +182,18 @@
         </div>
     </div>
 
-    <!-- JavaScript modules in correct dependency order -->
+    <!-- JavaScript modules -->
     <script src="/static/js/config.js"></script>
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/api.js"></script>
     <script src="/static/js/ui.js"></script>
     <script src="/static/js/components.js"></script>
-
-    <!-- Module scripts -->
     <script src="/static/js/modules/customers.js"></script>
     <script src="/static/js/modules/vehicles.js"></script>
     <script src="/static/js/modules/services.js"></script>
     <script src="/static/js/modules/damage.js"></script>
     <script src="/static/js/modules/photos.js"></script>
     <script src="/static/js/modules/reports.js"></script>
-
-    <!-- Main application script (must be last) -->
     <script src="/static/js/app.js"></script>
 </body>
 </html>
