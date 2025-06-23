@@ -1,4 +1,4 @@
-// static/js/app.js
+// static/js/app.js - Updated with Settings Support
 /**
  * OL Service POS - Main Application Controller
  * Professional mobile-first service management system
@@ -120,6 +120,11 @@ class OLServiceApp {
         // Initialize utility functions
         if (window.Utils) {
             window.Utils.init();
+        }
+
+        // Initialize Components
+        if (window.Components) {
+            window.Components.init();
         }
     }
 
@@ -339,7 +344,7 @@ class OLServiceApp {
      * Initialize modules
      */
     async initializeModules() {
-        const modules = ['Customers', 'Vehicles', 'Services', 'Damage', 'Photos', 'Reports'];
+        const modules = ['Settings', 'Customers', 'Vehicles', 'Services', 'Damage', 'Photos', 'Reports'];
 
         for (const moduleName of modules) {
             if (window[moduleName]) {
@@ -388,6 +393,9 @@ class OLServiceApp {
                     break;
                 case 'reports':
                     await this.loadReportsSection();
+                    break;
+                case 'settings':
+                    await this.loadSettingsSection();
                     break;
                 default:
                     throw new Error(`Unknown section: ${sectionName}`);
@@ -464,6 +472,17 @@ class OLServiceApp {
             await window.Reports.load();
         } else {
             throw new Error('Reports module not available');
+        }
+    }
+
+    /**
+     * Load settings section
+     */
+    async loadSettingsSection() {
+        if (window.Settings) {
+            await window.Settings.load();
+        } else {
+            throw new Error('Settings module not available');
         }
     }
 

@@ -21,6 +21,38 @@
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/components.css">
     <link rel="stylesheet" href="/static/css/mobile.css">
+    <link rel="stylesheet" href="/static/css/settings.css">
+
+    <!-- CSS Custom Properties for Theming -->
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        /* Apply theme variables */
+        body {
+            background: var(--gradient);
+        }
+
+        .nav-icon, .stat-card, .button-primary, .modal-header, .avatar {
+            background: var(--brand-gradient) !important;
+        }
+
+        .app-header {
+            background: rgba(44, 62, 80, 0.95);
+        }
+
+        .status-dot {
+            background: #27ae60;
+        }
+
+        .status-dot.offline {
+            background: #e74c3c;
+        }
+    </style>
 </head>
 <body>
     <!-- Loading screen -->
@@ -104,6 +136,14 @@
                     <div class="nav-text">
                         <span class="nav-title">Reports</span>
                         <span class="nav-subtitle">Analytics and insights</span>
+                    </div>
+                </button>
+
+                <button class="nav-button nav-settings" data-section="settings">
+                    <div class="nav-icon">⚙️</div>
+                    <div class="nav-text">
+                        <span class="nav-title">Settings</span>
+                        <span class="nav-subtitle">Customize your experience</span>
                     </div>
                 </button>
             </div>
@@ -191,6 +231,12 @@
 
     <!-- Module scripts -->
     <script src="/static/js/modules/customers.js"></script>
+    <script src="/static/js/modules/vehicles.js"></script>
+    <script src="/static/js/modules/services.js"></script>
+    <script src="/static/js/modules/damage.js"></script>
+    <script src="/static/js/modules/photos.js"></script>
+    <script src="/static/js/modules/reports.js"></script>
+    <script src="/static/js/modules/settings.js"></script>>
     <script src="/static/js/modules/vehicles.js"></script>
     <script src="/static/js/modules/services.js"></script>
     <script src="/static/js/modules/damage.js"></script>
