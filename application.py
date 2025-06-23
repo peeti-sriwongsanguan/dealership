@@ -270,6 +270,10 @@ def upload_photo():
 
     return jsonify({'error': 'File type not allowed'}), 400
 
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    return send_from_directory('assets', filename)
+
 
 @app.route('/photos/<filename>')
 def get_photo(filename):
