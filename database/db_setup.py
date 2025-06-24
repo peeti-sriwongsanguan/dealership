@@ -1,8 +1,9 @@
-# database/db_setup.py (Enhanced Version)
+# database/db_setup.py (Enhanced with Photo Documentation)
 
 """
 Database Setup for OL Service POS System
 Creates tables and initializes the database with sample data
+Enhanced with comprehensive photo documentation system
 """
 
 import sqlite3
@@ -95,7 +96,69 @@ def create_tables():
             )
         """)
 
-        # Photos table for vehicle documentation
+        # Enhanced Vehicle Photos Table for comprehensive documentation
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS vehicle_photos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vehicle_id INTEGER NOT NULL,
+                customer_id INTEGER NOT NULL,
+                service_id INTEGER,
+                category VARCHAR(50) NOT NULL DEFAULT 'general',
+                angle VARCHAR(100),
+                description TEXT,
+                filename VARCHAR(255) NOT NULL,
+                file_path VARCHAR(500) NOT NULL,
+                file_size INTEGER,
+                mime_type VARCHAR(100) DEFAULT 'image/jpeg',
+                thumbnail_path VARCHAR(500),
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_by VARCHAR(100),
+                metadata TEXT,
+                image_width INTEGER,
+                image_height INTEGER,
+
+                FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+                FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+                FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
+            )
+        """)
+
+        # Photo Sessions Table (groups related photos)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS photo_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                vehicle_id INTEGER NOT NULL,
+                customer_id INTEGER NOT NULL,
+                service_id INTEGER,
+                session_type VARCHAR(50) NOT NULL,
+                session_name VARCHAR(200),
+                start_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                end_time DATETIME,
+                created_by VARCHAR(100),
+                notes TEXT,
+                total_photos INTEGER DEFAULT 0,
+                status VARCHAR(50) DEFAULT 'active',
+
+                FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
+                FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+                FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
+            )
+        """)
+
+        # Link photos to sessions
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS session_photos (
+                session_id INTEGER NOT NULL,
+                photo_id INTEGER NOT NULL,
+                sequence_order INTEGER DEFAULT 0,
+
+                PRIMARY KEY (session_id, photo_id),
+                FOREIGN KEY (session_id) REFERENCES photo_sessions(id) ON DELETE CASCADE,
+                FOREIGN KEY (photo_id) REFERENCES vehicle_photos(id) ON DELETE CASCADE
+            )
+        """)
+
+        # Photos table (keeping for backwards compatibility)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS photos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -177,6 +240,15 @@ def create_tables():
                 FOREIGN KEY (user_id) REFERENCES users (id)
             )
         """)
+
+        # Create indexes for better performance
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_vehicle_photos_vehicle_id ON vehicle_photos(vehicle_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_vehicle_photos_customer_id ON vehicle_photos(customer_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_vehicle_photos_category ON vehicle_photos(category)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_vehicle_photos_timestamp ON vehicle_photos(timestamp)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_photo_sessions_vehicle_id ON photo_sessions(vehicle_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_photo_sessions_session_type ON photo_sessions(session_type)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_session_photos_session_id ON session_photos(session_id)")
 
         conn.commit()
         print("✅ Database tables created successfully")
@@ -304,20 +376,22 @@ def create_test_data():
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, service)
 
-            # Create sample damage reports
-            sample_damage_reports = [
-                (5, 6, "van", "[]", 0.0, datetime.now().isoformat(), datetime.now().isoformat(),
-                 "Pre-delivery inspection damage assessment"),
-                (2, 3, "truck", "[]", 0.0, (datetime.now() - timedelta(days=3)).isoformat(),
-                 (datetime.now() - timedelta(days=3)).isoformat(), "Customer reported damage assessment")
+            # Create sample photo sessions
+            sample_photo_sessions = [
+                (6, 5, 5, "check-in", "Pre-delivery Check-in Photos",
+                 (datetime.now() - timedelta(hours=2)).isoformat(), None, "admin",
+                 "Initial vehicle documentation for pre-delivery inspection", 0),
+                (3, 2, 2, "service-documentation", "Brake Inspection Photos",
+                 (datetime.now() - timedelta(hours=4)).isoformat(), None, "mechanic",
+                 "Documentation during brake system inspection", 0)
             ]
 
-            for report in sample_damage_reports:
+            for session in sample_photo_sessions:
                 cursor.execute("""
-                    INSERT INTO damage_reports (customer_id, vehicle_id, vehicle_type, damage_points, 
-                                              total_estimated_cost, created_at, updated_at, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, report)
+                    INSERT INTO photo_sessions (vehicle_id, customer_id, service_id, session_type, session_name,
+                                              start_time, end_time, created_by, notes, total_photos)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, session)
 
             # Create sample settings
             sample_settings = [
@@ -325,6 +399,11 @@ def create_test_data():
                 ("ui", "window_width", "1200", "Main window width"),
                 ("ui", "window_height", "800", "Main window height"),
                 ("camera", "default_camera", "0", "Default camera device ID"),
+                ("camera", "photo_quality", "high", "Default photo quality setting"),
+                ("camera", "auto_thumbnail", "true", "Generate thumbnails automatically"),
+                ("photos", "required_angles", "front,rear,driver_side,passenger_side",
+                 "Required photo angles for check-in"),
+                ("photos", "max_file_size", "10485760", "Maximum photo file size in bytes (10MB)"),
                 ("system", "backup_enabled", "true", "Enable automatic backups"),
                 ("system", "backup_interval", "24", "Backup interval in hours")
             ]
@@ -456,5 +535,10 @@ if __name__ == "__main__":
         print("   Username: admin    Password: admin123")
         print("   Username: mechanic Password: mech123")
         print("   Username: manager  Password: manager123")
+        print("\n📸 Photo Documentation Features:")
+        print("   - Check-in/Check-out photo sessions")
+        print("   - Service documentation photos")
+        print("   - Damage inspection with photos")
+        print("   - Automatic thumbnail generation")
     else:
         print("\n❌ Database setup failed. Please check the error messages above.")

@@ -1,4 +1,4 @@
-# application.py - For AWS Elastic Beanstalk deployment
+# application.py - Enhanced with Photo Documentation System
 from flask import Flask, request, jsonify, send_from_directory, render_template
 import os
 import sqlite3
@@ -9,6 +9,9 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import uuid
+from PIL import Image
+import io
+import base64
 
 # Try to import database modules - with fallback for first-time deployment
 try:
@@ -31,16 +34,22 @@ application = app = Flask(__name__, static_folder='static')
 CORS(app)  # Enable CORS for all routes
 
 # Configure uploads
-PHOTOS_DIR = os.getenv('PHOTOS_DIR', 'vehicle_photos')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+PHOTOS_DIR = os.getenv('PHOTOS_DIR', 'media/photos')
+THUMBNAILS_DIR = os.getenv('THUMBNAILS_DIR', 'media/thumbnails')
+DAMAGE_REPORTS_DIR = os.getenv('DAMAGE_REPORTS_DIR', 'media/damage_reports')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+THUMBNAIL_SIZE = (300, 300)
 
 # Set the upload folder for vehicle photos
 app.config['UPLOAD_FOLDER'] = PHOTOS_DIR
+app.config['THUMBNAILS_FOLDER'] = THUMBNAILS_DIR
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
 # Ensure necessary directories exist
 os.makedirs(PHOTOS_DIR, exist_ok=True)
+os.makedirs(THUMBNAILS_DIR, exist_ok=True)
+os.makedirs(DAMAGE_REPORTS_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 # Initialize the database
@@ -61,7 +70,24 @@ def allowed_file(filename):
         filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-# Routes
+def create_thumbnail(image_path, thumbnail_path, size=THUMBNAIL_SIZE):
+    """Create a thumbnail from an image"""
+    try:
+        with Image.open(image_path) as image:
+            # Convert to RGB if necessary
+            if image.mode in ('RGBA', 'LA', 'P'):
+                image = image.convert('RGB')
+
+            # Create thumbnail
+            image.thumbnail(size, Image.Resampling.LANCZOS)
+            image.save(thumbnail_path, 'JPEG', quality=85, optimize=True)
+            return True
+    except Exception as e:
+        logger.error(f"Error creating thumbnail: {e}")
+        return False
+
+
+# Basic Routes
 @app.route('/', methods=['GET'])
 def index():
     """Serve the home page"""
@@ -72,26 +98,17 @@ def index():
 def api_info():
     """API information endpoint"""
     return jsonify({
-        "name": "Auto Service Management API",
-        "version": os.getenv('APP_VERSION', '1.0.0'),
+        "name": "OL Service POS API with Photo Documentation",
+        "version": os.getenv('APP_VERSION', '2.0.0'),
         "database": DB_PATH,
-        "endpoints": [
-            {"path": "/", "methods": ["GET"], "description": "Home page"},
-            {"path": "/api", "methods": ["GET"], "description": "API information"},
-            {"path": "/api/customers", "methods": ["GET", "POST"],
-             "description": "Get all customers or create a new customer"},
-            {"path": "/api/customers/<id>", "methods": ["GET", "PUT", "DELETE"],
-             "description": "Get, update or delete a specific customer"},
-            {"path": "/api/vehicles", "methods": ["GET", "POST"],
-             "description": "Get all vehicles or create a new vehicle"},
-            {"path": "/api/vehicles/<id>", "methods": ["GET", "PUT", "DELETE"],
-             "description": "Get, update or delete a specific vehicle"},
-            {"path": "/api/services", "methods": ["GET", "POST"],
-             "description": "Get all services or create a new service"},
-            {"path": "/api/services/<id>", "methods": ["GET", "PUT", "DELETE"],
-             "description": "Get, update or delete a specific service"},
-            {"path": "/forms", "methods": ["GET", "POST"], "description": "Get all forms or create a new form"},
-            {"path": "/quotes", "methods": ["GET", "POST"], "description": "Get all quotes or create a new quote"}
+        "features": [
+            "Customer Management",
+            "Vehicle Management",
+            "Service Management",
+            "Photo Documentation System",
+            "Check-in/Check-out Photo Sessions",
+            "Damage Inspection",
+            "Automated Thumbnail Generation"
         ]
     })
 
@@ -102,83 +119,563 @@ def serve_static(path):
     return send_from_directory('static', path)
 
 
+# Photo Session Management API
+@app.route('/api/photo-sessions', methods=['GET'])
+def get_photo_sessions():
+    """Get all photo sessions with optional filtering"""
+    try:
+        vehicle_id = request.args.get('vehicle_id')
+        customer_id = request.args.get('customer_id')
+        service_id = request.args.get('service_id')
+        session_type = request.args.get('session_type')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT ps.*, 
+                   c.first_name || ' ' || c.last_name as customer_name,
+                   v.make || ' ' || v.model || ' (' || v.year || ')' as vehicle_info,
+                   s.service_type
+            FROM photo_sessions ps
+            LEFT JOIN customers c ON ps.customer_id = c.id
+            LEFT JOIN vehicles v ON ps.vehicle_id = v.id
+            LEFT JOIN services s ON ps.service_id = s.id
+            WHERE 1=1
+        """
+
+        params = []
+
+        if vehicle_id:
+            query += " AND ps.vehicle_id = ?"
+            params.append(vehicle_id)
+
+        if customer_id:
+            query += " AND ps.customer_id = ?"
+            params.append(customer_id)
+
+        if service_id:
+            query += " AND ps.service_id = ?"
+            params.append(service_id)
+
+        if session_type:
+            query += " AND ps.session_type = ?"
+            params.append(session_type)
+
+        query += " ORDER BY ps.start_time DESC"
+
+        cursor.execute(query, params)
+        sessions = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify({"sessions": sessions})
+
+    except Exception as e:
+        logger.error(f"Error getting photo sessions: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/photo-sessions', methods=['POST'])
+def create_photo_session():
+    """Create a new photo session"""
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ['vehicle_id', 'customer_id', 'session_type']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"{field} is required"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Insert new photo session
+        cursor.execute("""
+            INSERT INTO photo_sessions (
+                vehicle_id, customer_id, service_id, session_type, session_name,
+                created_by, notes, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data['vehicle_id'],
+            data['customer_id'],
+            data.get('service_id'),
+            data['session_type'],
+            data.get('session_name', f"{data['session_type'].title()} Session"),
+            data.get('created_by', 'system'),
+            data.get('notes', ''),
+            'active'
+        ))
+
+        session_id = cursor.lastrowid
+        conn.commit()
+
+        # Get the created session
+        cursor.execute("""
+            SELECT ps.*, 
+                   c.first_name || ' ' || c.last_name as customer_name,
+                   v.make || ' ' || v.model || ' (' || v.year || ')' as vehicle_info
+            FROM photo_sessions ps
+            LEFT JOIN customers c ON ps.customer_id = c.id
+            LEFT JOIN vehicles v ON ps.vehicle_id = v.id
+            WHERE ps.id = ?
+        """, (session_id,))
+
+        session = dict(cursor.fetchone())
+        conn.close()
+
+        return jsonify({
+            "message": "Photo session created successfully",
+            "session": session
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error creating photo session: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/photo-sessions/<int:session_id>', methods=['GET'])
+def get_photo_session(session_id):
+    """Get a specific photo session with its photos"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get session details
+        cursor.execute("""
+            SELECT ps.*, 
+                   c.first_name || ' ' || c.last_name as customer_name,
+                   v.make || ' ' || v.model || ' (' || v.year || ')' as vehicle_info,
+                   s.service_type
+            FROM photo_sessions ps
+            LEFT JOIN customers c ON ps.customer_id = c.id
+            LEFT JOIN vehicles v ON ps.vehicle_id = v.id
+            LEFT JOIN services s ON ps.service_id = s.id
+            WHERE ps.id = ?
+        """, (session_id,))
+
+        session_row = cursor.fetchone()
+        if not session_row:
+            conn.close()
+            return jsonify({"error": "Photo session not found"}), 404
+
+        session = dict(session_row)
+
+        # Get photos in this session
+        cursor.execute("""
+            SELECT vp.*, sp.sequence_order
+            FROM vehicle_photos vp
+            JOIN session_photos sp ON vp.id = sp.photo_id
+            WHERE sp.session_id = ?
+            ORDER BY sp.sequence_order, vp.timestamp
+        """, (session_id,))
+
+        photos = [dict(row) for row in cursor.fetchall()]
+        session['photos'] = photos
+
+        conn.close()
+        return jsonify(session)
+
+    except Exception as e:
+        logger.error(f"Error getting photo session: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/photo-sessions/<int:session_id>', methods=['PUT'])
+def update_photo_session(session_id):
+    """Update a photo session"""
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+
+        data = request.get_json()
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if session exists
+        cursor.execute("SELECT id FROM photo_sessions WHERE id = ?", (session_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({"error": "Photo session not found"}), 404
+
+        # Update session
+        update_fields = []
+        params = []
+
+        if 'session_name' in data:
+            update_fields.append("session_name = ?")
+            params.append(data['session_name'])
+
+        if 'notes' in data:
+            update_fields.append("notes = ?")
+            params.append(data['notes'])
+
+        if 'status' in data:
+            update_fields.append("status = ?")
+            params.append(data['status'])
+
+        if 'end_time' in data:
+            update_fields.append("end_time = ?")
+            params.append(data['end_time'])
+
+        if update_fields:
+            query = f"UPDATE photo_sessions SET {', '.join(update_fields)} WHERE id = ?"
+            params.append(session_id)
+            cursor.execute(query, params)
+            conn.commit()
+
+        conn.close()
+        return jsonify({"message": "Photo session updated successfully"})
+
+    except Exception as e:
+        logger.error(f"Error updating photo session: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/photo-sessions/<int:session_id>/close', methods=['POST'])
+def close_photo_session(session_id):
+    """Close/complete a photo session"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Update session end time and status
+        cursor.execute("""
+            UPDATE photo_sessions 
+            SET end_time = ?, status = 'completed'
+            WHERE id = ?
+        """, (datetime.now().isoformat(), session_id))
+
+        if cursor.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Photo session not found"}), 404
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"message": "Photo session closed successfully"})
+
+    except Exception as e:
+        logger.error(f"Error closing photo session: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# Photo Management API
+@app.route('/api/photos', methods=['POST'])
+def upload_photo():
+    """Upload a photo and optionally add it to a session"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+
+        if not (file and allowed_file(file.filename)):
+            return jsonify({'error': 'File type not allowed'}), 400
+
+        # Generate unique filename
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{uuid.uuid4()}.{file_extension}"
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        # Save the file
+        file.save(file_path)
+
+        # Create thumbnail
+        thumbnail_filename = f"thumb_{filename}"
+        thumbnail_path = os.path.join(app.config['THUMBNAILS_FOLDER'], thumbnail_filename)
+        create_thumbnail(file_path, thumbnail_path)
+
+        # Get file info
+        file_size = os.path.getsize(file_path)
+
+        # Get image dimensions
+        image_width, image_height = None, None
+        try:
+            with Image.open(file_path) as img:
+                image_width, image_height = img.size
+        except Exception:
+            pass
+
+        # Get form data
+        vehicle_id = request.form.get('vehicle_id')
+        customer_id = request.form.get('customer_id')
+        service_id = request.form.get('service_id')
+        session_id = request.form.get('session_id')
+        category = request.form.get('category', 'general')
+        angle = request.form.get('angle', '')
+        description = request.form.get('description', '')
+        created_by = request.form.get('created_by', 'system')
+
+        if not vehicle_id or not customer_id:
+            return jsonify({'error': 'vehicle_id and customer_id are required'}), 400
+
+        # Insert photo record
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO vehicle_photos (
+                vehicle_id, customer_id, service_id, category, angle, description,
+                filename, file_path, file_size, mime_type, thumbnail_path,
+                created_by, image_width, image_height
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            vehicle_id, customer_id, service_id, category, angle, description,
+            filename, filename, file_size, file.mimetype, thumbnail_filename,
+            created_by, image_width, image_height
+        ))
+
+        photo_id = cursor.lastrowid
+
+        # Add to session if session_id provided
+        if session_id:
+            # Get current photo count for sequence order
+            cursor.execute("""
+                SELECT COUNT(*) FROM session_photos WHERE session_id = ?
+            """, (session_id,))
+            sequence_order = cursor.fetchone()[0]
+
+            # Link photo to session
+            cursor.execute("""
+                INSERT INTO session_photos (session_id, photo_id, sequence_order)
+                VALUES (?, ?, ?)
+            """, (session_id, photo_id, sequence_order))
+
+            # Update session photo count
+            cursor.execute("""
+                UPDATE photo_sessions 
+                SET total_photos = total_photos + 1
+                WHERE id = ?
+            """, (session_id,))
+
+        conn.commit()
+
+        # Get the created photo record
+        cursor.execute("SELECT * FROM vehicle_photos WHERE id = ?", (photo_id,))
+        photo = dict(cursor.fetchone())
+
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'photo': photo,
+            'thumbnail_url': f'/api/photos/{photo_id}/thumbnail',
+            'photo_url': f'/api/photos/{photo_id}'
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error uploading photo: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/photos/<int:photo_id>', methods=['GET'])
+def get_photo(photo_id):
+    """Get a specific photo file"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM vehicle_photos WHERE id = ?", (photo_id,))
+        photo = cursor.fetchone()
+
+        if not photo:
+            conn.close()
+            return jsonify({"error": "Photo not found"}), 404
+
+        conn.close()
+        return send_from_directory(app.config['UPLOAD_FOLDER'], photo['filename'])
+
+    except Exception as e:
+        logger.error(f"Error getting photo: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/photos/<int:photo_id>/thumbnail', methods=['GET'])
+def get_photo_thumbnail(photo_id):
+    """Get a photo thumbnail"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT thumbnail_path FROM vehicle_photos WHERE id = ?", (photo_id,))
+        result = cursor.fetchone()
+
+        if not result or not result['thumbnail_path']:
+            conn.close()
+            return jsonify({"error": "Thumbnail not found"}), 404
+
+        conn.close()
+        return send_from_directory(app.config['THUMBNAILS_FOLDER'], result['thumbnail_path'])
+
+    except Exception as e:
+        logger.error(f"Error getting thumbnail: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/photos/<int:photo_id>/info', methods=['GET'])
+def get_photo_info(photo_id):
+    """Get photo information without the file"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM vehicle_photos WHERE id = ?", (photo_id,))
+        photo = cursor.fetchone()
+
+        if not photo:
+            conn.close()
+            return jsonify({"error": "Photo not found"}), 404
+
+        conn.close()
+        return jsonify(dict(photo))
+
+    except Exception as e:
+        logger.error(f"Error getting photo info: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/vehicles/<int:vehicle_id>/photos', methods=['GET'])
+def get_vehicle_photos(vehicle_id):
+    """Get all photos for a specific vehicle"""
+    try:
+        category = request.args.get('category')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        query = "SELECT * FROM vehicle_photos WHERE vehicle_id = ?"
+        params = [vehicle_id]
+
+        if category:
+            query += " AND category = ?"
+            params.append(category)
+
+        query += " ORDER BY timestamp DESC"
+
+        cursor.execute(query, params)
+        photos = [dict(row) for row in cursor.fetchall()]
+
+        # Add URLs for each photo
+        for photo in photos:
+            photo['photo_url'] = f'/api/photos/{photo["id"]}'
+            photo['thumbnail_url'] = f'/api/photos/{photo["id"]}/thumbnail'
+
+        conn.close()
+        return jsonify({"photos": photos})
+
+    except Exception as e:
+        logger.error(f"Error getting vehicle photos: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# Customer Management API
 @app.route('/api/customers', methods=['GET'])
 def get_customers():
     """Get all customers"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    cursor.execute('SELECT * FROM customers ORDER BY name')
-    customers = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("""
+            SELECT c.*, COUNT(v.id) as vehicle_count
+            FROM customers c
+            LEFT JOIN vehicles v ON c.id = v.customer_id
+            GROUP BY c.id
+            ORDER BY c.first_name, c.last_name
+        """)
+        customers = [dict(row) for row in cursor.fetchall()]
 
-    conn.close()
-    return jsonify({"customers": customers})
+        conn.close()
+        return jsonify({"customers": customers})
+    except Exception as e:
+        logger.error(f"Error getting customers: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/customers/<int:customer_id>', methods=['GET'])
 def get_customer(customer_id):
-    """Get a specific customer"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    """Get a specific customer with vehicles and recent services"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    cursor.execute('SELECT * FROM customers WHERE id = ?', (customer_id,))
-    customer = cursor.fetchone()
+        # Get customer info
+        cursor.execute('SELECT * FROM customers WHERE id = ?', (customer_id,))
+        customer = cursor.fetchone()
 
-    if customer is None:
+        if customer is None:
+            conn.close()
+            return jsonify({"error": "Customer not found"}), 404
+
+        customer_data = dict(customer)
+
+        # Get customer's vehicles
+        cursor.execute('SELECT * FROM vehicles WHERE customer_id = ?', (customer_id,))
+        vehicles = [dict(row) for row in cursor.fetchall()]
+
+        # Get recent services
+        cursor.execute("""
+            SELECT s.*, v.make || ' ' || v.model as vehicle_info
+            FROM services s
+            LEFT JOIN vehicles v ON s.vehicle_id = v.id
+            WHERE s.customer_id = ?
+            ORDER BY s.created_at DESC
+            LIMIT 10
+        """, (customer_id,))
+        services = [dict(row) for row in cursor.fetchall()]
+
+        customer_data['vehicles'] = vehicles
+        customer_data['recent_services'] = services
+
         conn.close()
-        return jsonify({"error": "Customer not found"}), 404
-
-    # Get customer's vehicles
-    cursor.execute('SELECT * FROM vehicles WHERE customer_id = ?', (customer_id,))
-    vehicles = [dict(row) for row in cursor.fetchall()]
-
-    customer_data = dict(customer)
-    customer_data['vehicles'] = vehicles
-
-    conn.close()
-    return jsonify(customer_data)
+        return jsonify(customer_data)
+    except Exception as e:
+        logger.error(f"Error getting customer: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/customers', methods=['POST'])
 def add_customer():
     """Add a new customer"""
-    if not request.is_json:
-        return jsonify({"error": "Request must be JSON"}), 400
-
-    data = request.get_json()
-
-    # Validate required fields
-    if 'name' not in data:
-        return jsonify({"error": "Name is required"}), 400
-
-    # Prepare customer data
-    customer_data = {
-        'name': data['name'],
-        'phone': data.get('phone', ''),
-        'email': data.get('email', ''),
-        'address': data.get('address', ''),
-        'registration_date': data.get('registration_date', datetime.now().strftime('%Y-%m-%d'))
-    }
-
-    # Insert into database
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
     try:
-        cursor.execute(
-            '''INSERT INTO customers (name, phone, email, address, registration_date) 
-               VALUES (?, ?, ?, ?, ?)''',
-            (
-                customer_data['name'],
-                customer_data['phone'],
-                customer_data['email'],
-                customer_data['address'],
-                customer_data['registration_date']
-            )
-        )
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
 
-        conn.commit()
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ['first_name', 'last_name']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"{field} is required"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO customers (first_name, last_name, email, phone, address, city, state, zip_code, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data['first_name'],
+            data['last_name'],
+            data.get('email', ''),
+            data.get('phone', ''),
+            data.get('address', ''),
+            data.get('city', ''),
+            data.get('state', ''),
+            data.get('zip_code', ''),
+            data.get('notes', '')
+        ))
+
         customer_id = cursor.lastrowid
+        conn.commit()
 
         # Return the created customer
         cursor.execute('SELECT * FROM customers WHERE id = ?', (customer_id,))
@@ -191,94 +688,147 @@ def add_customer():
         }), 201
 
     except Exception as e:
-        conn.rollback()
-        conn.close()
-        logger.error(f"Error creating customer: {str(e)}")
-        return jsonify({"error": f"Failed to create customer: {str(e)}"}), 500
+        logger.error(f"Error creating customer: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
-# Similar endpoints for vehicles, services, etc. would be implemented here
+# Vehicle Management API
+@app.route('/api/vehicles', methods=['GET'])
+def get_vehicles():
+    """Get all vehicles with customer information"""
+    try:
+        customer_id = request.args.get('customer_id')
 
-@app.route('/forms', methods=['GET'])
-def show_forms():
-    """Serve the forms page"""
-    return send_from_directory('static', 'forms.html')
-
-
-@app.route('/quotes', methods=['GET'])
-def show_quotes():
-    """Serve the quotes page"""
-    return send_from_directory('static', 'quote.html')
-
-
-@app.route('/upload_photo', methods=['POST'])
-def upload_photo():
-    """Upload a vehicle photo"""
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-
-    file = request.files['file']
-
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-
-    if file and allowed_file(file.filename):
-        # Generate a secure unique filename
-        filename = str(uuid.uuid4()) + '-' + secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
-        # Save the file
-        file.save(file_path)
-
-        # Get additional data
-        vehicle_id = request.form.get('vehicle_id')
-        service_id = request.form.get('service_id')
-        description = request.form.get('description', '')
-
-        # Add entry to database
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        try:
-            cursor.execute(
-                '''INSERT INTO vehicle_photos (vehicle_id, service_id, photo_path, description, timestamp) 
-                   VALUES (?, ?, ?, ?, ?)''',
-                (
-                    vehicle_id,
-                    service_id,
-                    filename,
-                    description,
-                    datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                )
-            )
+        query = """
+            SELECT v.*, c.first_name || ' ' || c.last_name as customer_name
+            FROM vehicles v
+            LEFT JOIN customers c ON v.customer_id = c.id
+        """
+        params = []
 
-            conn.commit()
-            photo_id = cursor.lastrowid
+        if customer_id:
+            query += " WHERE v.customer_id = ?"
+            params.append(customer_id)
 
-            conn.close()
-            return jsonify({
-                'success': True,
-                'photo_id': photo_id,
-                'filename': filename,
-                'path': f'/photos/{filename}'
-            })
+        query += " ORDER BY v.created_at DESC"
 
-        except Exception as e:
-            conn.rollback()
-            conn.close()
-            return jsonify({'error': str(e)}), 500
+        cursor.execute(query, params)
+        vehicles = [dict(row) for row in cursor.fetchall()]
 
-    return jsonify({'error': 'File type not allowed'}), 400
-
-@app.route('/assets/<path:filename>')
-def serve_assets(filename):
-    return send_from_directory('assets', filename)
+        conn.close()
+        return jsonify({"vehicles": vehicles})
+    except Exception as e:
+        logger.error(f"Error getting vehicles: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
-@app.route('/photos/<filename>')
-def get_photo(filename):
-    """Serve a photo file"""
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+@app.route('/api/vehicles', methods=['POST'])
+def add_vehicle():
+    """Add a new vehicle"""
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Request must be JSON"}), 400
+
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ['customer_id', 'make', 'model']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"{field} is required"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO vehicles (customer_id, make, model, year, vin, license_plate, color, mileage, vehicle_type, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data['customer_id'],
+            data['make'],
+            data['model'],
+            data.get('year'),
+            data.get('vin', ''),
+            data.get('license_plate', ''),
+            data.get('color', ''),
+            data.get('mileage', 0),
+            data.get('vehicle_type', 'car'),
+            data.get('notes', '')
+        ))
+
+        vehicle_id = cursor.lastrowid
+        conn.commit()
+
+        # Return the created vehicle
+        cursor.execute("""
+            SELECT v.*, c.first_name || ' ' || c.last_name as customer_name
+            FROM vehicles v
+            LEFT JOIN customers c ON v.customer_id = c.id
+            WHERE v.id = ?
+        """, (vehicle_id,))
+        new_vehicle = dict(cursor.fetchone())
+
+        conn.close()
+        return jsonify({
+            "message": "Vehicle created successfully",
+            "vehicle": new_vehicle
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error creating vehicle: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# Service Management API
+@app.route('/api/services', methods=['GET'])
+def get_services():
+    """Get all services with customer and vehicle information"""
+    try:
+        status = request.args.get('status')
+        vehicle_id = request.args.get('vehicle_id')
+        customer_id = request.args.get('customer_id')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT s.*, 
+                   c.first_name || ' ' || c.last_name as customer_name,
+                   v.make || ' ' || v.model || ' (' || v.year || ')' as vehicle_info,
+                   u.full_name as technician_name
+            FROM services s
+            LEFT JOIN customers c ON s.customer_id = c.id
+            LEFT JOIN vehicles v ON s.vehicle_id = v.id
+            LEFT JOIN users u ON s.technician_id = u.id
+            WHERE 1=1
+        """
+        params = []
+
+        if status:
+            query += " AND s.status = ?"
+            params.append(status)
+
+        if vehicle_id:
+            query += " AND s.vehicle_id = ?"
+            params.append(vehicle_id)
+
+        if customer_id:
+            query += " AND s.customer_id = ?"
+            params.append(customer_id)
+
+        query += " ORDER BY s.created_at DESC"
+
+        cursor.execute(query, params)
+        services = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify({"services": services})
+    except Exception as e:
+        logger.error(f"Error getting services: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 # Error handlers
@@ -293,6 +843,31 @@ def server_error(error):
     """Handle 500 errors"""
     logger.error(f"Server error: {error}")
     return jsonify({"error": "Internal server error"}), 500
+
+
+# Health check endpoint
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Test database connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        conn.close()
+
+        return jsonify({
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "database": "connected",
+            "photos_dir": os.path.exists(PHOTOS_DIR),
+            "thumbnails_dir": os.path.exists(THUMBNAILS_DIR)
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e)
+        }), 500
 
 
 # The application will be referenced by Elastic Beanstalk

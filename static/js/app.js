@@ -1,672 +1,590 @@
-// static/js/app.js - Updated with Settings Support
+// static/js/app.js - Enhanced with Photo Session Integration
 /**
- * OL Service POS - Main Application Controller
- * Professional mobile-first service management system
+ * Main Application Controller
+ * Enhanced with comprehensive photo documentation system
  */
 
 class OLServiceApp {
     constructor() {
-        this.currentSection = null;
-        this.isLoading = false;
-        this.apiHealthy = false;
-
-        // Application state
-        this.state = {
-            customers: [],
-            vehicles: [],
-            services: [],
-            currentUser: null,
-            settings: {}
-        };
-
-        // Event handlers
-        this.eventHandlers = new Map();
-
-        // Initialize application
+        this.currentSection = 'welcome';
+        this.apiStatus = 'unknown';
+        this.fabMenuOpen = false;
         this.init();
     }
 
-    /**
-     * Initialize the application
-     */
     async init() {
-        try {
-            console.log('🚀 Initializing OL Service POS...');
+        console.log('🚀 Initializing OL Service POS...');
 
-            // Show loading screen
-            this.showLoadingScreen();
+        // Hide loading screen
+        this.hideLoadingScreen();
 
-            // Initialize components
-            await this.initializeComponents();
+        // Initialize API status checking
+        await this.checkApiStatus();
 
-            // Check API health
-            await this.checkAPIHealth();
+        // Bind navigation events
+        this.bindNavigation();
 
-            // Setup event listeners
-            this.setupEventListeners();
+        // Bind FAB events
+        this.bindFABEvents();
 
-            // Setup touch optimizations
-            this.setupTouchOptimizations();
+        // Bind global events
+        this.bindGlobalEvents();
 
-            // Initialize modules
-            await this.initializeModules();
+        // Handle initial route
+        this.handleInitialRoute();
 
-            // Hide loading screen and show app
-            await this.hideLoadingScreen();
-
-            console.log('✅ OL Service POS initialized successfully');
-
-        } catch (error) {
-            console.error('❌ Failed to initialize application:', error);
-            this.showError('Failed to initialize application', error.message);
-        }
+        console.log('✅ Application initialized successfully');
     }
 
-    /**
-     * Show loading screen
-     */
-    showLoadingScreen() {
+    hideLoadingScreen() {
         const loadingScreen = document.getElementById('loadingScreen');
         const app = document.getElementById('app');
 
-        if (loadingScreen) loadingScreen.style.display = 'flex';
-        if (app) app.style.display = 'none';
-    }
-
-    /**
-     * Hide loading screen with animation
-     */
-    async hideLoadingScreen() {
-        return new Promise((resolve) => {
-            const loadingScreen = document.getElementById('loadingScreen');
-            const app = document.getElementById('app');
-
-            if (loadingScreen) {
-                loadingScreen.style.opacity = '0';
-                setTimeout(() => {
-                    loadingScreen.style.display = 'none';
-                    if (app) {
-                        app.style.display = 'flex';
-                        app.style.opacity = '0';
-                        setTimeout(() => {
-                            app.style.opacity = '1';
-                            resolve();
-                        }, 50);
-                    } else {
-                        resolve();
-                    }
-                }, 300);
-            } else {
-                if (app) app.style.display = 'flex';
-                resolve();
-            }
-        });
-    }
-
-    /**
-     * Initialize core components
-     */
-    async initializeComponents() {
-        // Initialize UI components
-        if (window.UI) {
-            window.UI.init();
-        }
-
-        // Initialize API client
-        if (window.API) {
-            window.API.init();
-        }
-
-        // Initialize utility functions
-        if (window.Utils) {
-            window.Utils.init();
-        }
-
-        // Initialize Components
-        if (window.Components) {
-            window.Components.init();
+        if (loadingScreen && app) {
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+                app.style.display = 'block';
+            }, 1000);
         }
     }
 
-    /**
-     * Check API health and update status indicator
-     */
-    async checkAPIHealth() {
+    async checkApiStatus() {
         try {
             const response = await fetch('/api');
-            const data = await response.json();
-
-            this.apiHealthy = response.ok;
-            this.updateAPIStatus(this.apiHealthy, data);
-
-            console.log('📡 API Health Check:', this.apiHealthy ? 'Healthy' : 'Unhealthy');
-
+            if (response.ok) {
+                this.updateApiStatus('online');
+            } else {
+                this.updateApiStatus('error');
+            }
         } catch (error) {
-            console.error('📡 API Health Check Failed:', error);
-            this.apiHealthy = false;
-            this.updateAPIStatus(false, { error: error.message });
+            console.error('API Status Check Failed:', error);
+            this.updateApiStatus('offline');
         }
     }
 
-    /**
-     * Update API status indicator
-     */
-    updateAPIStatus(healthy, data = {}) {
-        const statusIndicator = document.getElementById('apiStatus');
-        const statusDot = statusIndicator?.querySelector('.status-dot');
-        const statusText = statusIndicator?.querySelector('.status-text');
+    updateApiStatus(status) {
+        this.apiStatus = status;
+        const statusElement = document.getElementById('apiStatus');
+        const statusDot = statusElement?.querySelector('.status-dot');
+        const statusText = statusElement?.querySelector('.status-text');
 
-        if (statusDot) {
-            statusDot.className = healthy ? 'status-dot' : 'status-dot offline';
-        }
+        if (statusDot && statusText) {
+            statusDot.className = 'status-dot';
 
-        if (statusText) {
-            statusText.textContent = healthy ? 'Online' : 'Offline';
+            switch (status) {
+                case 'online':
+                    statusDot.classList.add('online');
+                    statusText.textContent = 'Online';
+                    break;
+                case 'offline':
+                    statusDot.classList.add('offline');
+                    statusText.textContent = 'Offline';
+                    break;
+                case 'error':
+                    statusDot.classList.add('error');
+                    statusText.textContent = 'Error';
+                    break;
+                default:
+                    statusText.textContent = 'Unknown';
+            }
         }
     }
 
-    /**
-     * Setup event listeners
-     */
-    setupEventListeners() {
-        // Navigation button events
-        this.setupNavigationEvents();
-
-        // FAB (Floating Action Button) events
-        this.setupFABEvents();
-
-        // Modal events
-        this.setupModalEvents();
-
-        // Keyboard events
-        this.setupKeyboardEvents();
-
-        // Window events
-        this.setupWindowEvents();
-    }
-
-    /**
-     * Setup navigation events
-     */
-    setupNavigationEvents() {
-        const navButtons = document.querySelectorAll('.nav-button[data-section]');
+    bindNavigation() {
+        const navButtons = document.querySelectorAll('.nav-button');
 
         navButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 const section = button.dataset.section;
-                this.navigateToSection(section);
+                if (section) {
+                    this.navigateToSection(section);
+                }
             });
+        });
+
+        // Handle browser back/forward
+        window.addEventListener('popstate', (e) => {
+            if (e.state && e.state.section) {
+                this.loadSection(e.state.section, false);
+            }
         });
     }
 
-    /**
-     * Setup FAB events
-     */
-    setupFABEvents() {
+    bindFABEvents() {
         const fabButton = document.getElementById('fabButton');
         const fabMenu = document.getElementById('fabMenu');
 
-        if (fabButton && fabMenu) {
+        if (fabButton) {
             fabButton.addEventListener('click', () => {
                 this.toggleFABMenu();
             });
-
-            // FAB option events
-            const fabOptions = fabMenu.querySelectorAll('.fab-option[data-action]');
-            fabOptions.forEach(option => {
-                option.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const action = option.dataset.action;
-                    this.handleFABAction(action);
-                    this.closeFABMenu();
-                });
-            });
-
-            // Close FAB menu when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!fabButton.contains(e.target) && !fabMenu.contains(e.target)) {
-                    this.closeFABMenu();
-                }
-            });
         }
-    }
 
-    /**
-     * Setup modal events
-     */
-    setupModalEvents() {
-        const modalOverlay = document.getElementById('modalOverlay');
-
-        if (modalOverlay) {
-            modalOverlay.addEventListener('click', (e) => {
-                if (e.target === modalOverlay) {
-                    this.closeModal();
-                }
-            });
-        }
-    }
-
-    /**
-     * Setup keyboard events
-     */
-    setupKeyboardEvents() {
-        document.addEventListener('keydown', (e) => {
-            // ESC key closes modals and menus
-            if (e.key === 'Escape') {
-                this.closeModal();
-                this.closeFABMenu();
+        // FAB option handlers
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('[data-action="add-customer"]')) {
+                this.handleAddCustomer();
+            }
+            if (e.target.matches('[data-action="add-vehicle"]')) {
+                this.handleAddVehicle();
+            }
+            if (e.target.matches('[data-action="new-service"]')) {
+                this.handleNewService();
             }
 
-            // Ctrl/Cmd + K for quick search
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                this.showQuickSearch();
+            // Photo session quick actions
+            if (e.target.matches('[data-action="quick-checkin"]')) {
+                this.handleQuickCheckIn();
+            }
+            if (e.target.matches('[data-action="quick-checkout"]')) {
+                this.handleQuickCheckOut();
+            }
+
+            // Close FAB menu when clicking outside
+            if (!e.target.closest('.fab-container')) {
+                this.closeFABMenu();
             }
         });
     }
 
-    /**
-     * Setup window events
-     */
-    setupWindowEvents() {
+    bindGlobalEvents() {
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // ESC to close modals
+            if (e.key === 'Escape') {
+                this.closeActiveModal();
+            }
+
+            // Ctrl/Cmd + number keys for quick navigation
+            if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '7') {
+                e.preventDefault();
+                const sections = ['customers', 'vehicles', 'services', 'damage', 'photos', 'reports', 'settings'];
+                const index = parseInt(e.key) - 1;
+                if (sections[index]) {
+                    this.navigateToSection(sections[index]);
+                }
+            }
+        });
+
         // Handle online/offline status
         window.addEventListener('online', () => {
-            this.checkAPIHealth();
-            this.showToast('Connection restored', 'success');
+            this.checkApiStatus();
+            showToast('Connection restored', 'success');
         });
 
         window.addEventListener('offline', () => {
-            this.updateAPIStatus(false, { error: 'No internet connection' });
-            this.showToast('Connection lost', 'warning');
+            this.updateApiStatus('offline');
+            showToast('Connection lost', 'warning');
         });
 
-        // Handle visibility changes
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                this.checkAPIHealth();
-            }
-        });
+        // Auto-refresh API status every 30 seconds
+        setInterval(() => {
+            this.checkApiStatus();
+        }, 30000);
     }
 
-    /**
-     * Setup touch optimizations
-     */
-    setupTouchOptimizations() {
-        // Prevent double-tap zoom
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            if (now - lastTouchEnd <= 300) {
-                e.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, false);
+    toggleFABMenu() {
+        this.fabMenuOpen = !this.fabMenuOpen;
+        const fabMenu = document.getElementById('fabMenu');
+        const fabButton = document.getElementById('fabButton');
 
-        // Prevent pinch zoom
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        });
-
-        // Add touch feedback to buttons
-        this.addTouchFeedback();
-    }
-
-    /**
-     * Add haptic feedback to touch interactions
-     */
-    addTouchFeedback() {
-        const buttons = document.querySelectorAll('button, .nav-button, .fab, .fab-option');
-
-        buttons.forEach(button => {
-            button.addEventListener('touchstart', () => {
-                // Haptic feedback (if supported)
-                if (navigator.vibrate) {
-                    navigator.vibrate(50);
-                }
-
-                // Visual feedback
-                button.style.transform = 'scale(0.95)';
-            });
-
-            button.addEventListener('touchend', () => {
-                // Reset visual feedback
-                setTimeout(() => {
-                    button.style.transform = '';
-                }, 150);
-            });
-        });
-    }
-
-    /**
-     * Initialize modules
-     */
-    async initializeModules() {
-        const modules = ['Settings', 'Customers', 'Vehicles', 'Services', 'Damage', 'Photos', 'Reports'];
-
-        for (const moduleName of modules) {
-            if (window[moduleName]) {
-                try {
-                    await window[moduleName].init();
-                    console.log(`✅ ${moduleName} module initialized`);
-                } catch (error) {
-                    console.error(`❌ Failed to initialize ${moduleName} module:`, error);
-                }
+        if (fabMenu && fabButton) {
+            if (this.fabMenuOpen) {
+                fabMenu.classList.add('active');
+                fabButton.classList.add('active');
+            } else {
+                fabMenu.classList.remove('active');
+                fabButton.classList.remove('active');
             }
         }
     }
 
-    /**
-     * Navigate to a specific section
-     */
-    async navigateToSection(sectionName) {
-        if (this.isLoading) return;
+    closeFABMenu() {
+        this.fabMenuOpen = false;
+        const fabMenu = document.getElementById('fabMenu');
+        const fabButton = document.getElementById('fabButton');
 
-        this.isLoading = true;
-        this.currentSection = sectionName;
+        if (fabMenu && fabButton) {
+            fabMenu.classList.remove('active');
+            fabButton.classList.remove('active');
+        }
+    }
 
+    navigateToSection(section) {
+        // Update URL without page refresh
+        const url = new URL(window.location);
+        url.hash = section;
+        window.history.pushState({ section }, '', url);
+
+        // Load the section
+        this.loadSection(section, true);
+    }
+
+    async loadSection(section, addToHistory = true) {
         try {
-            // Hide welcome section
-            this.hideWelcomeSection();
+            // Update current section
+            this.currentSection = section;
+
+            // Update navigation state
+            this.updateNavigationState(section);
 
             // Show loading state
-            this.showContentLoader(`Loading ${sectionName}...`);
+            this.showContentLoading();
 
-            // Load section content based on module
-            switch (sectionName) {
+            // Load section content
+            let content = '';
+
+            switch (section) {
                 case 'customers':
-                    await this.loadCustomersSection();
+                    content = await this.loadCustomersSection();
                     break;
                 case 'vehicles':
-                    await this.loadVehiclesSection();
+                    content = await this.loadVehiclesSection();
                     break;
                 case 'services':
-                    await this.loadServicesSection();
+                    content = await this.loadServicesSection();
                     break;
                 case 'damage':
-                    await this.loadDamageSection();
+                    content = await this.loadDamageSection();
                     break;
                 case 'photos':
-                    await this.loadPhotosSection();
+                    content = await this.loadPhotosSection();
                     break;
                 case 'reports':
-                    await this.loadReportsSection();
+                    content = await this.loadReportsSection();
                     break;
                 case 'settings':
-                    await this.loadSettingsSection();
+                    content = await this.loadSettingsSection();
                     break;
                 default:
-                    throw new Error(`Unknown section: ${sectionName}`);
+                    content = this.getWelcomeContent();
+                    section = 'welcome';
             }
 
+            // Update content
+            this.updateMainContent(content);
+
+            // Update FAB options based on current section
+            this.updateFABOptions(section);
+
+            // Close FAB menu
+            this.closeFABMenu();
+
         } catch (error) {
-            console.error(`Failed to load ${sectionName} section:`, error);
-            this.showError(`Failed to load ${sectionName}`, error.message);
-        } finally {
-            this.isLoading = false;
+            console.error('Error loading section:', error);
+            this.showErrorContent(`Failed to load ${section} section`);
         }
     }
 
-    /**
-     * Load customers section
-     */
-    async loadCustomersSection() {
-        if (window.Customers) {
-            await window.Customers.load();
-        } else {
-            throw new Error('Customers module not available');
+    updateNavigationState(section) {
+        // Remove active class from all nav buttons
+        document.querySelectorAll('.nav-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Add active class to current section
+        const activeButton = document.querySelector(`[data-section="${section}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
         }
     }
 
-    /**
-     * Load vehicles section
-     */
-    async loadVehiclesSection() {
-        if (window.Vehicles) {
-            await window.Vehicles.load();
-        } else {
-            throw new Error('Vehicles module not available');
-        }
-    }
-
-    /**
-     * Load services section
-     */
-    async loadServicesSection() {
-        if (window.Services) {
-            await window.Services.load();
-        } else {
-            throw new Error('Services module not available');
-        }
-    }
-
-    /**
-     * Load damage inspection section
-     */
-    async loadDamageSection() {
-        if (window.Damage) {
-            await window.Damage.load();
-        } else {
-            throw new Error('Damage module not available');
-        }
-    }
-
-    /**
-     * Load photos section
-     */
-    async loadPhotosSection() {
-        if (window.Photos) {
-            await window.Photos.load();
-        } else {
-            throw new Error('Photos module not available');
-        }
-    }
-
-    /**
-     * Load reports section
-     */
-    async loadReportsSection() {
-        if (window.Reports) {
-            await window.Reports.load();
-        } else {
-            throw new Error('Reports module not available');
-        }
-    }
-
-    /**
-     * Load settings section
-     */
-    async loadSettingsSection() {
-        if (window.Settings) {
-            await window.Settings.load();
-        } else {
-            throw new Error('Settings module not available');
-        }
-    }
-
-    /**
-     * Show/hide sections
-     */
-    hideWelcomeSection() {
-        const welcomeSection = document.getElementById('welcomeSection');
-        const dynamicContent = document.getElementById('dynamicContent');
-
-        if (welcomeSection) {
-            welcomeSection.classList.remove('active');
-        }
-
-        if (dynamicContent) {
-            dynamicContent.classList.add('active');
-        }
-    }
-
-    showWelcomeSection() {
-        const welcomeSection = document.getElementById('welcomeSection');
-        const dynamicContent = document.getElementById('dynamicContent');
-
-        if (dynamicContent) {
-            dynamicContent.classList.remove('active');
-        }
-
-        if (welcomeSection) {
-            welcomeSection.classList.add('active');
-        }
-
-        this.currentSection = null;
-    }
-
-    /**
-     * Content loader functions
-     */
-    showContentLoader(message = 'Loading...') {
+    showContentLoading() {
         const dynamicContent = document.getElementById('dynamicContent');
         if (dynamicContent) {
             dynamicContent.innerHTML = `
                 <div class="content-loader">
                     <div class="loader-spinner"></div>
-                    <p class="loader-text">${message}</p>
+                    <p class="loader-text">Loading...</p>
                 </div>
             `;
+            dynamicContent.style.display = 'block';
+        }
+
+        // Hide welcome section
+        const welcomeSection = document.getElementById('welcomeSection');
+        if (welcomeSection) {
+            welcomeSection.classList.remove('active');
         }
     }
 
-    setContent(html) {
+    updateMainContent(content) {
         const dynamicContent = document.getElementById('dynamicContent');
         if (dynamicContent) {
-            dynamicContent.innerHTML = html;
+            dynamicContent.innerHTML = content;
+            dynamicContent.style.display = 'block';
+        }
+
+        // Hide welcome section
+        const welcomeSection = document.getElementById('welcomeSection');
+        if (welcomeSection) {
+            welcomeSection.classList.remove('active');
         }
     }
 
-    /**
-     * FAB (Floating Action Button) functions
-     */
-    toggleFABMenu() {
-        const fabButton = document.getElementById('fabButton');
+    showErrorContent(message) {
+        this.updateMainContent(`
+            <div class="error-content">
+                <div class="error-icon">❌</div>
+                <h3>Error</h3>
+                <p>${message}</p>
+                <button class="btn btn-primary" onclick="location.reload()">
+                    Reload Page
+                </button>
+            </div>
+        `);
+    }
+
+    getWelcomeContent() {
+        // Show welcome section instead of dynamic content
+        const welcomeSection = document.getElementById('welcomeSection');
+        const dynamicContent = document.getElementById('dynamicContent');
+
+        if (welcomeSection && dynamicContent) {
+            welcomeSection.classList.add('active');
+            dynamicContent.style.display = 'none';
+        }
+
+        return '';
+    }
+
+    updateFABOptions(section) {
         const fabMenu = document.getElementById('fabMenu');
+        if (!fabMenu) return;
 
-        if (fabButton && fabMenu) {
-            const isActive = fabButton.classList.contains('active');
+        let fabOptions = '';
 
-            if (isActive) {
-                this.closeFABMenu();
-            } else {
-                this.openFABMenu();
-            }
-        }
-    }
-
-    openFABMenu() {
-        const fabButton = document.getElementById('fabButton');
-        const fabMenu = document.getElementById('fabMenu');
-
-        if (fabButton && fabMenu) {
-            fabButton.classList.add('active');
-            fabMenu.classList.add('active');
-        }
-    }
-
-    closeFABMenu() {
-        const fabButton = document.getElementById('fabButton');
-        const fabMenu = document.getElementById('fabMenu');
-
-        if (fabButton && fabMenu) {
-            fabButton.classList.remove('active');
-            fabMenu.classList.remove('active');
-        }
-    }
-
-    /**
-     * Handle FAB actions
-     */
-    handleFABAction(action) {
-        switch (action) {
-            case 'add-customer':
-                this.showAddCustomerModal();
+        switch (section) {
+            case 'customers':
+                fabOptions = `
+                    <button class="fab-option" data-action="add-customer">
+                        <span class="fab-option-icon">👤</span>
+                        <span class="fab-option-text">Add Customer</span>
+                    </button>
+                `;
                 break;
-            case 'add-vehicle':
-                this.showAddVehicleModal();
+
+            case 'vehicles':
+                fabOptions = `
+                    <button class="fab-option" data-action="add-vehicle">
+                        <span class="fab-option-icon">🚗</span>
+                        <span class="fab-option-text">Add Vehicle</span>
+                    </button>
+                    <button class="fab-option" data-action="quick-checkin">
+                        <span class="fab-option-icon">✅</span>
+                        <span class="fab-option-text">Quick Check-In</span>
+                    </button>
+                `;
                 break;
-            case 'new-service':
-                this.showNewServiceModal();
+
+            case 'services':
+                fabOptions = `
+                    <button class="fab-option" data-action="new-service">
+                        <span class="fab-option-icon">🔧</span>
+                        <span class="fab-option-text">New Service</span>
+                    </button>
+                    <button class="fab-option" data-action="quick-checkout">
+                        <span class="fab-option-icon">📋</span>
+                        <span class="fab-option-text">Quick Check-Out</span>
+                    </button>
+                `;
                 break;
+
+            case 'photos':
+                fabOptions = `
+                    <button class="fab-option" data-action="quick-checkin">
+                        <span class="fab-option-icon">✅</span>
+                        <span class="fab-option-text">Start Check-In</span>
+                    </button>
+                    <button class="fab-option" data-action="quick-checkout">
+                        <span class="fab-option-icon">📋</span>
+                        <span class="fab-option-text">Start Check-Out</span>
+                    </button>
+                    <button class="fab-option" data-action="damage-photos">
+                        <span class="fab-option-icon">🔍</span>
+                        <span class="fab-option-text">Damage Photos</span>
+                    </button>
+                `;
+                break;
+
+            case 'damage':
+                fabOptions = `
+                    <button class="fab-option" data-action="new-damage-report">
+                        <span class="fab-option-icon">🔍</span>
+                        <span class="fab-option-text">New Inspection</span>
+                    </button>
+                    <button class="fab-option" data-action="damage-photos">
+                        <span class="fab-option-icon">📸</span>
+                        <span class="fab-option-text">Photo Documentation</span>
+                    </button>
+                `;
+                break;
+
             default:
-                console.warn(`Unknown FAB action: ${action}`);
+                fabOptions = `
+                    <button class="fab-option" data-action="add-customer">
+                        <span class="fab-option-icon">👤</span>
+                        <span class="fab-option-text">Add Customer</span>
+                    </button>
+                    <button class="fab-option" data-action="add-vehicle">
+                        <span class="fab-option-icon">🚗</span>
+                        <span class="fab-option-text">Add Vehicle</span>
+                    </button>
+                    <button class="fab-option" data-action="new-service">
+                        <span class="fab-option-icon">🔧</span>
+                        <span class="fab-option-text">New Service</span>
+                    </button>
+                `;
         }
+
+        fabMenu.innerHTML = fabOptions;
     }
 
-    /**
-     * Modal functions
-     */
-    showModal(content) {
-        const modalOverlay = document.getElementById('modalOverlay');
-        const modalContainer = document.getElementById('modalContainer');
-
-        if (modalOverlay && modalContainer) {
-            modalContainer.innerHTML = content;
-            modalOverlay.classList.add('active');
+    // Section loading methods
+    async loadCustomersSection() {
+        if (typeof customersModule !== 'undefined' && customersModule.loadModule) {
+            return await customersModule.loadModule();
         }
+        return '<div class="error-content">Customers module not available</div>';
     }
 
-    closeModal() {
-        const modalOverlay = document.getElementById('modalOverlay');
-
-        if (modalOverlay) {
-            modalOverlay.classList.remove('active');
+    async loadVehiclesSection() {
+        if (typeof vehiclesModule !== 'undefined' && vehiclesModule.loadModule) {
+            return await vehiclesModule.loadModule();
         }
+        return '<div class="error-content">Vehicles module not available</div>';
     }
 
-    /**
-     * Quick action modals
-     */
-    showAddCustomerModal() {
-        if (window.Customers && window.Customers.showAddModal) {
-            window.Customers.showAddModal();
+    async loadServicesSection() {
+        if (typeof servicesModule !== 'undefined' && servicesModule.loadModule) {
+            return await servicesModule.loadModule();
+        }
+        return '<div class="error-content">Services module not available</div>';
+    }
+
+    async loadDamageSection() {
+        if (typeof damageModule !== 'undefined' && damageModule.loadModule) {
+            return await damageModule.loadModule();
+        }
+        return '<div class="error-content">Damage inspection module not available</div>';
+    }
+
+    async loadPhotosSection() {
+        if (typeof photosModule !== 'undefined' && photosModule.loadModule) {
+            return await photosModule.loadModule();
+        }
+        return '<div class="error-content">Photos module not available</div>';
+    }
+
+    async loadReportsSection() {
+        if (typeof reportsModule !== 'undefined' && reportsModule.loadModule) {
+            return await reportsModule.loadModule();
+        }
+        return '<div class="error-content">Reports module not available</div>';
+    }
+
+    async loadSettingsSection() {
+        if (typeof settingsModule !== 'undefined' && settingsModule.loadModule) {
+            return await settingsModule.loadModule();
+        }
+        return '<div class="error-content">Settings module not available</div>';
+    }
+
+    // FAB action handlers
+    async handleAddCustomer() {
+        this.closeFABMenu();
+
+        if (typeof customersModule !== 'undefined' && customersModule.showAddCustomerModal) {
+            customersModule.showAddCustomerModal();
         } else {
-            this.showToast('Customer module not available', 'error');
+            showToast('Customer management not available', 'error');
         }
     }
 
-    showAddVehicleModal() {
-        if (window.Vehicles && window.Vehicles.showAddModal) {
-            window.Vehicles.showAddModal();
+    async handleAddVehicle() {
+        this.closeFABMenu();
+
+        if (typeof vehiclesModule !== 'undefined' && vehiclesModule.showAddVehicleModal) {
+            vehiclesModule.showAddVehicleModal();
         } else {
-            this.showToast('Vehicle module not available', 'error');
+            showToast('Vehicle management not available', 'error');
         }
     }
 
-    showNewServiceModal() {
-        if (window.Services && window.Services.showAddModal) {
-            window.Services.showAddModal();
+    async handleNewService() {
+        this.closeFABMenu();
+
+        if (typeof servicesModule !== 'undefined' && servicesModule.showAddServiceModal) {
+            servicesModule.showAddServiceModal();
         } else {
-            this.showToast('Service module not available', 'error');
+            showToast('Service management not available', 'error');
         }
     }
 
-    /**
-     * Quick search functionality
-     */
-    showQuickSearch() {
-        // Implementation for quick search
-        this.showToast('Quick search coming soon!', 'info');
+    async handleQuickCheckIn() {
+        this.closeFABMenu();
+
+        if (typeof photosModule !== 'undefined' && photosModule.handleNewCheckIn) {
+            await photosModule.handleNewCheckIn();
+        } else {
+            showToast('Photo documentation not available', 'error');
+        }
     }
 
-    /**
-     * Toast notification system
-     */
-    showToast(message, type = 'info', duration = 3000) {
+    async handleQuickCheckOut() {
+        this.closeFABMenu();
+
+        if (typeof photosModule !== 'undefined' && photosModule.handleNewCheckOut) {
+            await photosModule.handleNewCheckOut();
+        } else {
+            showToast('Photo documentation not available', 'error');
+        }
+    }
+
+    closeActiveModal() {
+        // Close any open modals
+        if (typeof closeModal !== 'undefined') {
+            closeModal();
+        }
+
+        // Close FAB menu
+        this.closeFABMenu();
+    }
+
+    handleInitialRoute() {
+        // Check URL hash for initial route
+        const hash = window.location.hash.substring(1);
+        if (hash && hash !== 'welcome') {
+            this.loadSection(hash, false);
+        } else {
+            // Show welcome content
+            this.currentSection = 'welcome';
+            this.updateFABOptions('welcome');
+        }
+    }
+}
+
+// Utility functions for the application
+class UIUtils {
+    static showToast(message, type = 'info', duration = 3000) {
         const toastContainer = document.getElementById('toastContainer');
         if (!toastContainer) return;
 
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
+
+        const icon = {
+            'success': '✅',
+            'error': '❌',
+            'warning': '⚠️',
+            'info': 'ℹ️'
+        };
+
         toast.innerHTML = `
-            <div class="toast-content">
-                <span class="toast-icon">${this.getToastIcon(type)}</span>
-                <span class="toast-message">${message}</span>
-                <button class="toast-close" onclick="this.parentElement.parentElement.remove()">×</button>
-            </div>
+            <span class="toast-icon">${icon[type] || 'ℹ️'}</span>
+            <span class="toast-message">${message}</span>
+            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
         `;
 
         toastContainer.appendChild(toast);
@@ -677,98 +595,116 @@ class OLServiceApp {
                 toast.remove();
             }
         }, duration);
+
+        // Add entrance animation
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
     }
 
-    getToastIcon(type) {
-        const icons = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
-        };
-        return icons[type] || icons.info;
-    }
+    static showModal(title, content, size = 'medium') {
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalContainer = document.getElementById('modalContainer');
 
-    /**
-     * Error handling
-     */
-    showError(title, message) {
-        this.setContent(`
-            <div class="error-container">
-                <div class="error-icon">❌</div>
-                <h2 class="error-title">${title}</h2>
-                <p class="error-message">${message}</p>
-                <button class="button button-primary" onclick="app.showWelcomeSection()">
-                    ← Back to Home
-                </button>
+        if (!modalOverlay || !modalContainer) return;
+
+        modalContainer.className = `modal-container modal-${size}`;
+        modalContainer.innerHTML = `
+            <div class="modal-header">
+                <h2 class="modal-title">${title}</h2>
+                <button class="modal-close" onclick="closeModal()">×</button>
             </div>
-        `);
+            <div class="modal-content">
+                ${content}
+            </div>
+        `;
+
+        modalOverlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+
+        // Add entrance animation
+        setTimeout(() => {
+            modalOverlay.classList.add('show');
+        }, 10);
     }
 
-    /**
-     * Utility methods
-     */
-    goHome() {
-        this.showWelcomeSection();
-    }
+    static closeModal() {
+        const modalOverlay = document.getElementById('modalOverlay');
+        if (modalOverlay) {
+            modalOverlay.classList.remove('show');
+            document.body.style.overflow = '';
 
-    refresh() {
-        window.location.reload();
-    }
-
-    /**
-     * Public API for modules
-     */
-    getState() {
-        return { ...this.state };
-    }
-
-    setState(newState) {
-        this.state = { ...this.state, ...newState };
-    }
-
-    emit(event, data) {
-        const handlers = this.eventHandlers.get(event);
-        if (handlers) {
-            handlers.forEach(handler => handler(data));
+            setTimeout(() => {
+                modalOverlay.style.display = 'none';
+            }, 300);
         }
     }
 
-    on(event, handler) {
-        if (!this.eventHandlers.has(event)) {
-            this.eventHandlers.set(event, []);
-        }
-        this.eventHandlers.get(event).push(handler);
+    static formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     }
 
-    off(event, handler) {
-        const handlers = this.eventHandlers.get(event);
-        if (handlers) {
-            const index = handlers.indexOf(handler);
-            if (index > -1) {
-                handlers.splice(index, 1);
-            }
-        }
+    static formatCurrency(amount) {
+        if (amount === null || amount === undefined) return '$0.00';
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+        }).format(amount);
+    }
+
+    static debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 }
 
-// Initialize application when DOM is ready
+// Global utility functions
+window.showToast = UIUtils.showToast;
+window.showModal = UIUtils.showModal;
+window.closeModal = UIUtils.closeModal;
+window.formatDate = UIUtils.formatDate;
+window.formatCurrency = UIUtils.formatCurrency;
+
+// Initialize the application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.app = new OLServiceApp();
+    window.olServiceApp = new OLServiceApp();
 });
 
-// Global error handler
+// Handle any uncaught errors
 window.addEventListener('error', (e) => {
-    console.error('Global error:', e.error);
-    if (window.app) {
-        window.app.showToast('An unexpected error occurred', 'error');
-    }
+    console.error('Application Error:', e.error);
+    showToast('An unexpected error occurred', 'error');
 });
 
-// Unhandled promise rejection handler
+// Handle unhandled promise rejections
 window.addEventListener('unhandledrejection', (e) => {
-    console.error('Unhandled promise rejection:', e.reason);
-    if (window.app) {
-        window.app.showToast('An unexpected error occurred', 'error');
-    }
+    console.error('Unhandled Promise Rejection:', e.reason);
+    showToast('An unexpected error occurred', 'error');
 });
+
+// PWA Service Worker Registration (if available)
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+                console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+                console.log('SW registration failed: ', registrationError);
+            });
+    });
+}
+
+console.log('📱 OL Service POS Application Loaded');
+console.log('🔧 Features: Customer Management, Vehicle Tracking, Service Orders');
+console.log('📸 Photo Documentation: Check-in/Check-out, Damage Inspection');
+console.log('🚀 Ready for use!');
