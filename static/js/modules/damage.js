@@ -1,11 +1,11 @@
-// static/js/modules/damage.js - Interactive Damage Inspection Module - Simplified Working Version
+// static/js/modules/damage.js - Minimal Working Damage Inspection Module
 console.log('🔍 Loading Damage module...');
 
 class DamageInspectionModule {
     constructor() {
         this.vehicles = [];
         this.currentVehicle = null;
-        this.currentTool = 'circle';
+        this.currentTool = 'freehand';
         this.damageMarkers = [];
         this.drawings = [];
         this.isLoading = false;
@@ -16,33 +16,15 @@ class DamageInspectionModule {
         this.startY = 0;
         this.currentDrawing = null;
         this.zoomLevel = 1;
-        this.canvasSize = 'medium';
+        this.drawingHistory = []; // Store drawing history for undo
 
-        // Drawing tools configuration
+        // Simplified drawing tools - only working ones
         this.drawingTools = {
-            circle: {
-                name: 'Circle',
-                color: '#e74c3c',
-                icon: '⭕',
-                description: 'Draw circles around damage areas'
-            },
             freehand: {
                 name: 'Freehand',
                 color: '#f39c12',
                 icon: '✏️',
                 description: 'Draw freehand marks'
-            },
-            arrow: {
-                name: 'Arrow',
-                color: '#3498db',
-                icon: '↗️',
-                description: 'Draw arrows pointing to damage'
-            },
-            rectangle: {
-                name: 'Rectangle',
-                color: '#9b59b6',
-                icon: '▭',
-                description: 'Draw rectangles around areas'
             },
             marker: {
                 name: 'Marker',
@@ -50,14 +32,6 @@ class DamageInspectionModule {
                 icon: '📍',
                 description: 'Place point markers'
             }
-        };
-
-        // Canvas size presets
-        this.canvasSizes = {
-            small: { width: 400, name: 'Small' },
-            medium: { width: 600, name: 'Medium' },
-            large: { width: 800, name: 'Large' },
-            xlarge: { width: 1000, name: 'X-Large' }
         };
     }
 
@@ -90,18 +64,7 @@ class DamageInspectionModule {
                 <div class="action-bar">
                     <h2 class="action-bar-title">🔍 Vehicle Damage Inspection</h2>
                     <div class="action-bar-actions">
-                        <button class="btn btn-outline" onclick="window.Damage.loadPreviousInspection()" title="Load Previous">
-                            📂 Load Previous
-                        </button>
-                        <button class="btn btn-outline" onclick="window.Damage.clearAll()" title="Clear All">
-                            🗑️ Clear All
-                        </button>
-                        <button class="btn btn-outline" onclick="window.Damage.exportReport()">
-                            📤 Export Report
-                        </button>
-                        <button class="btn btn-primary" onclick="window.Damage.saveInspection()">
-                            💾 Save Inspection
-                        </button>
+                        <!-- Main action buttons can go here if needed -->
                     </div>
                 </div>
 
@@ -110,13 +73,6 @@ class DamageInspectionModule {
                     <h3>🚗 Vehicle Information</h3>
                     <div class="vehicle-grid">
                         ${this.renderVehicleOptions()}
-                        <div class="vehicle-option" onclick="window.Damage.addCustomVehicle()">
-                            <div class="vehicle-icon">➕</div>
-                            <div class="vehicle-name">Add Custom Vehicle</div>
-                            <div class="vehicle-subtitle">
-                                Enter vehicle details manually
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -133,18 +89,7 @@ class DamageInspectionModule {
                     <div class="instructions-box">
                         <strong>💡 How to use:</strong>
                         Select a drawing tool above, then draw directly on the vehicle diagram below.
-                        Use circles to mark damage areas, arrows to point to specific spots, or freehand drawing for detailed marking.
-                    </div>
-
-                    <!-- Canvas Size Controls -->
-                    <div class="canvas-size-controls">
-                        <span class="canvas-size-label">Canvas Size:</span>
-                        ${Object.entries(this.canvasSizes).map(([size, config]) => `
-                            <button class="size-btn ${this.canvasSize === size ? 'active' : ''}"
-                                    onclick="window.Damage.setCanvasSize('${size}')">
-                                ${config.name}
-                            </button>
-                        `).join('')}
+                        Use freehand drawing for detailed marking or place markers at specific damage points.
                     </div>
 
                     <!-- Vehicle Canvas -->
@@ -166,6 +111,16 @@ class DamageInspectionModule {
                                 🔄
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Drawing Action Controls -->
+                    <div class="drawing-actions" style="margin-top: 1rem; text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                        <button class="btn btn-outline" onclick="window.Damage.undo()" title="Undo Last Drawing">
+                            ↶ Undo
+                        </button>
+                        <button class="btn btn-outline" onclick="window.Damage.clearAll()" title="Clear All Drawings">
+                            🗑️ Clear All
+                        </button>
                     </div>
                 </div>
 
@@ -196,6 +151,16 @@ class DamageInspectionModule {
                     </div>
                     <div class="damage-items" id="damageItems">
                         ${this.renderNotesList()}
+                    </div>
+
+                    <!-- Save and Export Controls -->
+                    <div class="save-export-actions" style="margin-top: 1.5rem; text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                        <button class="btn btn-outline" onclick="window.Damage.exportReport()" title="Export Damage Report">
+                            📤 Export Report
+                        </button>
+                        <button class="btn btn-primary" onclick="window.Damage.saveInspection()" title="Save Inspection">
+                            💾 Save Inspection
+                        </button>
                     </div>
                 </div>
             </div>
@@ -312,17 +277,16 @@ class DamageInspectionModule {
     }
 
     renderVehicleCanvas() {
-        const currentSize = this.canvasSizes[this.canvasSize];
         return `
             <div class="vehicle-canvas" id="vehicleCanvas" style="transform: scale(${this.zoomLevel});">
                 <img src="/static/images/van_sketch.png"
                      alt="Van Sketch Diagram"
                      class="vehicle-image"
                      id="vehicleImage"
-                     style="width: ${currentSize.width}px; height: auto; max-width: 100%;"
+                     style="width: 600px; height: auto; max-width: 100%;"
                      crossorigin="anonymous"
                      onload="window.Damage.onImageLoad()"
-                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YwZjBmMCIgc3Ryb2tlPSIjY2NjIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSIzMDAiIHk9IjE4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzk5OSIgZm9udC1zaXplPSIyNCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIj7wn5qQIFZhbiBEaWFncmFtPC90ZXh0Pjx0ZXh0IHg9IjMwMCIgeT0iMjIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjYmJiIiBmb250LXNpemU9IjE0IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiPkNsaWNrIHRvIGFkZCB5b3VyIHZhbiBza2V0Y2g8L3RleHQ+PHRleHQgeD0iMzAwIiB5PSIyNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNiYmIiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiI+L3N0YXRpYy9pbWFnZXMvdmFuX3NrZXRjaC5wbmc8L3RleHQ+PC9zdmc+'; this.style.width='${currentSize.width}px'; this.style.height='auto'; this.style.maxWidth='100%';">
+                     onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iI2YwZjBmMCIgc3Ryb2tlPSIjY2NjIiBzdHJva2Utd2lkdGg9IjIiLz48dGV4dCB4PSIzMDAiIHk9IjE4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzk5OSIgZm9udC1zaXplPSIyNCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIj7wn5qQIFZhbiBEaWFncmFtPC90ZXh0Pjx0ZXh0IHg9IjMwMCIgeT0iMjIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjYmJiIiBmb250LXNpemU9IjE0IiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiPkNsaWNrIHRvIGFkZCB5b3VyIHZhbiBza2V0Y2g8L3RleHQ+PHRleHQgeD0iMzAwIiB5PSIyNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiNiYmIiIGZvbnQtc2l6ZT0iMTIiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiI+L3N0YXRpYy9pbWFnZXMvdmFuX3NrZXRjaC5wbmc8L3RleHQ+PC9zdmc+';">
                 <canvas class="damage-canvas"
                         id="drawingCanvas"
                         onmousedown="window.Damage.startDrawing(event)"
@@ -375,9 +339,6 @@ class DamageInspectionModule {
                     </div>
                 </div>
                 <div class="damage-actions">
-                    <button class="damage-item-btn" onclick="window.Damage.editNote(${index})" title="Edit">
-                        ✏️
-                    </button>
                     <button class="damage-item-btn" onclick="window.Damage.removeNote(${index})" title="Remove">
                         🗑️
                     </button>
@@ -405,12 +366,8 @@ class DamageInspectionModule {
 
         if (!image || !canvas) return;
 
-        const computedStyle = window.getComputedStyle(image);
-        const displayWidth = parseInt(computedStyle.width);
-        const displayHeight = parseInt(computedStyle.height);
-
-        canvas.width = displayWidth;
-        canvas.height = displayHeight;
+        canvas.width = image.offsetWidth;
+        canvas.height = image.offsetHeight;
 
         this.drawingCanvas = canvas;
         this.ctx = canvas.getContext('2d');
@@ -455,35 +412,28 @@ class DamageInspectionModule {
         }
     }
 
-    setCanvasSize(size) {
-        this.canvasSize = size;
+    getMousePos(event) {
+        const canvas = this.drawingCanvas;
+        const rect = canvas.getBoundingClientRect();
 
-        document.querySelectorAll('.size-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
+        // Account for zoom level in calculations
+        const scaleX = (canvas.width / rect.width) / this.zoomLevel;
+        const scaleY = (canvas.height / rect.height) / this.zoomLevel;
 
-        const activeButton = document.querySelector(`[onclick*="setCanvasSize('${size}')"]`);
-        if (activeButton) {
-            activeButton.classList.add('active');
+        let clientX, clientY;
+
+        if (event.touches && event.touches.length > 0) {
+            clientX = event.touches[0].clientX;
+            clientY = event.touches[0].clientY;
+        } else {
+            clientX = event.clientX;
+            clientY = event.clientY;
         }
 
-        const canvasContainer = document.getElementById('canvasContainer');
-        if (canvasContainer) {
-            canvasContainer.innerHTML = this.renderVehicleCanvas() + `
-                <div class="zoom-controls">
-                    <button class="zoom-btn" onclick="window.Damage.zoomIn()" title="Zoom In">+</button>
-                    <div class="zoom-level" id="zoomLevel">${Math.round(this.zoomLevel * 100)}%</div>
-                    <button class="zoom-btn" onclick="window.Damage.zoomOut()" title="Zoom Out">−</button>
-                    <button class="zoom-btn" onclick="window.Damage.resetZoom()" title="Reset Zoom">🔄</button>
-                </div>
-            `;
-        }
-
-        setTimeout(() => this.setupCanvas(), 100);
-
-        if (typeof showToast !== 'undefined') {
-            showToast(`Canvas size changed to ${this.canvasSizes[size].name}`, 'success');
-        }
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
     }
 
     zoomIn() {
@@ -517,30 +467,44 @@ class DamageInspectionModule {
             zoomLevelDisplay.textContent = `${Math.round(this.zoomLevel * 100)}%`;
         }
 
+        // Update canvas coordinates after zoom change
         setTimeout(() => this.setupCanvas(), 50);
     }
 
-    getMousePos(event) {
-        const canvas = this.drawingCanvas;
-        const rect = canvas.getBoundingClientRect();
+    saveDrawingState() {
+        // Save current drawings state for undo functionality
+        this.drawingHistory.push(JSON.parse(JSON.stringify(this.drawings)));
 
-        const scaleX = (canvas.width / rect.width) / this.zoomLevel;
-        const scaleY = (canvas.height / rect.height) / this.zoomLevel;
+        // Limit history to last 20 actions to prevent memory issues
+        if (this.drawingHistory.length > 20) {
+            this.drawingHistory.shift();
+        }
+    }
 
-        let clientX, clientY;
-
-        if (event.touches && event.touches.length > 0) {
-            clientX = event.touches[0].clientX;
-            clientY = event.touches[0].clientY;
-        } else {
-            clientX = event.clientX;
-            clientY = event.clientY;
+    undo() {
+        if (this.drawingHistory.length === 0) {
+            if (typeof showToast !== 'undefined') {
+                showToast('Nothing to undo', 'info');
+            }
+            return;
         }
 
-        return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY
-        };
+        // Remove the last saved state (current state)
+        this.drawingHistory.pop();
+
+        // Restore to previous state
+        if (this.drawingHistory.length > 0) {
+            this.drawings = JSON.parse(JSON.stringify(this.drawingHistory[this.drawingHistory.length - 1]));
+        } else {
+            this.drawings = [];
+        }
+
+        // Redraw canvas with restored state
+        this.redrawAll();
+
+        if (typeof showToast !== 'undefined') {
+            showToast('Last drawing undone', 'success');
+        }
     }
 
     startDrawing(event) {
@@ -568,13 +532,6 @@ class DamageInspectionModule {
                 color: tool.color,
                 points: [pos]
             };
-        } else {
-            this.currentDrawing = {
-                type: this.currentTool,
-                color: tool.color,
-                startX: pos.x,
-                startY: pos.y
-            };
         }
     }
 
@@ -600,75 +557,12 @@ class DamageInspectionModule {
 
         if (!this.ctx || this.currentTool === 'marker') return;
 
-        const pos = this.getMousePos(event);
-
         if (this.currentTool === 'freehand') {
             this.drawings.push(this.currentDrawing);
-        } else {
-            this.currentDrawing.endX = pos.x;
-            this.currentDrawing.endY = pos.y;
-            this.drawShape(this.currentDrawing);
-            this.drawings.push(this.currentDrawing);
+            this.saveDrawingState(); // Save state for undo
         }
 
         this.currentDrawing = null;
-    }
-
-    drawShape(drawing) {
-        if (!this.ctx) return;
-
-        this.ctx.strokeStyle = drawing.color;
-        this.ctx.fillStyle = drawing.color;
-        this.ctx.lineWidth = 3;
-
-        const width = drawing.endX - drawing.startX;
-        const height = drawing.endY - drawing.startY;
-
-        switch (drawing.type) {
-            case 'circle':
-                const radius = Math.sqrt(width * width + height * height) / 2;
-                const centerX = drawing.startX + width / 2;
-                const centerY = drawing.startY + height / 2;
-                this.ctx.beginPath();
-                this.ctx.arc(centerX, centerY, Math.abs(radius), 0, 2 * Math.PI);
-                this.ctx.stroke();
-                break;
-
-            case 'rectangle':
-                this.ctx.beginPath();
-                this.ctx.rect(drawing.startX, drawing.startY, width, height);
-                this.ctx.stroke();
-                break;
-
-            case 'arrow':
-                this.drawArrow(drawing.startX, drawing.startY, drawing.endX, drawing.endY);
-                break;
-        }
-    }
-
-    drawArrow(startX, startY, endX, endY) {
-        if (!this.ctx) return;
-
-        const headlen = 15;
-        const angle = Math.atan2(endY - startY, endX - startX);
-
-        this.ctx.beginPath();
-        this.ctx.moveTo(startX, startY);
-        this.ctx.lineTo(endX, endY);
-        this.ctx.stroke();
-
-        this.ctx.beginPath();
-        this.ctx.moveTo(endX, endY);
-        this.ctx.lineTo(
-            endX - headlen * Math.cos(angle - Math.PI / 6),
-            endY - headlen * Math.sin(angle - Math.PI / 6)
-        );
-        this.ctx.moveTo(endX, endY);
-        this.ctx.lineTo(
-            endX - headlen * Math.cos(angle + Math.PI / 6),
-            endY - headlen * Math.sin(angle + Math.PI / 6)
-        );
-        this.ctx.stroke();
     }
 
     placeMarker(x, y) {
@@ -688,6 +582,7 @@ class DamageInspectionModule {
         this.ctx.stroke();
 
         this.drawings.push(drawing);
+        this.saveDrawingState(); // Save state for undo
     }
 
     redrawAll() {
@@ -717,13 +612,10 @@ class DamageInspectionModule {
                 this.ctx.strokeStyle = '#fff';
                 this.ctx.lineWidth = 2;
                 this.ctx.stroke();
-            } else {
-                this.drawShape(drawing);
             }
         });
     }
 
-    // Simplified methods for basic functionality
     addNote() {
         const textarea = document.getElementById('damageNotes');
         const noteText = textarea.value.trim();
@@ -790,6 +682,7 @@ class DamageInspectionModule {
         if (confirm('Are you sure you want to clear all drawings and notes?')) {
             this.drawings = [];
             this.damageMarkers = [];
+            this.drawingHistory = []; // Clear undo history too
 
             if (this.ctx) {
                 this.ctx.clearRect(0, 0, this.drawingCanvas.width, this.drawingCanvas.height);
@@ -848,28 +741,6 @@ class DamageInspectionModule {
         }
     }
 
-    loadPreviousInspection() {
-        try {
-            const inspections = JSON.parse(localStorage.getItem('damage_inspections') || '[]');
-
-            if (inspections.length === 0) {
-                if (typeof showToast !== 'undefined') {
-                    showToast('No previous inspections found', 'info');
-                }
-                return;
-            }
-
-            if (typeof showToast !== 'undefined') {
-                showToast(`Found ${inspections.length} saved inspections. Feature coming soon!`, 'info');
-            }
-        } catch (error) {
-            console.error('Failed to load inspections:', error);
-            if (typeof showToast !== 'undefined') {
-                showToast('❌ Failed to load inspections', 'error');
-            }
-        }
-    }
-
     exportReport() {
         const report = {
             vehicle: this.currentVehicle || { make: 'Unknown', model: 'Vehicle', year: new Date().getFullYear() },
@@ -881,7 +752,7 @@ class DamageInspectionModule {
                 id: index + 1,
                 type: drawing.type,
                 color: drawing.color,
-                coordinates: this.getDrawingCoordinates(drawing)
+                coordinates: drawing.type === 'marker' ? { x: drawing.x, y: drawing.y } : { points: drawing.points }
             })),
             notes: this.damageMarkers.map((note, index) => ({
                 id: index + 1,
@@ -913,37 +784,6 @@ class DamageInspectionModule {
             if (typeof showToast !== 'undefined') {
                 showToast('❌ Failed to export report', 'error');
             }
-        }
-    }
-
-    getDrawingCoordinates(drawing) {
-        switch (drawing.type) {
-            case 'circle':
-            case 'rectangle':
-            case 'arrow':
-                return {
-                    start: { x: drawing.startX, y: drawing.startY },
-                    end: { x: drawing.endX, y: drawing.endY }
-                };
-            case 'marker':
-                return { x: drawing.x, y: drawing.y };
-            case 'freehand':
-                return { points: drawing.points };
-            default:
-                return {};
-        }
-    }
-
-    // Simplified placeholder methods
-    addCustomVehicle() {
-        if (typeof showToast !== 'undefined') {
-            showToast('Custom vehicle feature coming soon!', 'info');
-        }
-    }
-
-    editNote(index) {
-        if (typeof showToast !== 'undefined') {
-            showToast('Note editing feature coming soon!', 'info');
         }
     }
 
