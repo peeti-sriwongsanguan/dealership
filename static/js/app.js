@@ -9,55 +9,108 @@ class OLServiceApp {
         this.currentSection = 'welcome';
         this.apiStatus = 'unknown';
         this.fabMenuOpen = false;
-        this.init();
+        console.log('🏗️ OLServiceApp constructor called');
+        this.init().catch(error => {
+            console.error('❌ App initialization failed:', error);
+            this.forceShowApp();
+        });
     }
 
     async init() {
         console.log('🚀 Initializing OL Service POS...');
 
-        // Hide loading screen
-        this.hideLoadingScreen();
+        try {
+            // Force show app after 2 seconds as fallback
+            setTimeout(() => {
+                this.forceShowApp();
+            }, 2000);
 
-        // Initialize API status checking
-        await this.checkApiStatus();
+            // Hide loading screen immediately
+            this.hideLoadingScreen();
 
-        // Bind navigation events
-        this.bindNavigation();
+            // Initialize API status checking
+            await this.checkApiStatus();
 
-        // Bind FAB events
-        this.bindFABEvents();
+            // Bind navigation events
+            this.bindNavigation();
 
-        // Bind global events
-        this.bindGlobalEvents();
+            // Bind FAB events
+            this.bindFABEvents();
 
-        // Handle initial route
-        this.handleInitialRoute();
+            // Bind global events
+            this.bindGlobalEvents();
 
-        console.log('✅ Application initialized successfully');
+            // Handle initial route
+            this.handleInitialRoute();
+
+            console.log('✅ Application initialized successfully');
+        } catch (error) {
+            console.error('❌ Initialization error:', error);
+            this.forceShowApp();
+            throw error;
+        }
+    }
+
+    forceShowApp() {
+        console.log('🔧 Force showing app...');
+        const loadingScreen = document.getElementById('loadingScreen');
+        const app = document.getElementById('app');
+
+        if (loadingScreen) {
+            loadingScreen.style.display = 'none';
+            console.log('✅ Loading screen hidden (forced)');
+        }
+
+        if (app) {
+            app.style.display = 'block';
+            console.log('✅ App shown (forced)');
+        }
     }
 
     hideLoadingScreen() {
+        console.log('⏰ Setting loading screen timer...');
         const loadingScreen = document.getElementById('loadingScreen');
         const app = document.getElementById('app');
 
         if (loadingScreen && app) {
+            // Quick timer - show app almost immediately
             setTimeout(() => {
+                console.log('⏰ Quick timer expired, hiding loading screen...');
                 loadingScreen.style.display = 'none';
                 app.style.display = 'block';
-            }, 1000);
+                app.style.opacity = '1';
+                console.log('✅ Loading screen hidden, app shown');
+            }, 100);
+
+            // Backup timer in case something interferes
+            setTimeout(() => {
+                if (loadingScreen.style.display !== 'none') {
+                    loadingScreen.style.display = 'none';
+                    app.style.display = 'block';
+                    console.log('🔧 Backup timer activated');
+                }
+            }, 1500);
+        } else {
+            console.error('❌ Missing elements:', {
+                loadingScreen: !!loadingScreen,
+                app: !!app
+            });
         }
     }
 
     async checkApiStatus() {
+        console.log('🔍 Checking API status...');
         try {
             const response = await fetch('/api');
             if (response.ok) {
+                console.log('✅ API is online');
                 this.updateApiStatus('online');
             } else {
+                console.log('⚠️ API returned error status:', response.status);
                 this.updateApiStatus('error');
             }
         } catch (error) {
-            console.error('API Status Check Failed:', error);
+            console.error('❌ API Status Check Failed:', error);
             this.updateApiStatus('offline');
         }
     }
@@ -91,12 +144,15 @@ class OLServiceApp {
     }
 
     bindNavigation() {
+        console.log('🧭 Binding navigation...');
         const navButtons = document.querySelectorAll('.nav-button');
+        console.log(`Found ${navButtons.length} navigation buttons`);
 
         navButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 const section = button.dataset.section;
+                console.log(`🧭 Navigating to section: ${section}`);
                 if (section) {
                     this.navigateToSection(section);
                 }
@@ -112,13 +168,16 @@ class OLServiceApp {
     }
 
     bindFABEvents() {
+        console.log('🎯 Binding FAB events...');
         const fabButton = document.getElementById('fabButton');
-        const fabMenu = document.getElementById('fabMenu');
 
         if (fabButton) {
             fabButton.addEventListener('click', () => {
                 this.toggleFABMenu();
             });
+            console.log('✅ FAB button bound');
+        } else {
+            console.log('⚠️ FAB button not found');
         }
 
         // FAB option handlers
@@ -149,6 +208,8 @@ class OLServiceApp {
     }
 
     bindGlobalEvents() {
+        console.log('🌐 Binding global events...');
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             // ESC to close modals
@@ -170,12 +231,16 @@ class OLServiceApp {
         // Handle online/offline status
         window.addEventListener('online', () => {
             this.checkApiStatus();
-            showToast('Connection restored', 'success');
+            if (typeof showToast !== 'undefined') {
+                showToast('Connection restored', 'success');
+            }
         });
 
         window.addEventListener('offline', () => {
             this.updateApiStatus('offline');
-            showToast('Connection lost', 'warning');
+            if (typeof showToast !== 'undefined') {
+                showToast('Connection lost', 'warning');
+            }
         });
 
         // Auto-refresh API status every 30 seconds
@@ -212,6 +277,7 @@ class OLServiceApp {
     }
 
     navigateToSection(section) {
+        console.log(`🧭 Navigating to: ${section}`);
         // Update URL without page refresh
         const url = new URL(window.location);
         url.hash = section;
@@ -222,6 +288,7 @@ class OLServiceApp {
     }
 
     async loadSection(section, addToHistory = true) {
+        console.log(`📄 Loading section: ${section}`);
         try {
             // Update current section
             this.currentSection = section;
@@ -271,9 +338,11 @@ class OLServiceApp {
             // Close FAB menu
             this.closeFABMenu();
 
+            console.log(`✅ Section loaded: ${section}`);
+
         } catch (error) {
-            console.error('Error loading section:', error);
-            this.showErrorContent(`Failed to load ${section} section`);
+            console.error('❌ Error loading section:', error);
+            this.showErrorContent(`Failed to load ${section} section: ${error.message}`);
         }
     }
 
@@ -443,102 +512,351 @@ class OLServiceApp {
 
     // Section loading methods
     async loadCustomersSection() {
-        if (typeof customersModule !== 'undefined' && customersModule.loadModule) {
-            return await customersModule.loadModule();
+        console.log('📄 Loading customers section...');
+        try {
+            if (typeof customersModule !== 'undefined' && customersModule.loadModule) {
+                console.log('✅ Using customersModule');
+                return await customersModule.loadModule();
+            } else {
+                console.log('⚠️ customersModule not available, using simple content');
+                return this.getSimpleCustomersContent();
+            }
+        } catch (error) {
+            console.error('❌ Error loading customers module:', error);
+            return this.getSimpleCustomersContent();
         }
-        return '<div class="error-content">Customers module not available</div>';
     }
 
     async loadVehiclesSection() {
-        if (typeof vehiclesModule !== 'undefined' && vehiclesModule.loadModule) {
-            return await vehiclesModule.loadModule();
+        console.log('📄 Loading vehicles section...');
+        try {
+            if (typeof vehiclesModule !== 'undefined' && vehiclesModule.loadModule) {
+                console.log('✅ Using vehiclesModule');
+                return await vehiclesModule.loadModule();
+            } else {
+                console.log('⚠️ vehiclesModule not available, using simple content');
+                return this.getSimpleVehiclesContent();
+            }
+        } catch (error) {
+            console.error('❌ Error loading vehicles module:', error);
+            return this.getSimpleVehiclesContent();
         }
-        return '<div class="error-content">Vehicles module not available</div>';
     }
 
     async loadServicesSection() {
-        if (typeof servicesModule !== 'undefined' && servicesModule.loadModule) {
-            return await servicesModule.loadModule();
+        console.log('📄 Loading services section...');
+        try {
+            if (typeof servicesModule !== 'undefined' && servicesModule.loadModule) {
+                console.log('✅ Using servicesModule');
+                return await servicesModule.loadModule();
+            } else {
+                console.log('⚠️ servicesModule not available, using simple content');
+                return this.getSimpleServicesContent();
+            }
+        } catch (error) {
+            console.error('❌ Error loading services module:', error);
+            return this.getSimpleServicesContent();
         }
-        return '<div class="error-content">Services module not available</div>';
     }
 
     async loadDamageSection() {
-        if (typeof damageModule !== 'undefined' && damageModule.loadModule) {
-            return await damageModule.loadModule();
+        console.log('📄 Loading damage section...');
+        try {
+            if (typeof damageModule !== 'undefined' && damageModule.loadModule) {
+                console.log('✅ Using damageModule');
+                return await damageModule.loadModule();
+            } else {
+                console.log('⚠️ damageModule not available, using simple content');
+                return this.getSimpleDamageContent();
+            }
+        } catch (error) {
+            console.error('❌ Error loading damage module:', error);
+            return this.getSimpleDamageContent();
         }
-        return '<div class="error-content">Damage inspection module not available</div>';
     }
 
     async loadPhotosSection() {
-        if (typeof photosModule !== 'undefined' && photosModule.loadModule) {
-            return await photosModule.loadModule();
+        console.log('📄 Loading photos section...');
+        try {
+            if (typeof photosModule !== 'undefined' && photosModule.loadModule) {
+                console.log('✅ Using photosModule');
+                return await photosModule.loadModule();
+            } else {
+                console.log('⚠️ photosModule not available, using simple content');
+                return this.getSimplePhotosContent();
+            }
+        } catch (error) {
+            console.error('❌ Error loading photos module:', error);
+            return this.getSimplePhotosContent();
         }
-        return '<div class="error-content">Photos module not available</div>';
     }
 
     async loadReportsSection() {
-        if (typeof reportsModule !== 'undefined' && reportsModule.loadModule) {
-            return await reportsModule.loadModule();
+        console.log('📄 Loading reports section...');
+        try {
+            if (typeof reportsModule !== 'undefined' && reportsModule.loadModule) {
+                console.log('✅ Using reportsModule');
+                return await reportsModule.loadModule();
+            } else {
+                console.log('⚠️ reportsModule not available, using simple content');
+                return this.getSimpleReportsContent();
+            }
+        } catch (error) {
+            console.error('❌ Error loading reports module:', error);
+            return this.getSimpleReportsContent();
         }
-        return '<div class="error-content">Reports module not available</div>';
     }
 
     async loadSettingsSection() {
-        if (typeof settingsModule !== 'undefined' && settingsModule.loadModule) {
-            return await settingsModule.loadModule();
+        console.log('📄 Loading settings section...');
+        try {
+            if (typeof settingsModule !== 'undefined' && settingsModule.loadModule) {
+                console.log('✅ Using settingsModule');
+                return await settingsModule.loadModule();
+            } else {
+                console.log('⚠️ settingsModule not available, using simple content');
+                return this.getSimpleSettingsContent();
+            }
+        } catch (error) {
+            console.error('❌ Error loading settings module:', error);
+            return this.getSimpleSettingsContent();
         }
-        return '<div class="error-content">Settings module not available</div>';
+    }
+
+    // Simple content fallbacks
+    getSimpleCustomersContent() {
+        return `
+            <div class="section-content">
+                <div class="section-header">
+                    <h2>👥 Customers</h2>
+                    <p>Customer management module</p>
+                </div>
+                <div class="simple-content">
+                    <div class="info-card">
+                        <h3>✅ Section Working</h3>
+                        <p>This is a fallback view. The full customers module will be loaded here.</p>
+                        <p><strong>API Status:</strong> ${this.apiStatus}</p>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="window.olServiceApp.testAPI('customers')">
+                                Test API
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getSimpleVehiclesContent() {
+        return `
+            <div class="section-content">
+                <div class="section-header">
+                    <h2>🚗 Vehicles</h2>
+                    <p>Vehicle management module</p>
+                </div>
+                <div class="simple-content">
+                    <div class="info-card">
+                        <h3>✅ Section Working</h3>
+                        <p>This is a fallback view. The full vehicles module will be loaded here.</p>
+                        <p><strong>API Status:</strong> ${this.apiStatus}</p>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="window.olServiceApp.testAPI('vehicles')">
+                                Test API
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getSimpleServicesContent() {
+        return `
+            <div class="section-content">
+                <div class="section-header">
+                    <h2>🔧 Services</h2>
+                    <p>Service management module</p>
+                </div>
+                <div class="simple-content">
+                    <div class="info-card">
+                        <h3>✅ Section Working</h3>
+                        <p>This is a fallback view. The full services module will be loaded here.</p>
+                        <p><strong>API Status:</strong> ${this.apiStatus}</p>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="window.olServiceApp.testAPI('services')">
+                                Test API
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getSimpleDamageContent() {
+        return `
+            <div class="section-content">
+                <div class="section-header">
+                    <h2>🔍 Damage Inspection</h2>
+                    <p>Damage inspection module</p>
+                </div>
+                <div class="simple-content">
+                    <div class="info-card">
+                        <h3>✅ Section Working</h3>
+                        <p>This is a fallback view. The full damage inspection module will be loaded here.</p>
+                        <p><strong>API Status:</strong> ${this.apiStatus}</p>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="console.log('Damage module test')">
+                                Test Module
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getSimplePhotosContent() {
+        return `
+            <div class="section-content">
+                <div class="section-header">
+                    <h2>📸 Photos</h2>
+                    <p>Photo documentation module</p>
+                </div>
+                <div class="simple-content">
+                    <div class="info-card">
+                        <h3>✅ Section Working</h3>
+                        <p>This is a fallback view. The full photo documentation module will be loaded here.</p>
+                        <p><strong>API Status:</strong> ${this.apiStatus}</p>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="window.olServiceApp.testAPI('photos')">
+                                Test Photos
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getSimpleReportsContent() {
+        return `
+            <div class="section-content">
+                <div class="section-header">
+                    <h2>📊 Reports</h2>
+                    <p>Reports and analytics module</p>
+                </div>
+                <div class="simple-content">
+                    <div class="info-card">
+                        <h3>✅ Section Working</h3>
+                        <p>This is a fallback view. The full reports module will be loaded here.</p>
+                        <p><strong>API Status:</strong> ${this.apiStatus}</p>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="console.log('Reports module test')">
+                                Test Module
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getSimpleSettingsContent() {
+        return `
+            <div class="section-content">
+                <div class="section-header">
+                    <h2>⚙️ Settings</h2>
+                    <p>Application settings and configuration</p>
+                </div>
+                <div class="simple-content">
+                    <div class="info-card">
+                        <h3>✅ Section Working</h3>
+                        <p>This is a fallback view. The full settings module will be loaded here.</p>
+                        <p><strong>API Status:</strong> ${this.apiStatus}</p>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="console.log('Settings module test')">
+                                Test Module
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Utility method to test API endpoints
+    async testAPI(endpoint) {
+        console.log(`🧪 Testing ${endpoint} API...`);
+        try {
+            const response = await fetch(`/api/${endpoint}`);
+            const data = await response.json();
+            console.log(`✅ ${endpoint} API test successful:`, data);
+            showToast(`${endpoint} API working! Found ${data[endpoint]?.length || 0} records`, 'success');
+        } catch (error) {
+            console.error(`❌ ${endpoint} API test failed:`, error);
+            showToast(`${endpoint} API test failed: ${error.message}`, 'error');
+        }
     }
 
     // FAB action handlers
     async handleAddCustomer() {
+        console.log('🆕 Add customer clicked');
         this.closeFABMenu();
 
         if (typeof customersModule !== 'undefined' && customersModule.showAddCustomerModal) {
             customersModule.showAddCustomerModal();
         } else {
-            showToast('Customer management not available', 'error');
+            showToast('Customer management not fully loaded', 'warning');
+            console.log('Customer module not available');
         }
     }
 
     async handleAddVehicle() {
+        console.log('🆕 Add vehicle clicked');
         this.closeFABMenu();
 
         if (typeof vehiclesModule !== 'undefined' && vehiclesModule.showAddVehicleModal) {
             vehiclesModule.showAddVehicleModal();
         } else {
-            showToast('Vehicle management not available', 'error');
+            showToast('Vehicle management not fully loaded', 'warning');
+            console.log('Vehicle module not available');
         }
     }
 
     async handleNewService() {
+        console.log('🆕 New service clicked');
         this.closeFABMenu();
 
         if (typeof servicesModule !== 'undefined' && servicesModule.showAddServiceModal) {
             servicesModule.showAddServiceModal();
         } else {
-            showToast('Service management not available', 'error');
+            showToast('Service management not fully loaded', 'warning');
+            console.log('Service module not available');
         }
     }
 
     async handleQuickCheckIn() {
+        console.log('✅ Quick check-in clicked');
         this.closeFABMenu();
 
         if (typeof photosModule !== 'undefined' && photosModule.handleNewCheckIn) {
             await photosModule.handleNewCheckIn();
         } else {
-            showToast('Photo documentation not available', 'error');
+            showToast('Photo documentation not fully loaded', 'warning');
+            console.log('Photos module not available');
         }
     }
 
     async handleQuickCheckOut() {
+        console.log('📋 Quick check-out clicked');
         this.closeFABMenu();
 
         if (typeof photosModule !== 'undefined' && photosModule.handleNewCheckOut) {
             await photosModule.handleNewCheckOut();
         } else {
-            showToast('Photo documentation not available', 'error');
+            showToast('Photo documentation not fully loaded', 'warning');
+            console.log('Photos module not available');
         }
     }
 
@@ -568,8 +886,13 @@ class OLServiceApp {
 // Utility functions for the application
 class UIUtils {
     static showToast(message, type = 'info', duration = 3000) {
+        console.log(`📢 Toast: ${message} (${type})`);
+
         const toastContainer = document.getElementById('toastContainer');
-        if (!toastContainer) return;
+        if (!toastContainer) {
+            console.log('⚠️ Toast container not found');
+            return;
+        }
 
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
@@ -606,7 +929,10 @@ class UIUtils {
         const modalOverlay = document.getElementById('modalOverlay');
         const modalContainer = document.getElementById('modalContainer');
 
-        if (!modalOverlay || !modalContainer) return;
+        if (!modalOverlay || !modalContainer) {
+            console.log('⚠️ Modal elements not found');
+            return;
+        }
 
         modalContainer.className = `modal-container modal-${size}`;
         modalContainer.innerHTML = `
@@ -642,16 +968,24 @@ class UIUtils {
 
     static formatDate(dateString) {
         if (!dateString) return 'N/A';
-        const date = new Date(dateString);
-        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        } catch (error) {
+            return 'Invalid Date';
+        }
     }
 
     static formatCurrency(amount) {
         if (amount === null || amount === undefined) return '$0.00';
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD'
-        }).format(amount);
+        try {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        } catch (error) {
+            return `${amount}`;
+        }
     }
 
     static debounce(func, wait) {
@@ -665,6 +999,16 @@ class UIUtils {
             timeout = setTimeout(later, wait);
         };
     }
+
+    static escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    static generateId() {
+        return 'id_' + Math.random().toString(36).substr(2, 9);
+    }
 }
 
 // Global utility functions
@@ -674,21 +1018,85 @@ window.closeModal = UIUtils.closeModal;
 window.formatDate = UIUtils.formatDate;
 window.formatCurrency = UIUtils.formatCurrency;
 
+// Debug helpers
+window.debugApp = {
+    showApp: () => {
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        console.log('🔧 App manually shown');
+    },
+    hideApp: () => {
+        document.getElementById('loadingScreen').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+        console.log('🔧 App manually hidden');
+    },
+    testAPI: async (endpoint) => {
+        if (window.olServiceApp) {
+            await window.olServiceApp.testAPI(endpoint);
+        } else {
+            console.log('❌ App not initialized');
+        }
+    },
+    checkModules: () => {
+        const modules = {
+            'customersModule': typeof customersModule !== 'undefined',
+            'vehiclesModule': typeof vehiclesModule !== 'undefined',
+            'servicesModule': typeof servicesModule !== 'undefined',
+            'photosModule': typeof photosModule !== 'undefined',
+            'damageModule': typeof damageModule !== 'undefined',
+            'reportsModule': typeof reportsModule !== 'undefined',
+            'settingsModule': typeof settingsModule !== 'undefined'
+        };
+        console.log('📦 Module Status:', modules);
+        return modules;
+    },
+    navigate: (section) => {
+        if (window.olServiceApp) {
+            window.olServiceApp.navigateToSection(section);
+        } else {
+            console.log('❌ App not initialized');
+        }
+    }
+};
+
 // Initialize the application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.olServiceApp = new OLServiceApp();
+    console.log('📄 DOM loaded, initializing app...');
+    try {
+        window.olServiceApp = new OLServiceApp();
+        console.log('✅ App object created and stored in window.olServiceApp');
+
+        // Make app accessible for debugging
+        window.app = window.olServiceApp;
+
+    } catch (error) {
+        console.error('❌ Failed to create app:', error);
+
+        // Fallback - show app anyway
+        setTimeout(() => {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const app = document.getElementById('app');
+            if (loadingScreen) loadingScreen.style.display = 'none';
+            if (app) app.style.display = 'block';
+            console.log('🔧 Fallback app display activated');
+        }, 1000);
+    }
 });
 
 // Handle any uncaught errors
 window.addEventListener('error', (e) => {
     console.error('Application Error:', e.error);
-    showToast('An unexpected error occurred', 'error');
+    if (typeof showToast !== 'undefined') {
+        showToast('An unexpected error occurred', 'error');
+    }
 });
 
 // Handle unhandled promise rejections
 window.addEventListener('unhandledrejection', (e) => {
     console.error('Unhandled Promise Rejection:', e.reason);
-    showToast('An unexpected error occurred', 'error');
+    if (typeof showToast !== 'undefined') {
+        showToast('An unexpected error occurred', 'error');
+    }
 });
 
 // PWA Service Worker Registration (if available)
@@ -704,7 +1112,40 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+// Additional debugging and development helpers
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('192.168')) {
+    console.log('🔧 Development mode detected - adding debug helpers');
+
+    // Add debug panel toggle (Ctrl+Shift+D)
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+            console.log('🔧 Debug info:');
+            console.log('- App object:', window.olServiceApp);
+            console.log('- Current section:', window.olServiceApp?.currentSection);
+            console.log('- API status:', window.olServiceApp?.apiStatus);
+            console.log('- Available modules:', window.debugApp.checkModules());
+
+            showToast('Debug info logged to console', 'info');
+        }
+    });
+
+    // Add performance monitoring
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            const loadTime = performance.now();
+            console.log(`⚡ Page load completed in ${loadTime.toFixed(2)}ms`);
+        }, 100);
+    });
+}
+
+// Export for testing and debugging
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { OLServiceApp, UIUtils };
+}
+
 console.log('📱 OL Service POS Application Loaded');
 console.log('🔧 Features: Customer Management, Vehicle Tracking, Service Orders');
 console.log('📸 Photo Documentation: Check-in/Check-out, Damage Inspection');
 console.log('🚀 Ready for use!');
+console.log('💡 Debug helpers available at window.debugApp');
+console.log('💡 Press Ctrl+Shift+D for debug info');

@@ -47,42 +47,38 @@ class CustomersModule {
     }
 
     /**
-     * Load and display customers section
+     * Load module for new app structure - returns HTML content
      */
-    async load() {
-        if (this.isLoading) return;
-
-        this.isLoading = true;
+    async loadModule() {
+        console.log('📋 Loading customers module for new app...');
 
         try {
             // Refresh customer data
             await this.loadCustomers();
 
-            // Render the customers interface
-            this.render();
+            // Return HTML content instead of rendering directly
+            return this.getHTML();
 
         } catch (error) {
-            console.error('Failed to load customers section:', error);
-            this.renderError(error);
-        } finally {
-            this.isLoading = false;
+            console.error('Failed to load customers module:', error);
+            return this.getErrorHTML(error);
         }
     }
 
     /**
-     * Render the customers interface
+     * Get HTML content for the customers section
      */
-    render() {
-        const html = `
+    getHTML() {
+        return `
             <div class="customers-section">
                 <!-- Action Bar -->
                 <div class="action-bar">
                     <h2 class="action-bar-title">👥 Customer Management</h2>
                     <div class="action-bar-actions">
-                        <button class="button button-outline" onclick="Customers.exportCustomers()">
+                        <button class="btn btn-outline" onclick="window.Customers.exportCustomers()">
                             📤 Export
                         </button>
-                        <button class="button button-primary" onclick="Customers.showAddModal()">
+                        <button class="btn btn-primary" onclick="window.Customers.showAddModal()">
                             ➕ Add Customer
                         </button>
                     </div>
@@ -124,18 +120,18 @@ class CustomersModule {
                 </div>
 
                 <!-- Customer Table -->
-                <div class="data-table">
+                <div class="data-table-container">
                     <div class="data-table-header">
                         <h3 class="data-table-title">Customer Directory</h3>
                         <div class="data-table-actions">
-                            <div class="data-table-search">
+                            <div class="search-container">
                                 <input
                                     type="text"
                                     placeholder="Search customers..."
-                                    class="form-input"
-                                    oninput="Customers.filterCustomers(this.value)"
+                                    class="search-input"
+                                    oninput="window.Customers.filterCustomers(this.value)"
                                 >
-                                <span class="data-table-search-icon">🔍</span>
+                                <span class="search-icon">🔍</span>
                             </div>
                         </div>
                     </div>
@@ -144,15 +140,59 @@ class CustomersModule {
                         ${this.renderCustomerTable()}
                     </div>
                 </div>
+            </div>
+        `;
+    }
 
-                <!-- Back Button -->
-                <div style="margin-top: 2rem; text-align: center;">
-                    <button class="button button-outline" onclick="app.goHome()">
+    /**
+     * Get error HTML
+     */
+    getErrorHTML(error) {
+        return `
+            <div class="error-container">
+                <div class="error-icon">❌</div>
+                <h2 class="error-title">Failed to Load Customers</h2>
+                <p class="error-message">${error.message}</p>
+                <div class="error-actions">
+                    <button class="btn btn-primary" onclick="window.olServiceApp.loadSection('customers')">
+                        🔄 Retry
+                    </button>
+                    <button class="btn btn-outline" onclick="window.olServiceApp.navigateToSection('welcome')">
                         ← Back to Home
                     </button>
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * Load and display customers section (legacy method)
+     */
+    async load() {
+        if (this.isLoading) return;
+
+        this.isLoading = true;
+
+        try {
+            // Refresh customer data
+            await this.loadCustomers();
+
+            // Render the customers interface
+            this.render();
+
+        } catch (error) {
+            console.error('Failed to load customers section:', error);
+            this.renderError(error);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    /**
+     * Render the customers interface (legacy method)
+     */
+    render() {
+        const html = this.getHTML();
 
         if (window.app) {
             window.app.setContent(html);
@@ -168,20 +208,22 @@ class CustomersModule {
         }
 
         return `
-            <table>
-                <thead>
-                    <tr>
-                        <th>Customer</th>
-                        <th>Contact</th>
-                        <th>Registration</th>
-                        <th>Vehicles</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${this.customers.map(customer => this.renderCustomerRow(customer)).join('')}
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Contact</th>
+                            <th>Registration</th>
+                            <th>Vehicles</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${this.customers.map(customer => this.renderCustomerRow(customer)).join('')}
+                    </tbody>
+                </table>
+            </div>
         `;
     }
 
@@ -193,10 +235,10 @@ class CustomersModule {
             new Date(customer.registration_date).toLocaleDateString() : 'Unknown';
 
         return `
-            <tr onclick="Customers.viewCustomer(${customer.id})" style="cursor: pointer;">
+            <tr onclick="window.Customers.viewCustomer(${customer.id})" class="table-row-clickable">
                 <td>
                     <div class="customer-info">
-                        <div class="avatar avatar-md">${this.getCustomerInitials(customer)}</div>
+                        <div class="avatar">${this.getCustomerInitials(customer)}</div>
                         <div class="customer-details">
                             <div class="customer-name">${customer.name || 'Unnamed Customer'}</div>
                             <div class="customer-id">#${customer.id}</div>
@@ -205,8 +247,8 @@ class CustomersModule {
                 </td>
                 <td>
                     <div class="contact-info">
-                        ${customer.phone ? `<div>📞 ${customer.phone}</div>` : ''}
-                        ${customer.email ? `<div>📧 ${customer.email}</div>` : ''}
+                        ${customer.phone ? `<div class="contact-item">📞 ${customer.phone}</div>` : ''}
+                        ${customer.email ? `<div class="contact-item">📧 ${customer.email}</div>` : ''}
                         ${!customer.phone && !customer.email ? '<span class="text-muted">No contact info</span>' : ''}
                     </div>
                 </td>
@@ -214,21 +256,25 @@ class CustomersModule {
                     <div class="registration-date">${registrationDate}</div>
                 </td>
                 <td>
-                    <span class="badge badge-primary">${customer.vehicles?.length || 0} vehicles</span>
+                    <span class="badge ${customer.vehicle_count > 0 ? 'badge-primary' : 'badge-secondary'}">
+                        ${customer.vehicle_count || 0} vehicles
+                    </span>
                 </td>
                 <td>
                     <div class="table-actions">
                         <button
-                            class="button button-small button-outline"
-                            onclick="event.stopPropagation(); Customers.editCustomer(${customer.id})"
+                            class="btn btn-sm btn-outline"
+                            onclick="event.stopPropagation(); window.Customers.editCustomer(${customer.id})"
+                            title="Edit Customer"
                         >
-                            ✏️ Edit
+                            ✏️
                         </button>
                         <button
-                            class="button button-small button-outline"
-                            onclick="event.stopPropagation(); Customers.viewVehicles(${customer.id})"
+                            class="btn btn-sm btn-outline"
+                            onclick="event.stopPropagation(); window.Customers.viewVehicles(${customer.id})"
+                            title="View Vehicles"
                         >
-                            🚗 Vehicles
+                            🚗
                         </button>
                     </div>
                 </td>
@@ -247,7 +293,7 @@ class CustomersModule {
                 <p class="empty-state-description">
                     Get started by adding your first customer to the system.
                 </p>
-                <button class="button button-primary" onclick="Customers.showAddModal()">
+                <button class="btn btn-primary" onclick="window.Customers.showAddModal()">
                     ➕ Add First Customer
                 </button>
             </div>
@@ -255,24 +301,10 @@ class CustomersModule {
     }
 
     /**
-     * Render error state
+     * Render error state (legacy method)
      */
     renderError(error) {
-        const html = `
-            <div class="error-container">
-                <div class="error-icon">❌</div>
-                <h2 class="error-title">Failed to Load Customers</h2>
-                <p class="error-message">${error.message}</p>
-                <div style="display: flex; gap: 1rem; justify-content: center;">
-                    <button class="button button-primary" onclick="Customers.load()">
-                        🔄 Retry
-                    </button>
-                    <button class="button button-outline" onclick="app.goHome()">
-                        ← Back to Home
-                    </button>
-                </div>
-            </div>
-        `;
+        const html = this.getErrorHTML(error);
 
         if (window.app) {
             window.app.setContent(html);
@@ -286,11 +318,11 @@ class CustomersModule {
         const modalContent = `
             <div class="modal-header">
                 <h2>➕ Add New Customer</h2>
-                <button class="modal-close" onclick="app.closeModal()">×</button>
+                <button class="modal-close" onclick="closeModal()">×</button>
             </div>
 
             <div class="modal-body">
-                <form id="addCustomerForm" onsubmit="Customers.submitCustomer(event)">
+                <form id="addCustomerForm" onsubmit="window.Customers.submitCustomer(event)">
                     <div class="form-group">
                         <label class="form-label required">Customer Name</label>
                         <input
@@ -333,10 +365,10 @@ class CustomersModule {
                     </div>
 
                     <div class="modal-actions">
-                        <button type="button" class="button button-outline" onclick="app.closeModal()">
+                        <button type="button" class="btn btn-outline" onclick="closeModal()">
                             Cancel
                         </button>
-                        <button type="submit" class="button button-primary">
+                        <button type="submit" class="btn btn-primary">
                             💾 Save Customer
                         </button>
                     </div>
@@ -344,8 +376,12 @@ class CustomersModule {
             </div>
         `;
 
-        if (window.app) {
+        if (typeof showModal !== 'undefined') {
+            showModal('Add Customer', modalContent);
+        } else if (window.app) {
             window.app.showModal(modalContent);
+        } else {
+            console.log('Modal system not available');
         }
     }
 
@@ -367,7 +403,9 @@ class CustomersModule {
 
         // Validate required fields
         if (!customerData.name) {
-            window.app?.showToast('Customer name is required', 'error');
+            if (typeof showToast !== 'undefined') {
+                showToast('Customer name is required', 'error');
+            }
             return;
         }
 
@@ -382,11 +420,22 @@ class CustomersModule {
 
             if (response.ok) {
                 const result = await response.json();
-                window.app?.showToast('✅ Customer added successfully!', 'success');
-                window.app?.closeModal();
+
+                if (typeof showToast !== 'undefined') {
+                    showToast('✅ Customer added successfully!', 'success');
+                }
+
+                if (typeof closeModal !== 'undefined') {
+                    closeModal();
+                }
 
                 // Refresh the customer list
-                await this.load();
+                await this.loadCustomers();
+
+                // If we're currently in the customers section, reload it
+                if (window.olServiceApp && window.olServiceApp.currentSection === 'customers') {
+                    window.olServiceApp.loadSection('customers');
+                }
 
             } else {
                 const error = await response.json();
@@ -395,7 +444,9 @@ class CustomersModule {
 
         } catch (error) {
             console.error('Failed to add customer:', error);
-            window.app?.showToast(`❌ ${error.message}`, 'error');
+            if (typeof showToast !== 'undefined') {
+                showToast(`❌ ${error.message}`, 'error');
+            }
         }
     }
 
@@ -417,28 +468,40 @@ class CustomersModule {
      * View customer details
      */
     viewCustomer(customerId) {
-        window.app?.showToast(`View customer ${customerId} - Feature coming soon!`, 'info');
+        if (typeof showToast !== 'undefined') {
+            showToast(`View customer ${customerId} - Feature coming soon!`, 'info');
+        }
+        console.log('View customer:', customerId);
     }
 
     /**
      * Edit customer
      */
     editCustomer(customerId) {
-        window.app?.showToast(`Edit customer ${customerId} - Feature coming soon!`, 'info');
+        if (typeof showToast !== 'undefined') {
+            showToast(`Edit customer ${customerId} - Feature coming soon!`, 'info');
+        }
+        console.log('Edit customer:', customerId);
     }
 
     /**
      * View customer vehicles
      */
     viewVehicles(customerId) {
-        window.app?.showToast(`View vehicles for customer ${customerId} - Feature coming soon!`, 'info');
+        if (typeof showToast !== 'undefined') {
+            showToast(`View vehicles for customer ${customerId} - Feature coming soon!`, 'info');
+        }
+        console.log('View vehicles for customer:', customerId);
     }
 
     /**
      * Export customers
      */
     exportCustomers() {
-        window.app?.showToast('Export customers - Feature coming soon!', 'info');
+        if (typeof showToast !== 'undefined') {
+            showToast('Export customers - Feature coming soon!', 'info');
+        }
+        console.log('Export customers');
     }
 
     /**
@@ -476,3 +539,8 @@ class CustomersModule {
 
 // Create global instance
 window.Customers = new CustomersModule();
+
+// Also create the expected module reference
+window.customersModule = window.Customers;
+
+console.log('✅ Customers module loaded successfully');

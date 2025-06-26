@@ -30,87 +30,40 @@ class VehiclesModule {
         }
     }
 
-    async loadVehicles() {
-        try {
-            // For now, we'll use mock data. Replace with actual API call
-            this.vehicles = [
-                {
-                    id: 1,
-                    vin: '1HGCM82633A123456',
-                    make: 'Toyota',
-                    model: 'Camry',
-                    year: 2020,
-                    color: 'Silver',
-                    license_plate: 'ABC123',
-                    customer_id: 1,
-                    customer_name: 'John Doe',
-                    mileage: 45000,
-                    type: 'Car',
-                    registration_date: '2023-01-15'
-                },
-                {
-                    id: 2,
-                    vin: '2T1BURHE5FC123789',
-                    make: 'Ford',
-                    model: 'F-150',
-                    year: 2019,
-                    color: 'Blue',
-                    license_plate: 'XYZ789',
-                    customer_id: 2,
-                    customer_name: 'Jane Smith',
-                    mileage: 62000,
-                    type: 'Truck',
-                    registration_date: '2023-02-20'
-                }
-            ];
-            console.log(`🚗 Loaded ${this.vehicles.length} vehicles`);
-        } catch (error) {
-            console.error('Failed to load vehicles:', error);
-            this.vehicles = [];
-            throw error;
-        }
-    }
-
-    async loadCustomers() {
-        try {
-            const response = await fetch('/api/customers');
-            const data = await response.json();
-            this.customers = data.customers || [];
-            console.log(`👥 Loaded ${this.customers.length} customers for vehicles`);
-        } catch (error) {
-            console.error('Failed to load customers:', error);
-            this.customers = [];
-        }
-    }
-
-    async load() {
-        if (this.isLoading) return;
-
-        this.isLoading = true;
+    /**
+     * Load module for new app structure - returns HTML content
+     */
+    async loadModule() {
+        console.log('🚗 Loading vehicles module for new app...');
 
         try {
+            // Load fresh data
             await this.loadVehicles();
             await this.loadCustomers();
-            this.render();
+
+            // Return HTML content
+            return this.getHTML();
+
         } catch (error) {
-            console.error('Failed to load vehicles section:', error);
-            this.renderError(error);
-        } finally {
-            this.isLoading = false;
+            console.error('Failed to load vehicles module:', error);
+            return this.getErrorHTML(error);
         }
     }
 
-    render() {
-        const html = `
-            <div class="customers-section">
+    /**
+     * Get HTML content for the vehicles section
+     */
+    getHTML() {
+        return `
+            <div class="vehicles-section">
                 <!-- Action Bar -->
                 <div class="action-bar">
                     <h2 class="action-bar-title">🚗 Vehicle Management</h2>
                     <div class="action-bar-actions">
-                        <button class="button button-outline" onclick="Vehicles.exportVehicles()">
+                        <button class="btn btn-outline" onclick="window.Vehicles.exportVehicles()">
                             📤 Export
                         </button>
-                        <button class="button button-primary" onclick="Vehicles.showAddModal()">
+                        <button class="btn btn-primary" onclick="window.Vehicles.showAddModal()">
                             ➕ Add Vehicle
                         </button>
                     </div>
@@ -152,27 +105,27 @@ class VehiclesModule {
                 </div>
 
                 <!-- Vehicle Filters -->
-                <div class="data-table">
+                <div class="data-table-container">
                     <div class="data-table-header">
                         <h3 class="data-table-title">Vehicle Directory</h3>
                         <div class="data-table-actions">
-                            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                                <select class="form-input" style="width: auto; min-width: 120px;" onchange="Vehicles.filterByType(this.value)">
+                            <div class="filters-container">
+                                <select class="form-input filter-select" onchange="window.Vehicles.filterByType(this.value)">
                                     <option value="">All Types</option>
                                     ${this.vehicleTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
                                 </select>
-                                <select class="form-input" style="width: auto; min-width: 120px;" onchange="Vehicles.filterByMake(this.value)">
+                                <select class="form-input filter-select" onchange="window.Vehicles.filterByMake(this.value)">
                                     <option value="">All Makes</option>
                                     ${this.getUniqueVehicleMakes().map(make => `<option value="${make}">${make}</option>`).join('')}
                                 </select>
-                                <div class="data-table-search">
+                                <div class="search-container">
                                     <input
                                         type="text"
                                         placeholder="Search vehicles..."
-                                        class="form-input"
-                                        oninput="Vehicles.filterVehicles(this.value)"
+                                        class="search-input"
+                                        oninput="window.Vehicles.filterVehicles(this.value)"
                                     >
-                                    <span class="data-table-search-icon">🔍</span>
+                                    <span class="search-icon">🔍</span>
                                 </div>
                             </div>
                         </div>
@@ -182,15 +135,75 @@ class VehiclesModule {
                         ${this.renderVehicleTable()}
                     </div>
                 </div>
+            </div>
+        `;
+    }
 
-                <!-- Back Button -->
-                <div style="margin-top: 2rem; text-align: center;">
-                    <button class="button button-outline" onclick="app.goHome()">
+    /**
+     * Get error HTML
+     */
+    getErrorHTML(error) {
+        return `
+            <div class="error-container">
+                <div class="error-icon">❌</div>
+                <h2 class="error-title">Failed to Load Vehicles</h2>
+                <p class="error-message">${error.message}</p>
+                <div class="error-actions">
+                    <button class="btn btn-primary" onclick="window.olServiceApp.loadSection('vehicles')">
+                        🔄 Retry
+                    </button>
+                    <button class="btn btn-outline" onclick="window.olServiceApp.navigateToSection('welcome')">
                         ← Back to Home
                     </button>
                 </div>
             </div>
         `;
+    }
+
+    async loadVehicles() {
+        try {
+            const response = await fetch('/api/vehicles');
+            const data = await response.json();
+            this.vehicles = data.vehicles || [];
+            console.log(`🚗 Loaded ${this.vehicles.length} vehicles`);
+        } catch (error) {
+            console.error('Failed to load vehicles:', error);
+            this.vehicles = [];
+            throw error;
+        }
+    }
+
+    async loadCustomers() {
+        try {
+            const response = await fetch('/api/customers');
+            const data = await response.json();
+            this.customers = data.customers || [];
+            console.log(`👥 Loaded ${this.customers.length} customers for vehicles`);
+        } catch (error) {
+            console.error('Failed to load customers:', error);
+            this.customers = [];
+        }
+    }
+
+    async load() {
+        if (this.isLoading) return;
+
+        this.isLoading = true;
+
+        try {
+            await this.loadVehicles();
+            await this.loadCustomers();
+            this.render();
+        } catch (error) {
+            console.error('Failed to load vehicles section:', error);
+            this.renderError(error);
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    render() {
+        const html = this.getHTML();
 
         if (window.app) {
             window.app.setContent(html);
@@ -203,75 +216,74 @@ class VehiclesModule {
         }
 
         return `
-            <table>
-                <thead>
-                    <tr>
-                        <th>Vehicle</th>
-                        <th>Owner</th>
-                        <th>Details</th>
-                        <th>Mileage</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${this.vehicles.map(vehicle => this.renderVehicleRow(vehicle)).join('')}
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Vehicle</th>
+                            <th>Owner</th>
+                            <th>Details</th>
+                            <th>Mileage</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${this.vehicles.map(vehicle => this.renderVehicleRow(vehicle)).join('')}
+                    </tbody>
+                </table>
+            </div>
         `;
     }
 
     renderVehicleRow(vehicle) {
-        const registrationDate = vehicle.registration_date ?
-            new Date(vehicle.registration_date).toLocaleDateString() : 'Unknown';
-
         return `
-            <tr onclick="Vehicles.viewVehicle(${vehicle.id})" style="cursor: pointer;">
+            <tr onclick="window.Vehicles.viewVehicle(${vehicle.id})" class="table-row-clickable">
                 <td>
-                    <div class="customer-info">
-                        <div class="avatar avatar-md" style="background: ${this.getVehicleColor(vehicle.type)}">
-                            ${this.getVehicleIcon(vehicle.type)}
+                    <div class="vehicle-info">
+                        <div class="avatar" style="background: ${this.getVehicleColor(vehicle.make)}">
+                            ${this.getVehicleIcon(vehicle.make)}
                         </div>
-                        <div class="customer-details">
-                            <div class="customer-name">${vehicle.year} ${vehicle.make} ${vehicle.model}</div>
-                            <div class="customer-id">
-                                ${vehicle.license_plate ? `🚗 ${vehicle.license_plate}` : ''}
-                                ${vehicle.color ? `• ${vehicle.color}` : ''}
+                        <div class="vehicle-details">
+                            <div class="vehicle-name">${vehicle.year} ${vehicle.make} ${vehicle.model}</div>
+                            <div class="vehicle-plate">
+                                ${vehicle.license_plate ? `🚗 ${vehicle.license_plate}` : 'No plate'}
                             </div>
                         </div>
                     </div>
                 </td>
                 <td>
-                    <div class="contact-info">
-                        <div><strong>${vehicle.customer_name || 'Unknown Owner'}</strong></div>
-                        <div style="font-size: 0.8rem; color: #7f8c8d;">Customer ID: ${vehicle.customer_id}</div>
+                    <div class="owner-info">
+                        <div class="owner-name">${vehicle.customer_name || 'Unknown Owner'}</div>
+                        <div class="owner-id">ID: ${vehicle.customer_id}</div>
                     </div>
                 </td>
                 <td>
-                    <div>
-                        <div><strong>Type:</strong> ${vehicle.type}</div>
+                    <div class="vehicle-specs">
                         <div><strong>VIN:</strong> ${vehicle.vin ? vehicle.vin.slice(-6) : 'N/A'}</div>
-                        <div style="font-size: 0.8rem; color: #7f8c8d;">Added: ${registrationDate}</div>
+                        <div><strong>Year:</strong> ${vehicle.year}</div>
                     </div>
                 </td>
                 <td>
-                    <div style="text-align: center;">
-                        <div style="font-size: 1.2rem; font-weight: 600;">${vehicle.mileage?.toLocaleString() || 'N/A'}</div>
-                        <div style="font-size: 0.8rem; color: #7f8c8d;">miles</div>
+                    <div class="mileage-info">
+                        <div class="mileage-number">${vehicle.mileage?.toLocaleString() || 'N/A'}</div>
+                        <div class="mileage-label">miles</div>
                     </div>
                 </td>
                 <td>
                     <div class="table-actions">
                         <button
-                            class="button button-small button-outline"
-                            onclick="event.stopPropagation(); Vehicles.editVehicle(${vehicle.id})"
+                            class="btn btn-sm btn-outline"
+                            onclick="event.stopPropagation(); window.Vehicles.editVehicle(${vehicle.id})"
+                            title="Edit Vehicle"
                         >
-                            ✏️ Edit
+                            ✏️
                         </button>
                         <button
-                            class="button button-small button-outline"
-                            onclick="event.stopPropagation(); Vehicles.viewHistory(${vehicle.id})"
+                            class="btn btn-sm btn-outline"
+                            onclick="event.stopPropagation(); window.Vehicles.viewHistory(${vehicle.id})"
+                            title="Service History"
                         >
-                            📋 History
+                            📋
                         </button>
                     </div>
                 </td>
@@ -287,7 +299,7 @@ class VehiclesModule {
                 <p class="empty-state-description">
                     Start by adding vehicles to your fleet management system.
                 </p>
-                <button class="button button-primary" onclick="Vehicles.showAddModal()">
+                <button class="btn btn-primary" onclick="window.Vehicles.showAddModal()">
                     ➕ Add First Vehicle
                 </button>
             </div>
@@ -298,12 +310,12 @@ class VehiclesModule {
         const modalContent = `
             <div class="modal-header">
                 <h2>➕ Add New Vehicle</h2>
-                <button class="modal-close" onclick="app.closeModal()">×</button>
+                <button class="modal-close" onclick="closeModal()">×</button>
             </div>
 
             <div class="modal-body">
-                <form id="addVehicleForm" onsubmit="Vehicles.submitVehicle(event)">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <form id="addVehicleForm" onsubmit="window.Vehicles.submitVehicle(event)">
+                    <div class="form-row">
                         <div class="form-group">
                             <label class="form-label required">Make</label>
                             <select name="make" class="form-input" required>
@@ -324,7 +336,7 @@ class VehiclesModule {
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-row">
                         <div class="form-group">
                             <label class="form-label required">Year</label>
                             <input
@@ -339,26 +351,6 @@ class VehiclesModule {
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label required">Type</label>
-                            <select name="type" class="form-input" required>
-                                <option value="">Select type</option>
-                                ${this.vehicleTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
-                            </select>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Color</label>
-                            <input
-                                type="text"
-                                name="color"
-                                class="form-input"
-                                placeholder="Silver"
-                            >
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="form-group">
                             <label class="form-label">License Plate</label>
                             <input
                                 type="text"
@@ -366,17 +358,6 @@ class VehiclesModule {
                                 class="form-input"
                                 placeholder="ABC123"
                                 style="text-transform: uppercase;"
-                            >
-                        </div>
-
-                        <div class="form-group">
-                            <label class="form-label">Mileage</label>
-                            <input
-                                type="number"
-                                name="mileage"
-                                class="form-input"
-                                placeholder="50000"
-                                min="0"
                             >
                         </div>
                     </div>
@@ -401,24 +382,14 @@ class VehiclesModule {
                             maxlength="17"
                             style="text-transform: uppercase;"
                         >
-                        <small style="color: #7f8c8d; font-size: 0.8rem;">17 characters</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Notes</label>
-                        <textarea
-                            name="notes"
-                            class="form-textarea"
-                            placeholder="Additional vehicle information..."
-                            rows="3"
-                        ></textarea>
+                        <small class="form-help">17 characters</small>
                     </div>
 
                     <div class="modal-actions">
-                        <button type="button" class="button button-outline" onclick="app.closeModal()">
+                        <button type="button" class="btn btn-outline" onclick="closeModal()">
                             Cancel
                         </button>
-                        <button type="submit" class="button button-primary">
+                        <button type="submit" class="btn btn-primary">
                             💾 Save Vehicle
                         </button>
                     </div>
@@ -426,8 +397,12 @@ class VehiclesModule {
             </div>
         `;
 
-        if (window.app) {
+        if (typeof showModal !== 'undefined') {
+            showModal('Add Vehicle', modalContent);
+        } else if (window.app) {
             window.app.showModal(modalContent);
+        } else {
+            console.log('Modal system not available');
         }
     }
 
@@ -441,44 +416,64 @@ class VehiclesModule {
             make: formData.get('make').trim(),
             model: formData.get('model').trim(),
             year: parseInt(formData.get('year')),
-            type: formData.get('type').trim(),
-            color: formData.get('color').trim(),
             license_plate: formData.get('license_plate').trim().toUpperCase(),
-            mileage: parseInt(formData.get('mileage')) || 0,
             customer_id: parseInt(formData.get('customer_id')),
-            vin: formData.get('vin').trim().toUpperCase(),
-            notes: formData.get('notes').trim()
+            vin: formData.get('vin').trim().toUpperCase()
         };
 
         // Validation
-        if (!vehicleData.make || !vehicleData.model || !vehicleData.year || !vehicleData.type || !vehicleData.customer_id) {
-            window.app?.showToast('Please fill in all required fields', 'error');
+        if (!vehicleData.make || !vehicleData.model || !vehicleData.year || !vehicleData.customer_id) {
+            if (typeof showToast !== 'undefined') {
+                showToast('Please fill in all required fields', 'error');
+            }
             return;
         }
 
         if (vehicleData.vin && vehicleData.vin.length !== 17) {
-            window.app?.showToast('VIN must be exactly 17 characters', 'error');
+            if (typeof showToast !== 'undefined') {
+                showToast('VIN must be exactly 17 characters', 'error');
+            }
             return;
         }
 
         try {
-            // For now, we'll add to local array. Replace with actual API call
-            const newVehicle = {
-                ...vehicleData,
-                id: Date.now(),
-                customer_name: this.customers.find(c => c.id === vehicleData.customer_id)?.name || 'Unknown',
-                registration_date: new Date().toISOString()
-            };
+            const response = await fetch('/api/vehicles', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(vehicleData)
+            });
 
-            this.vehicles.push(newVehicle);
+            if (response.ok) {
+                const result = await response.json();
 
-            window.app?.showToast('✅ Vehicle added successfully!', 'success');
-            window.app?.closeModal();
-            await this.load();
+                if (typeof showToast !== 'undefined') {
+                    showToast('✅ Vehicle added successfully!', 'success');
+                }
+
+                if (typeof closeModal !== 'undefined') {
+                    closeModal();
+                }
+
+                // Refresh the vehicle list
+                await this.loadVehicles();
+
+                // If we're currently in the vehicles section, reload it
+                if (window.olServiceApp && window.olServiceApp.currentSection === 'vehicles') {
+                    window.olServiceApp.loadSection('vehicles');
+                }
+
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to add vehicle');
+            }
 
         } catch (error) {
             console.error('Failed to add vehicle:', error);
-            window.app?.showToast(`❌ ${error.message}`, 'error');
+            if (typeof showToast !== 'undefined') {
+                showToast(`❌ ${error.message}`, 'error');
+            }
         }
     }
 
@@ -520,48 +515,54 @@ class VehiclesModule {
     }
 
     viewVehicle(vehicleId) {
-        window.app?.showToast(`View vehicle ${vehicleId} details - Feature coming soon!`, 'info');
+        if (typeof showToast !== 'undefined') {
+            showToast(`View vehicle ${vehicleId} details - Feature coming soon!`, 'info');
+        }
+        console.log('View vehicle:', vehicleId);
     }
 
     editVehicle(vehicleId) {
-        window.app?.showToast(`Edit vehicle ${vehicleId} - Feature coming soon!`, 'info');
+        if (typeof showToast !== 'undefined') {
+            showToast(`Edit vehicle ${vehicleId} - Feature coming soon!`, 'info');
+        }
+        console.log('Edit vehicle:', vehicleId);
     }
 
     viewHistory(vehicleId) {
-        window.app?.showToast(`View service history for vehicle ${vehicleId} - Feature coming soon!`, 'info');
+        if (typeof showToast !== 'undefined') {
+            showToast(`View service history for vehicle ${vehicleId} - Feature coming soon!`, 'info');
+        }
+        console.log('View history for vehicle:', vehicleId);
     }
 
     exportVehicles() {
-        window.app?.showToast('Export vehicles - Feature coming soon!', 'info');
+        if (typeof showToast !== 'undefined') {
+            showToast('Export vehicles - Feature coming soon!', 'info');
+        }
+        console.log('Export vehicles');
     }
 
     // Utility methods
-    getVehicleIcon(type) {
+    getVehicleIcon(make) {
         const icons = {
-            'Car': '🚗',
-            'Truck': '🚚',
-            'Van': '🚐',
-            'SUV': '🚙',
-            'Motorcycle': '🏍️',
-            'Bus': '🚌',
-            'Trailer': '🚛',
-            'RV': '🚐'
+            'Toyota': '🚗', 'Honda': '🚗', 'Ford': '🚚', 'Chevrolet': '🚗',
+            'BMW': '🏎️', 'Mercedes-Benz': '🏎️', 'Audi': '🏎️', 'Volkswagen': '🚗',
+            'Jeep': '🚙', 'Ram': '🚚', 'GMC': '🚚'
         };
-        return icons[type] || '🚗';
+        return icons[make] || '🚗';
     }
 
-    getVehicleColor(type) {
+    getVehicleColor(make) {
         const colors = {
-            'Car': 'linear-gradient(45deg, #4CAF50, #66BB6A)',
-            'Truck': 'linear-gradient(45deg, #FF9800, #FFB74D)',
-            'Van': 'linear-gradient(45deg, #2196F3, #64B5F6)',
-            'SUV': 'linear-gradient(45deg, #9C27B0, #BA68C8)',
-            'Motorcycle': 'linear-gradient(45deg, #F44336, #EF5350)',
-            'Bus': 'linear-gradient(45deg, #607D8B, #90A4AE)',
-            'Trailer': 'linear-gradient(45deg, #795548, #A1887F)',
-            'RV': 'linear-gradient(45deg, #3F51B5, #7986CB)'
+            'Toyota': 'linear-gradient(45deg, #ff6b6b, #ee5a24)',
+            'Honda': 'linear-gradient(45deg, #74b9ff, #0984e3)',
+            'Ford': 'linear-gradient(45deg, #a29bfe, #6c5ce7)',
+            'Chevrolet': 'linear-gradient(45deg, #fd79a8, #e84393)',
+            'BMW': 'linear-gradient(45deg, #2d3436, #636e72)',
+            'Mercedes-Benz': 'linear-gradient(45deg, #b2bec3, #ddd)',
+            'Default': 'linear-gradient(45deg, #667eea, #764ba2)'
         };
-        return colors[type] || 'linear-gradient(45deg, #667eea, #764ba2)';
+        return colors[make] || colors['Default'];
     }
 
     getUniqueMakes() {
@@ -589,21 +590,7 @@ class VehiclesModule {
     }
 
     renderError(error) {
-        const html = `
-            <div class="error-container">
-                <div class="error-icon">❌</div>
-                <h2 class="error-title">Failed to Load Vehicles</h2>
-                <p class="error-message">${error.message}</p>
-                <div style="display: flex; gap: 1rem; justify-content: center;">
-                    <button class="button button-primary" onclick="Vehicles.load()">
-                        🔄 Retry
-                    </button>
-                    <button class="button button-outline" onclick="app.goHome()">
-                        ← Back to Home
-                    </button>
-                </div>
-            </div>
-        `;
+        const html = this.getErrorHTML(error);
 
         if (window.app) {
             window.app.setContent(html);
@@ -613,3 +600,8 @@ class VehiclesModule {
 
 // Create global vehicles instance
 window.Vehicles = new VehiclesModule();
+
+// Also create the expected module reference
+window.vehiclesModule = window.Vehicles;
+
+console.log('✅ Vehicles module loaded successfully');

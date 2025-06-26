@@ -19,7 +19,6 @@ try:
     from database import DB_PATH
 except ImportError:
     from database.db_setup import setup_database
-
     DB_PATH = os.getenv('DB_PATH', 'data/ol_service_pos.db')
 
 # Load environment variables
@@ -133,8 +132,8 @@ def get_photo_sessions():
         cursor = conn.cursor()
 
         query = """
-            SELECT ps.*, 
-                   c.first_name || ' ' || c.last_name as customer_name,
+            SELECT ps.*,
+                   c.name as customer_name,
                    v.make || ' ' || v.model || ' (' || v.year || ')' as vehicle_info,
                    s.service_type
             FROM photo_sessions ps
@@ -215,8 +214,8 @@ def create_photo_session():
 
         # Get the created session
         cursor.execute("""
-            SELECT ps.*, 
-                   c.first_name || ' ' || c.last_name as customer_name,
+            SELECT ps.*,
+                   c.name as customer_name,
                    v.make || ' ' || v.model || ' (' || v.year || ')' as vehicle_info
             FROM photo_sessions ps
             LEFT JOIN customers c ON ps.customer_id = c.id
@@ -246,8 +245,8 @@ def get_photo_session(session_id):
 
         # Get session details
         cursor.execute("""
-            SELECT ps.*, 
-                   c.first_name || ' ' || c.last_name as customer_name,
+            SELECT ps.*,
+                   c.name as customer_name,
                    v.make || ' ' || v.model || ' (' || v.year || ')' as vehicle_info,
                    s.service_type
             FROM photo_sessions ps
@@ -345,7 +344,7 @@ def close_photo_session(session_id):
 
         # Update session end time and status
         cursor.execute("""
-            UPDATE photo_sessions 
+            UPDATE photo_sessions
             SET end_time = ?, status = 'completed'
             WHERE id = ?
         """, (datetime.now().isoformat(), session_id))
@@ -450,7 +449,7 @@ def upload_photo():
 
             # Update session photo count
             cursor.execute("""
-                UPDATE photo_sessions 
+                UPDATE photo_sessions
                 SET total_photos = total_photos + 1
                 WHERE id = ?
             """, (session_id,))
@@ -578,25 +577,27 @@ def get_vehicle_photos(vehicle_id):
 # Customer Management API
 @app.route('/api/customers', methods=['GET'])
 def get_customers():
-    """Get all customers"""
+    """Get all customers with vehicle count"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT c.*, COUNT(v.id) as vehicle_count
+            SELECT c.*, 
+                   COUNT(v.id) as vehicle_count
             FROM customers c
             LEFT JOIN vehicles v ON c.id = v.customer_id
             GROUP BY c.id
-            ORDER BY c.first_name, c.last_name
+            ORDER BY c.name
         """)
-        customers = [dict(row) for row in cursor.fetchall()]
 
+        customers = [dict(row) for row in cursor.fetchall()]
         conn.close()
         return jsonify({"customers": customers})
+
     except Exception as e:
         logger.error(f"Error getting customers: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "customers": []}), 500
 
 
 @app.route('/api/customers/<int:customer_id>', methods=['GET'])
@@ -650,8 +651,8 @@ def add_customer():
 
         data = request.get_json()
 
-        # Validate required fields
-        required_fields = ['first_name', 'last_name']
+        # Validate required fields - adjust for your schema
+        required_fields = ['name']
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"{field} is required"}), 400
@@ -660,18 +661,13 @@ def add_customer():
         cursor = conn.cursor()
 
         cursor.execute("""
-            INSERT INTO customers (first_name, last_name, email, phone, address, city, state, zip_code, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO customers (name, phone, email, address)
+            VALUES (?, ?, ?, ?)
         """, (
-            data['first_name'],
-            data['last_name'],
-            data.get('email', ''),
+            data['name'],
             data.get('phone', ''),
-            data.get('address', ''),
-            data.get('city', ''),
-            data.get('state', ''),
-            data.get('zip_code', ''),
-            data.get('notes', '')
+            data.get('email', ''),
+            data.get('address', '')
         ))
 
         customer_id = cursor.lastrowid
@@ -703,7 +699,8 @@ def get_vehicles():
         cursor = conn.cursor()
 
         query = """
-            SELECT v.*, c.first_name || ' ' || c.last_name as customer_name
+            SELECT v.*, 
+                   COALESCE(c.name, 'Unknown Customer') as customer_name
             FROM vehicles v
             LEFT JOIN customers c ON v.customer_id = c.id
         """
@@ -713,16 +710,17 @@ def get_vehicles():
             query += " WHERE v.customer_id = ?"
             params.append(customer_id)
 
-        query += " ORDER BY v.created_at DESC"
+        query += " ORDER BY v.id DESC"
 
         cursor.execute(query, params)
         vehicles = [dict(row) for row in cursor.fetchall()]
 
         conn.close()
         return jsonify({"vehicles": vehicles})
+
     except Exception as e:
         logger.error(f"Error getting vehicles: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "vehicles": []}), 500
 
 
 @app.route('/api/vehicles', methods=['POST'])
@@ -744,31 +742,29 @@ def add_vehicle():
         cursor = conn.cursor()
 
         cursor.execute("""
-            INSERT INTO vehicles (customer_id, make, model, year, vin, license_plate, color, mileage, vehicle_type, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO vehicles (customer_id, make, model, year, vin, license_plate)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (
             data['customer_id'],
             data['make'],
             data['model'],
             data.get('year'),
             data.get('vin', ''),
-            data.get('license_plate', ''),
-            data.get('color', ''),
-            data.get('mileage', 0),
-            data.get('vehicle_type', 'car'),
-            data.get('notes', '')
+            data.get('license_plate', '')
         ))
 
         vehicle_id = cursor.lastrowid
         conn.commit()
 
-        # Return the created vehicle
+        # Return the created vehicle with customer info
         cursor.execute("""
-            SELECT v.*, c.first_name || ' ' || c.last_name as customer_name
+            SELECT v.*, 
+                   COALESCE(c.name, 'Unknown Customer') as customer_name
             FROM vehicles v
             LEFT JOIN customers c ON v.customer_id = c.id
             WHERE v.id = ?
         """, (vehicle_id,))
+
         new_vehicle = dict(cursor.fetchone())
 
         conn.close()
@@ -795,14 +791,12 @@ def get_services():
         cursor = conn.cursor()
 
         query = """
-            SELECT s.*, 
-                   c.first_name || ' ' || c.last_name as customer_name,
-                   v.make || ' ' || v.model || ' (' || v.year || ')' as vehicle_info,
-                   u.full_name as technician_name
+            SELECT s.*,
+                   c.name as customer_name,
+                   v.make || ' ' || v.model || ' (' || v.year || ')' as vehicle_info
             FROM services s
             LEFT JOIN customers c ON s.customer_id = c.id
             LEFT JOIN vehicles v ON s.vehicle_id = v.id
-            LEFT JOIN users u ON s.technician_id = u.id
             WHERE 1=1
         """
         params = []
@@ -831,20 +825,6 @@ def get_services():
         return jsonify({"error": str(e)}), 500
 
 
-# Error handlers
-@app.errorhandler(404)
-def not_found(error):
-    """Handle 404 errors"""
-    return jsonify({"error": "Not found"}), 404
-
-
-@app.errorhandler(500)
-def server_error(error):
-    """Handle 500 errors"""
-    logger.error(f"Server error: {error}")
-    return jsonify({"error": "Internal server error"}), 500
-
-
 # Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -868,6 +848,20 @@ def health_check():
             "status": "unhealthy",
             "error": str(e)
         }), 500
+
+
+# Error handlers
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors"""
+    return jsonify({"error": "Not found"}), 404
+
+
+@app.errorhandler(500)
+def server_error(error):
+    """Handle 500 errors"""
+    logger.error(f"Server error: {error}")
+    return jsonify({"error": "Internal server error"}), 500
 
 
 # The application will be referenced by Elastic Beanstalk
