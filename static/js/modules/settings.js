@@ -1,4 +1,5 @@
 // static/js/modules/settings.js - Settings and Customization Module
+// SIMPLIFIED to work with your existing app structure
 
 class SettingsModule {
     constructor() {
@@ -52,9 +53,15 @@ class SettingsModule {
         console.log('✅ Settings module initialized');
     }
 
+    // Method that your app.js expects
+    async loadModule() {
+        console.log('📄 Settings loadModule called');
+        return this.getSettingsHTML();
+    }
+
+    // Your original load method
     async load() {
         if (this.isLoading) return;
-
         this.isLoading = true;
 
         try {
@@ -68,7 +75,20 @@ class SettingsModule {
     }
 
     render() {
-        const html = `
+        const html = this.getSettingsHTML();
+
+        if (window.app && window.app.setContent) {
+            window.app.setContent(html);
+        }
+
+        // Initialize after DOM update
+        setTimeout(() => {
+            this.initializeColorPickers();
+        }, 100);
+    }
+
+    getSettingsHTML() {
+        return `
             <div class="settings-section">
                 <!-- Action Bar -->
                 <div class="action-bar">
@@ -113,7 +133,7 @@ class SettingsModule {
 
                 <!-- Settings Actions -->
                 <div class="settings-actions">
-                    <button class="button button-outline" onclick="app.goHome()">
+                    <button class="button button-outline" onclick="history.back()">
                         ← Back to Home
                     </button>
                     <button class="button button-primary" onclick="Settings.saveSettings()">
@@ -122,13 +142,6 @@ class SettingsModule {
                 </div>
             </div>
         `;
-
-        if (window.app) {
-            window.app.setContent(html);
-        }
-
-        // Initialize color pickers
-        this.initializeColorPickers();
     }
 
     renderThemeSettings() {
@@ -192,27 +205,6 @@ class SettingsModule {
             </div>
 
             <div class="theme-section">
-                <h3>🌐 Favicon</h3>
-                <div class="logo-upload-section">
-                    <div style="text-align: center; margin-bottom: 1rem;">
-                        <img id="faviconPreview" src="${this.getFaviconUrl()}" width="32" height="32" style="border: 1px solid #ddd; border-radius: 4px;">
-                    </div>
-                    <div>
-                        <input type="file" id="faviconInput" class="logo-upload-input" accept="image/*" onchange="Settings.handleFaviconUpload(event)">
-                        <button class="logo-upload-btn" onclick="document.getElementById('faviconInput').click()">
-                            📁 Choose Favicon
-                        </button>
-                        <button class="logo-upload-btn" onclick="Settings.resetFavicon()">
-                            🔄 Reset
-                        </button>
-                    </div>
-                    <div class="logo-upload-text">
-                        <small>Recommended: 32x32px or 16x16px, ICO or PNG</small>
-                    </div>
-                </div>
-            </div>
-
-            <div class="theme-section">
                 <h3>📝 Company Information</h3>
                 <div class="form-group">
                     <label class="form-label">Company Name</label>
@@ -268,7 +260,7 @@ class SettingsModule {
             <div class="theme-section">
                 <h3>ℹ️ System Information</h3>
                 <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.9rem;">
-                    Version: ${window.Config?.VERSION || '1.0.0'}<br>
+                    Version: 1.0.0<br>
                     Browser: ${navigator.userAgent.split(' ')[0]}<br>
                     Screen: ${screen.width}x${screen.height}<br>
                     API Status: <span style="color: #27ae60;">Connected</span>
@@ -284,7 +276,10 @@ class SettingsModule {
         if (primaryPicker) {
             primaryPicker.addEventListener('input', (e) => {
                 const color = e.target.value;
-                document.getElementById('primaryPreview').style.background = color;
+                const preview = document.getElementById('primaryPreview');
+                if (preview) {
+                    preview.style.background = color;
+                }
                 this.updateThemePreview();
             });
         }
@@ -292,7 +287,10 @@ class SettingsModule {
         if (secondaryPicker) {
             secondaryPicker.addEventListener('input', (e) => {
                 const color = e.target.value;
-                document.getElementById('secondaryPreview').style.background = color;
+                const preview = document.getElementById('secondaryPreview');
+                if (preview) {
+                    preview.style.background = color;
+                }
                 this.updateThemePreview();
             });
         }
@@ -311,40 +309,57 @@ class SettingsModule {
     applyPresetTheme(themeName) {
         const theme = this.presetThemes.find(t => t.name === themeName);
         if (theme) {
-            document.getElementById('primaryColor').value = theme.primary;
-            document.getElementById('secondaryColor').value = theme.secondary;
-            document.getElementById('primaryPreview').style.background = theme.primary;
-            document.getElementById('secondaryPreview').style.background = theme.secondary;
+            const primaryPicker = document.getElementById('primaryColor');
+            const secondaryPicker = document.getElementById('secondaryColor');
+            const primaryPreview = document.getElementById('primaryPreview');
+            const secondaryPreview = document.getElementById('secondaryPreview');
+
+            if (primaryPicker) primaryPicker.value = theme.primary;
+            if (secondaryPicker) secondaryPicker.value = theme.secondary;
+            if (primaryPreview) primaryPreview.style.background = theme.primary;
+            if (secondaryPreview) secondaryPreview.style.background = theme.secondary;
 
             // Update active preset
             document.querySelectorAll('.preset-theme').forEach(pt => pt.classList.remove('active'));
             event.target.classList.add('active');
 
             this.updateThemePreview();
-            window.app?.showToast(`Applied ${themeName} theme`, 'success');
+
+            // Simple alert instead of toast
+            alert(`Applied ${themeName} theme`);
         }
     }
 
     updateThemePreview() {
-        const primary = document.getElementById('primaryColor').value;
-        const secondary = document.getElementById('secondaryColor').value;
+        const primaryPicker = document.getElementById('primaryColor');
+        const secondaryPicker = document.getElementById('secondaryColor');
 
-        // Preview the theme changes in real-time
-        document.documentElement.style.setProperty('--primary-color', primary);
-        document.documentElement.style.setProperty('--secondary-color', secondary);
-        document.documentElement.style.setProperty('--gradient', `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`);
+        if (primaryPicker && secondaryPicker) {
+            const primary = primaryPicker.value;
+            const secondary = secondaryPicker.value;
+
+            // Preview the theme changes in real-time
+            const root = document.documentElement;
+            root.style.setProperty('--primary-color', primary);
+            root.style.setProperty('--secondary-color', secondary);
+            root.style.setProperty('--gradient', `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`);
+            root.style.setProperty('--brand-gradient', `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`);
+        }
     }
 
     handleLogoUpload(event) {
         const file = event.target.files[0];
-        if (file) {
+        if (file && file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const logoData = e.target.result;
-                document.getElementById('logoPreview').innerHTML = `<img src="${logoData}" alt="New Logo">`;
+                const logoPreview = document.getElementById('logoPreview');
+                if (logoPreview) {
+                    logoPreview.innerHTML = `<img src="${logoData}" alt="New Logo">`;
+                }
                 this.currentLogo = logoData;
                 this.updateLogoPreview();
-                window.app?.showToast('Logo uploaded successfully', 'success');
+                alert('Logo uploaded successfully');
             };
             reader.readAsDataURL(file);
         }
@@ -375,23 +390,12 @@ class SettingsModule {
 
     removeLogo() {
         this.currentLogo = null;
-        document.getElementById('logoPreview').innerHTML = '🚐';
-        this.updateLogoPreview();
-        window.app?.showToast('Logo removed', 'info');
-    }
-
-    handleFaviconUpload(event) {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const faviconData = e.target.result;
-                this.updateFavicon(faviconData);
-                document.getElementById('faviconPreview').src = faviconData;
-                window.app?.showToast('Favicon updated successfully', 'success');
-            };
-            reader.readAsDataURL(file);
+        const logoPreview = document.getElementById('logoPreview');
+        if (logoPreview) {
+            logoPreview.innerHTML = '🚐';
         }
+        this.updateLogoPreview();
+        alert('Logo removed');
     }
 
     updateLogoPreview() {
@@ -406,30 +410,8 @@ class SettingsModule {
         });
     }
 
-    updateFavicon(faviconData) {
-        // Update favicon
-        let favicon = document.querySelector('link[rel="icon"]');
-        if (!favicon) {
-            favicon = document.createElement('link');
-            favicon.rel = 'icon';
-            document.head.appendChild(favicon);
-        }
-        favicon.href = faviconData;
-    }
-
-    getFaviconUrl() {
-        const favicon = document.querySelector('link[rel="icon"]');
-        return favicon ? favicon.href : '/static/icons/favicon.svg';
-    }
-
-    resetFavicon() {
-        this.updateFavicon('/static/icons/favicon.svg');
-        document.getElementById('faviconPreview').src = '/static/icons/favicon.svg';
-        window.app?.showToast('Favicon reset to default', 'info');
-    }
-
     previewChanges() {
-        window.app?.showToast('Preview mode - Changes are applied in real-time!', 'info');
+        alert('Preview mode - Changes are applied in real-time!');
     }
 
     resetToDefaults() {
@@ -440,34 +422,54 @@ class SettingsModule {
 
             this.applyTheme(defaultTheme);
             this.applyLogo(null);
-            this.resetFavicon();
 
             // Update form values
-            if (document.getElementById('primaryColor')) {
-                document.getElementById('primaryColor').value = defaultTheme.primary;
-                document.getElementById('secondaryColor').value = defaultTheme.secondary;
-                document.getElementById('primaryPreview').style.background = defaultTheme.primary;
-                document.getElementById('secondaryPreview').style.background = defaultTheme.secondary;
-            }
+            const primaryColor = document.getElementById('primaryColor');
+            const secondaryColor = document.getElementById('secondaryColor');
+            const primaryPreview = document.getElementById('primaryPreview');
+            const secondaryPreview = document.getElementById('secondaryPreview');
 
-            window.app?.showToast('Settings reset to defaults', 'success');
+            if (primaryColor) primaryColor.value = defaultTheme.primary;
+            if (secondaryColor) secondaryColor.value = defaultTheme.secondary;
+            if (primaryPreview) primaryPreview.style.background = defaultTheme.primary;
+            if (secondaryPreview) secondaryPreview.style.background = defaultTheme.secondary;
+
+            alert('Settings reset to defaults');
         }
     }
 
     saveSettings() {
-        const primary = document.getElementById('primaryColor')?.value || this.currentTheme.primary;
-        const secondary = document.getElementById('secondaryColor')?.value || this.currentTheme.secondary;
+        try {
+            const primaryColor = document.getElementById('primaryColor');
+            const secondaryColor = document.getElementById('secondaryColor');
 
-        const newTheme = { primary, secondary };
-        this.currentTheme = newTheme;
+            const primary = primaryColor ? primaryColor.value : this.currentTheme.primary;
+            const secondary = secondaryColor ? secondaryColor.value : this.currentTheme.secondary;
 
-        this.saveTheme(newTheme);
-        this.saveLogo(this.currentLogo);
+            const newTheme = { primary, secondary };
+            this.currentTheme = newTheme;
 
-        this.applyTheme(newTheme);
-        this.applyLogo(this.currentLogo);
+            this.saveTheme(newTheme);
+            this.saveLogo(this.currentLogo);
+            this.applyTheme(newTheme);
+            this.applyLogo(this.currentLogo);
 
-        window.app?.showToast('Settings saved successfully!', 'success');
+            // Save company info
+            const companyName = document.getElementById('companyName');
+            const appTitle = document.getElementById('appTitle');
+
+            if (companyName) {
+                localStorage.setItem('ol_service_company_name', companyName.value);
+            }
+            if (appTitle) {
+                localStorage.setItem('ol_service_app_title', appTitle.value);
+            }
+
+            alert('Settings saved successfully!');
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            alert('Failed to save settings');
+        }
     }
 
     applyTheme(theme) {
@@ -475,10 +477,7 @@ class SettingsModule {
         root.style.setProperty('--primary-color', theme.primary);
         root.style.setProperty('--secondary-color', theme.secondary);
         root.style.setProperty('--gradient', `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)`);
-
-        // Update CSS custom properties for the gradient
-        const gradient = `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)`;
-        root.style.setProperty('--brand-gradient', gradient);
+        root.style.setProperty('--brand-gradient', `linear-gradient(135deg, ${theme.primary} 0%, ${theme.secondary} 100%)`);
     }
 
     applyLogo(logoData) {
@@ -486,42 +485,62 @@ class SettingsModule {
     }
 
     saveTheme(theme) {
-        localStorage.setItem('ol_service_theme', JSON.stringify(theme));
+        try {
+            localStorage.setItem('ol_service_theme', JSON.stringify(theme));
+        } catch (error) {
+            console.error('Failed to save theme:', error);
+        }
     }
 
     loadTheme() {
-        const saved = localStorage.getItem('ol_service_theme');
-        return saved ? JSON.parse(saved) : { primary: '#667eea', secondary: '#764ba2' };
+        try {
+            const saved = localStorage.getItem('ol_service_theme');
+            return saved ? JSON.parse(saved) : { primary: '#667eea', secondary: '#764ba2' };
+        } catch (error) {
+            return { primary: '#667eea', secondary: '#764ba2' };
+        }
     }
 
     saveLogo(logoData) {
-        if (logoData) {
-            localStorage.setItem('ol_service_logo', logoData);
-        } else {
-            localStorage.removeItem('ol_service_logo');
+        try {
+            if (logoData) {
+                localStorage.setItem('ol_service_logo', logoData);
+            } else {
+                localStorage.removeItem('ol_service_logo');
+            }
+        } catch (error) {
+            console.error('Failed to save logo:', error);
         }
     }
 
     loadLogo() {
-        return localStorage.getItem('ol_service_logo');
+        try {
+            return localStorage.getItem('ol_service_logo');
+        } catch (error) {
+            return null;
+        }
     }
 
     exportSettings() {
-        const settings = {
-            theme: this.currentTheme,
-            logo: this.currentLogo,
-            timestamp: new Date().toISOString()
-        };
+        try {
+            const settings = {
+                theme: this.currentTheme,
+                logo: this.currentLogo,
+                timestamp: new Date().toISOString()
+            };
 
-        const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'ol_service_settings.json';
-        a.click();
-        URL.revokeObjectURL(url);
+            const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ol_service_settings.json';
+            a.click();
+            URL.revokeObjectURL(url);
 
-        window.app?.showToast('Settings exported successfully', 'success');
+            alert('Settings exported successfully');
+        } catch (error) {
+            alert('Failed to export settings');
+        }
     }
 
     importSettings() {
@@ -545,10 +564,10 @@ class SettingsModule {
                             this.applyLogo(settings.logo);
                             this.saveLogo(settings.logo);
                         }
-                        window.app?.showToast('Settings imported successfully', 'success');
+                        alert('Settings imported successfully');
                         this.load(); // Refresh the settings page
                     } catch (error) {
-                        window.app?.showToast('Failed to import settings', 'error');
+                        alert('Failed to import settings');
                     }
                 };
                 reader.readAsText(file);
@@ -560,7 +579,7 @@ class SettingsModule {
     clearCache() {
         if (confirm('This will clear all cached data. Continue?')) {
             localStorage.clear();
-            window.app?.showToast('Cache cleared successfully', 'success');
+            alert('Cache cleared successfully');
         }
     }
 
@@ -574,18 +593,31 @@ class SettingsModule {
                     <button class="button button-primary" onclick="Settings.load()">
                         🔄 Retry
                     </button>
-                    <button class="button button-outline" onclick="app.goHome()">
+                    <button class="button button-outline" onclick="history.back()">
                         ← Back to Home
                     </button>
                 </div>
             </div>
         `;
 
-        if (window.app) {
+        if (window.app && window.app.setContent) {
             window.app.setContent(html);
         }
     }
 }
 
-// Create global settings instance
-window.Settings = new SettingsModule();
+// Create both instances to work with any naming pattern
+const settingsModule = new SettingsModule();
+window.Settings = settingsModule;
+window.settingsModule = settingsModule;
+
+// Initialize
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        settingsModule.init();
+    });
+} else {
+    settingsModule.init();
+}
+
+console.log('✅ Settings module loaded and ready');
