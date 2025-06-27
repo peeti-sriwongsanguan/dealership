@@ -1,5 +1,5 @@
-// static/js/modules/photos.js - Enhanced Version with Working Camera
-// This version includes complete camera functionality
+// static/js/modules/photos.js - Complete Camera Module
+// This is the complete, working version with all camera functionality
 
 class PhotosModule {
     constructor() {
@@ -19,15 +19,51 @@ class PhotosModule {
             video: null,
             canvas: null,
             isActive: false,
-            facingMode: 'environment', // 'user' or 'environment'
+            facingMode: 'environment',
+            hasCamera: false,
+            isSecureContext: false,
+            platform: this.detectPlatform(),
             constraints: {
                 video: {
                     facingMode: 'environment',
-                    width: { ideal: 1920, max: 1920 },
-                    height: { ideal: 1080, max: 1080 }
+                    width: { ideal: 1920, max: 1920, min: 640 },
+                    height: { ideal: 1080, max: 1080, min: 480 }
                 }
             }
         };
+
+        this.checkCameraSupport();
+    }
+
+    detectPlatform() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const platform = {
+            isMobile: /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent),
+            isIOS: /iphone|ipad|ipod/i.test(userAgent),
+            isAndroid: /android/i.test(userAgent),
+            isSafari: /safari/i.test(userAgent) && !/chrome/i.test(userAgent),
+            isChrome: /chrome/i.test(userAgent),
+            isFirefox: /firefox/i.test(userAgent),
+            hasTouch: 'ontouchstart' in window
+        };
+
+        console.log('📱 Platform detected:', platform);
+        return platform;
+    }
+
+    checkCameraSupport() {
+        // Check if we're in a secure context
+        this.camera.isSecureContext = window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost';
+
+        // Check for camera API support
+        this.camera.hasCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+        console.log('🔒 Security Context:', {
+            isSecureContext: this.camera.isSecureContext,
+            protocol: location.protocol,
+            hostname: location.hostname,
+            hasCamera: this.camera.hasCamera
+        });
     }
 
     async init() {
@@ -131,6 +167,12 @@ class PhotosModule {
                 this.stopCamera();
             }
 
+            // File upload fallback
+            if (e.target.matches('.btn-upload-photo') || e.target.closest('.btn-upload-photo')) {
+                e.preventDefault();
+                this.triggerFileUpload();
+            }
+
             // Photo view
             if (e.target.closest('.photo-item')) {
                 const photoItem = e.target.closest('.photo-item');
@@ -138,6 +180,13 @@ class PhotosModule {
                 if (photoId) {
                     this.viewPhoto(photoId);
                 }
+            }
+        });
+
+        // Handle file input change
+        document.addEventListener('change', (e) => {
+            if (e.target.id === 'photoFileInput') {
+                this.handleFileUpload(e.target.files);
             }
         });
     }
@@ -166,6 +215,8 @@ class PhotosModule {
                     </div>
                 </div>
 
+                ${this.renderSecurityWarning()}
+
                 <div class="vehicle-selector">
                     <h3>🚗 Select Vehicle for Photo Documentation</h3>
                     <div class="vehicle-grid">
@@ -178,6 +229,28 @@ class PhotosModule {
         `;
 
         return html;
+    }
+
+    renderSecurityWarning() {
+        if (!this.camera.isSecureContext && this.camera.platform.isMobile) {
+            return `
+                <div class="security-warning" style="
+                    background: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    border-radius: 8px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                    color: #856404;
+                ">
+                    <h4>🔒 Camera Access Notice</h4>
+                    <p><strong>For camera to work on mobile devices, this app needs to be accessed via HTTPS.</strong></p>
+                    <p>Current access: <code>${location.protocol}//${location.host}</code></p>
+                    <p>📱 <strong>Mobile users:</strong> Camera requires secure connection (HTTPS) on phones and tablets.</p>
+                    <p>💻 <strong>Desktop users:</strong> File upload is available as alternative.</p>
+                </div>
+            `;
+        }
+        return '';
     }
 
     renderVehicleOptions() {
@@ -228,9 +301,14 @@ class PhotosModule {
     }
 
     renderCameraSection() {
+        const cameraSupported = this.camera.hasCamera && this.camera.isSecureContext;
+
         return `
             <div class="camera-section">
-                <h3>📷 Camera</h3>
+                <h3>📷 Photo Capture</h3>
+
+                ${this.renderCameraStatus()}
+
                 <div class="camera-container" id="cameraContainer">
                     <video id="cameraVideo" class="camera-video" autoplay muted playsinline style="display: none;"></video>
                     <canvas id="cameraCanvas" class="camera-canvas" style="display: none;"></canvas>
@@ -247,7 +325,8 @@ class PhotosModule {
                         color: #7f8c8d;
                     ">
                         <div style="font-size: 3rem; margin-bottom: 1rem;">📸</div>
-                        <p>Click "Start Camera" to begin taking photos</p>
+                        <p>${cameraSupported ? 'Click "Start Camera" to begin' : 'Camera not available - use file upload'}</p>
+                        ${!cameraSupported ? '<p style="font-size: 0.9rem; margin-top: 0.5rem;">💡 Tip: Use HTTPS for camera access on mobile</p>' : ''}
                     </div>
 
                     <div class="camera-controls" id="cameraControls" style="display: none;">
@@ -260,16 +339,57 @@ class PhotosModule {
                     </div>
                 </div>
 
-                <div class="camera-actions" style="margin-top: 1rem; text-align: center;">
-                    <button class="button button-primary btn-start-camera" id="startCameraBtn">
-                        📷 Start Camera
-                    </button>
-                    <button class="button button-secondary btn-stop-camera" id="stopCameraBtn" style="display: none;">
-                        ⏹️ Stop Camera
+                <div class="camera-actions" style="margin-top: 1rem; text-align: center; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    ${cameraSupported ? `
+                        <button class="button button-primary btn-start-camera" id="startCameraBtn">
+                            📷 Start Camera
+                        </button>
+                        <button class="button button-secondary btn-stop-camera" id="stopCameraBtn" style="display: none;">
+                            ⏹️ Stop Camera
+                        </button>
+                    ` : ''}
+
+                    <button class="button ${cameraSupported ? 'button-outline' : 'button-primary'} btn-upload-photo">
+                        📁 Upload Photo
                     </button>
                 </div>
 
+                <input type="file" id="photoFileInput" accept="image/*" capture="environment" style="display: none;" multiple>
+
                 <div class="camera-status" id="cameraStatus" style="margin-top: 1rem; text-align: center; color: #7f8c8d;"></div>
+            </div>
+        `;
+    }
+
+    renderCameraStatus() {
+        const status = [];
+
+        if (!this.camera.isSecureContext) {
+            status.push('⚠️ Insecure connection (HTTP)');
+        }
+
+        if (!this.camera.hasCamera) {
+            status.push('❌ Camera API not supported');
+        }
+
+        if (this.camera.platform.isMobile) {
+            status.push('📱 Mobile device detected');
+        }
+
+        if (status.length === 0) {
+            status.push('✅ Camera ready');
+        }
+
+        return `
+            <div class="camera-status-info" style="
+                background: ${status.some(s => s.includes('⚠️') || s.includes('❌')) ? '#fff3cd' : '#d1ecf1'};
+                border: 1px solid ${status.some(s => s.includes('⚠️') || s.includes('❌')) ? '#ffeaa7' : '#bee5eb'};
+                border-radius: 6px;
+                padding: 0.75rem;
+                margin-bottom: 1rem;
+                font-size: 0.9rem;
+            ">
+                ${status.join(' • ')}
             </div>
         `;
     }
@@ -305,7 +425,7 @@ class PhotosModule {
                     <div class="photos-empty-icon">📸</div>
                     <h3 class="photos-empty-title">No photos yet</h3>
                     <p class="photos-empty-description">
-                        Start documenting this vehicle by taking photos with the camera above.
+                        Start documenting this vehicle by taking photos or uploading images.
                     </p>
                 </div>
             `;
@@ -321,7 +441,7 @@ class PhotosModule {
                         📸 ${photo.category || 'Photo'}
                     </div>
                     <div class="photo-timestamp">${new Date(photo.timestamp).toLocaleString()}</div>
-                    <div class="photo-description">${photo.description || 'No description'}</div>
+                    <div class="photo-description">${photo.description || photo.filename || 'No description'}</div>
                 </div>
             </div>
         `).join('');
@@ -332,27 +452,62 @@ class PhotosModule {
         console.log('📷 Starting camera...');
 
         try {
+            this.updateCameraStatus('Checking camera availability...');
+
+            // Enhanced browser and security checks
+            if (!this.camera.isSecureContext) {
+                throw new Error(`Camera requires HTTPS. Current: ${location.protocol}//${location.host}`);
+            }
+
+            if (!this.camera.hasCamera) {
+                throw new Error('Camera API not supported in this browser');
+            }
+
+            // Get available devices first
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+            if (videoDevices.length === 0) {
+                throw new Error('No camera devices found');
+            }
+
+            console.log(`📹 Found ${videoDevices.length} camera(s):`, videoDevices.map(d => d.label || 'Camera'));
+
             this.updateCameraStatus('Requesting camera access...');
 
-            // Check if getUserMedia is supported
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('Camera not supported in this browser');
+            // Enhanced constraints based on platform
+            const constraints = { ...this.camera.constraints };
+
+            // Mobile-specific optimizations
+            if (this.camera.platform.isMobile) {
+                constraints.video.width = { ideal: 1280, max: 1920 };
+                constraints.video.height = { ideal: 720, max: 1080 };
             }
 
             // Request camera access
-            this.camera.stream = await navigator.mediaDevices.getUserMedia(this.camera.constraints);
+            this.camera.stream = await navigator.mediaDevices.getUserMedia(constraints);
 
             // Get video element
             this.camera.video = document.getElementById('cameraVideo');
             this.camera.canvas = document.getElementById('cameraCanvas');
 
             if (!this.camera.video || !this.camera.canvas) {
-                throw new Error('Camera elements not found');
+                throw new Error('Camera elements not found in DOM');
             }
 
             // Set video stream
             this.camera.video.srcObject = this.camera.stream;
             this.camera.isActive = true;
+
+            // Wait for video to be ready
+            await new Promise((resolve, reject) => {
+                this.camera.video.onloadedmetadata = () => {
+                    console.log(`📹 Video ready: ${this.camera.video.videoWidth}x${this.camera.video.videoHeight}`);
+                    resolve();
+                };
+                this.camera.video.onerror = reject;
+                setTimeout(() => reject(new Error('Video load timeout')), 10000);
+            });
 
             // Show video and controls, hide placeholder
             document.getElementById('cameraPlaceholder').style.display = 'none';
@@ -361,13 +516,27 @@ class PhotosModule {
             document.getElementById('startCameraBtn').style.display = 'none';
             document.getElementById('stopCameraBtn').style.display = 'inline-block';
 
-            this.updateCameraStatus('Camera active - Ready to take photos');
+            this.updateCameraStatus('✅ Camera active - Ready to take photos');
+            this.showToast('Camera started successfully!', 'success');
             console.log('✅ Camera started successfully');
 
         } catch (error) {
             console.error('❌ Camera start failed:', error);
-            this.updateCameraStatus(`Camera error: ${error.message}`);
-            this.showToast(`Camera failed: ${error.message}`, 'error');
+
+            let userFriendlyMessage = 'Camera failed to start';
+
+            if (error.name === 'NotAllowedError') {
+                userFriendlyMessage = 'Camera permission denied. Please allow camera access and try again.';
+            } else if (error.name === 'NotFoundError') {
+                userFriendlyMessage = 'No camera found on this device.';
+            } else if (error.name === 'NotSupportedError') {
+                userFriendlyMessage = 'Camera not supported in this browser.';
+            } else if (error.message.includes('HTTPS')) {
+                userFriendlyMessage = 'Camera requires secure connection (HTTPS)';
+            }
+
+            this.updateCameraStatus(`❌ ${userFriendlyMessage}`);
+            this.showToast(userFriendlyMessage, 'error');
         }
     }
 
@@ -379,6 +548,7 @@ class PhotosModule {
             if (this.camera.stream) {
                 this.camera.stream.getTracks().forEach(track => {
                     track.stop();
+                    console.log(`📹 Stopped track: ${track.kind}`);
                 });
                 this.camera.stream = null;
             }
@@ -413,6 +583,8 @@ class PhotosModule {
             this.camera.facingMode = this.camera.facingMode === 'environment' ? 'user' : 'environment';
             this.camera.constraints.video.facingMode = this.camera.facingMode;
 
+            this.updateCameraStatus('Switching camera...');
+
             // Stop current stream
             if (this.camera.stream) {
                 this.camera.stream.getTracks().forEach(track => track.stop());
@@ -422,8 +594,9 @@ class PhotosModule {
             this.camera.stream = await navigator.mediaDevices.getUserMedia(this.camera.constraints);
             this.camera.video.srcObject = this.camera.stream;
 
-            this.updateCameraStatus(`Camera switched to ${this.camera.facingMode === 'environment' ? 'back' : 'front'} camera`);
-            this.showToast(`Switched to ${this.camera.facingMode === 'environment' ? 'back' : 'front'} camera`, 'success');
+            const cameraName = this.camera.facingMode === 'environment' ? 'back' : 'front';
+            this.updateCameraStatus(`✅ Switched to ${cameraName} camera`);
+            this.showToast(`Switched to ${cameraName} camera`, 'success');
 
         } catch (error) {
             console.error('❌ Camera switch failed:', error);
@@ -442,6 +615,11 @@ class PhotosModule {
 
             if (!this.currentVehicle) {
                 throw new Error('No vehicle selected');
+            }
+
+            // Ensure video is playing
+            if (this.camera.video.readyState !== 4) {
+                throw new Error('Video not ready');
             }
 
             // Set canvas size to video size
@@ -467,8 +645,11 @@ class PhotosModule {
                 vehicle_id: this.currentVehicle.id,
                 category: this.currentCategory,
                 timestamp: new Date().toISOString(),
-                description: `${this.currentCategory} photo`,
+                description: `${this.currentCategory} photo - Camera capture`,
                 size: blob.size,
+                width: this.camera.canvas.width,
+                height: this.camera.canvas.height,
+                source: 'camera',
                 url: URL.createObjectURL(blob) // Create temporary URL for display
             };
 
@@ -479,17 +660,83 @@ class PhotosModule {
             this.savePhotos();
 
             // Show success
-            this.showToast('Photo captured successfully!', 'success');
+            this.showToast('📸 Photo captured successfully!', 'success');
 
             // Refresh gallery
             this.refreshGallery();
 
-            console.log('✅ Photo captured:', photoData);
+            console.log('✅ Photo captured:', {
+                id: photoData.id,
+                size: this.formatFileSize(photoData.size),
+                dimensions: `${photoData.width}x${photoData.height}`
+            });
 
         } catch (error) {
             console.error('❌ Photo capture failed:', error);
             this.showToast(`Capture failed: ${error.message}`, 'error');
         }
+    }
+
+    // File Upload Methods
+    triggerFileUpload() {
+        const fileInput = document.getElementById('photoFileInput');
+        if (fileInput) {
+            fileInput.click();
+        }
+    }
+
+    async handleFileUpload(files) {
+        console.log('📁 Handling file upload...', files.length, 'files');
+
+        if (!this.currentVehicle) {
+            this.showToast('Please select a vehicle first', 'warning');
+            return;
+        }
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+
+            try {
+                // Validate file
+                if (!file.type.startsWith('image/')) {
+                    throw new Error(`${file.name} is not an image file`);
+                }
+
+                if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                    throw new Error(`${file.name} is too large (max 10MB)`);
+                }
+
+                // Create photo data
+                const photoData = {
+                    id: this.generateId(),
+                    vehicle_id: this.currentVehicle.id,
+                    category: this.currentCategory,
+                    timestamp: new Date().toISOString(),
+                    description: `${this.currentCategory} photo - File upload`,
+                    filename: file.name,
+                    size: file.size,
+                    source: 'upload',
+                    url: URL.createObjectURL(file)
+                };
+
+                // Add to photos array
+                this.photos.push(photoData);
+
+                console.log('✅ File processed:', photoData.filename);
+
+            } catch (error) {
+                console.error('❌ File processing failed:', error);
+                this.showToast(`Failed to process ${file.name}: ${error.message}`, 'error');
+            }
+        }
+
+        // Save and refresh
+        this.savePhotos();
+        this.refreshGallery();
+        this.showToast(`${files.length} photo(s) uploaded successfully!`, 'success');
+
+        // Clear file input
+        document.getElementById('photoFileInput').value = '';
     }
 
     updateCameraStatus(message) {
@@ -503,7 +750,13 @@ class PhotosModule {
     savePhotos() {
         try {
             // Save to localStorage (in real app, would save to server)
-            localStorage.setItem('vehicle_photos', JSON.stringify(this.photos));
+            const photosToSave = this.photos.map(photo => ({
+                ...photo,
+                // Don't save blob URLs to localStorage
+                url: photo.url.startsWith('blob:') ? null : photo.url
+            }));
+
+            localStorage.setItem('vehicle_photos', JSON.stringify(photosToSave));
             console.log('💾 Photos saved to localStorage');
         } catch (error) {
             console.error('❌ Failed to save photos:', error);
@@ -542,10 +795,21 @@ class PhotosModule {
             return;
         }
 
+        const cameraAvailable = this.camera.hasCamera && this.camera.isSecureContext;
+
         const modal = this.createModal('Start Photo Session', `
             <h3>Vehicle: ${this.currentVehicle.year || ''} ${this.currentVehicle.make} ${this.currentVehicle.model}</h3>
-            <p>Select a category and start taking photos using the camera.</p>
+            <p>Select a category and start documenting this vehicle.</p>
             <p><strong>Current Category:</strong> ${this.currentCategory}</p>
+
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin: 1rem 0;">
+                <h4>📱 Photo Capture Options:</h4>
+                ${cameraAvailable ?
+                    '<p>✅ <strong>Camera:</strong> Take photos directly with device camera</p>' :
+                    '<p>⚠️ <strong>Camera:</strong> Requires HTTPS connection</p>'
+                }
+                <p>📁 <strong>File Upload:</strong> Select photos from device gallery</p>
+            </div>
 
             <div style="margin-top: 2rem;">
                 <button class="button button-outline" onclick="this.closest('.modal-overlay').style.display='none'">
@@ -611,10 +875,15 @@ class PhotosModule {
 
         const modal = this.createModal('Photo View', `
             <div style="text-align: center;">
-                <img src="${photo.url}" alt="Photo" style="max-width: 100%; height: auto; border-radius: 8px;">
-                <p style="margin-top: 1rem;">${photo.description || 'No description'}</p>
-                <p><small>${new Date(photo.timestamp).toLocaleString()}</small></p>
-                <p><small>Size: ${this.formatFileSize(photo.size)}</small></p>
+                <img src="${photo.url}" alt="Photo" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 400px;">
+                <div style="margin-top: 1rem; text-align: left;">
+                    <p><strong>Category:</strong> ${photo.category}</p>
+                    <p><strong>Description:</strong> ${photo.description || 'No description'}</p>
+                    <p><strong>Date:</strong> ${new Date(photo.timestamp).toLocaleString()}</p>
+                    <p><strong>Size:</strong> ${this.formatFileSize(photo.size)}</p>
+                    ${photo.width ? `<p><strong>Dimensions:</strong> ${photo.width}x${photo.height}</p>` : ''}
+                    <p><strong>Source:</strong> ${photo.source === 'camera' ? '📷 Camera' : '📁 File Upload'}</p>
+                </div>
                 <button class="button button-outline" onclick="this.closest('.modal-overlay').remove()" style="margin-top: 1rem;">
                     Close
                 </button>
@@ -639,14 +908,17 @@ class PhotosModule {
             border-radius: 5px;
             z-index: 1001;
             max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         `;
         toast.textContent = message;
 
         document.body.appendChild(toast);
 
         setTimeout(() => {
-            toast.remove();
-        }, 3000);
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 4000);
     }
 
     getVehiclePhotoCount(vehicleId) {
@@ -725,4 +997,4 @@ window.Photos = {
     stopCamera: () => photosModule.stopCamera()
 };
 
-console.log('✅ Photos module loaded successfully with working camera functionality');
+console.log('✅ Complete Photos module loaded with working camera functionality');
