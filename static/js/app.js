@@ -957,7 +957,7 @@ class UIUtils {
     static closeModal() {
         const modalOverlay = document.getElementById('modalOverlay');
         if (modalOverlay) {
-            modalOverlay.classList.remove('show');
+            modalOverlay.classList.remove('active');
             document.body.style.overflow = '';
 
             setTimeout(() => {
@@ -1014,9 +1014,13 @@ class UIUtils {
 // Global utility functions
 window.showToast = UIUtils.showToast;
 window.showModal = UIUtils.showModal;
-window.closeModal = UIUtils.closeModal;
+
 window.formatDate = UIUtils.formatDate;
 window.formatCurrency = UIUtils.formatCurrency;
+
+//await window.customersModule.loadCustomers();
+//return await window.customersModule.loadModule();
+
 
 // Debug helpers
 window.debugApp = {

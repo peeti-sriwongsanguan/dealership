@@ -26,6 +26,8 @@
     <link rel="stylesheet" href="/static/css/photos.css">
     <link rel="stylesheet" href="/static/css/photo-sessions.css">
     <link rel="stylesheet" href="/static/css/photos-module.css">
+    <!-- NEW: Truck Repair CSS -->
+    <link rel="stylesheet" href="/static/css/truck-repair.css">
 
     <!-- CSS Custom Properties for Theming -->
     <style>
@@ -115,7 +117,7 @@
                     <div class="nav-icon">🔧</div>
                     <div class="nav-text">
                         <span class="nav-title">Services</span>
-                        <span class="nav-subtitle">Manage work orders</span>
+                        <span class="nav-subtitle">Manage work orders & truck repair</span>
                     </div>
                 </button>
 
@@ -176,6 +178,12 @@
                             </div>
 
                             <div class="highlight-card">
+                                <div class="highlight-icon">🚛</div>
+                                <h3>Truck Repair System</h3>
+                                <p>Integrated Thai truck repair management with material requisition and quotes</p>
+                            </div>
+
+                            <div class="highlight-card">
                                 <div class="highlight-icon">🔒</div>
                                 <h3>Secure & Reliable</h3>
                                 <p>Professional-grade security and data protection</p>
@@ -226,16 +234,21 @@
         </div>
     </div>
 
+
     <!-- JavaScript modules in correct dependency order -->
     <script src="/static/js/config.js"></script>
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/api.js"></script>
     <script src="/static/js/ui.js"></script>
     <script src="/static/js/components.js"></script>
+    <script src="/static/js/modal.js"></script>
 
-    <!-- Module scripts - LOAD EACH ONLY ONCE -->
-    <script src="/static/js/modules/customers.js"></script>
+    <!-- Module scripts -->
+    <script src="/static/js/modules/customers.js?v=9999"></script>
+
     <script src="/static/js/modules/vehicles.js"></script>
+    <!-- NEW: Load truck repair module before services -->
+    <script src="/static/js/modules/truck-repair.js"></script>
     <script src="/static/js/modules/services.js"></script>
     <script src="/static/js/modules/damage.js"></script>
     <script src="/static/js/modules/photos.js"></script>

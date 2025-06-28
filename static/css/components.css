@@ -255,145 +255,6 @@ tr:hover {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-/* Modal */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-}
-
-.modal-overlay.active {
-    opacity: 1;
-    visibility: visible;
-}
-
-.modal-container {
-    background: white;
-    border-radius: 15px;
-    max-width: 500px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    transform: scale(0.9);
-    transition: transform 0.3s ease;
-}
-
-.modal-overlay.active .modal-container {
-    transform: scale(1);
-}
-
-.modal-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid #ecf0f1;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h2 {
-    margin: 0;
-    color: #2c3e50;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #7f8c8d;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: background-color 0.2s ease;
-}
-
-.modal-close:hover {
-    background: #f8f9fa;
-}
-
-.modal-body {
-    padding: 1.5rem;
-}
-
-.modal-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-    margin-top: 2rem;
-}
-
-/* Toast Notifications */
-.toast-container {
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    z-index: 2000;
-}
-
-.toast {
-    background: white;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 0.5rem;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    min-width: 300px;
-    animation: slideIn 0.3s ease;
-}
-
-.toast-success { border-left: 4px solid #27ae60; }
-.toast-error { border-left: 4px solid #e74c3c; }
-.toast-warning { border-left: 4px solid #f39c12; }
-.toast-info { border-left: 4px solid #3498db; }
-
-.toast-content {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex: 1;
-}
-
-.toast-close {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #7f8c8d;
-    font-size: 1.2rem;
-    padding: 0.25rem;
-    border-radius: 50%;
-    transition: background-color 0.2s ease;
-}
-
-.toast-close:hover {
-    background: #f8f9fa;
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
-}
 
 /* Cards */
 .card {
@@ -424,3 +285,292 @@ tr:hover {
     background: #f8f9fa;
     border-top: 1px solid #ecf0f1;
 }
+
+/* Button System */
+.button {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.button-primary {
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    color: white;
+}
+
+.button-outline {
+    background: transparent;
+    color: #667eea;
+    border: 1px solid #667eea;
+}
+
+.button-small {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+}
+
+.button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* =============================================================================
+   MODAL SYSTEM CSS - Replace the modal section in your components.css
+   ============================================================================= */
+
+/* Modal Overlay - Hidden by default */
+#modalOverlay, .modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0,0,0,0.5) !important;
+    z-index: 9999 !important;
+
+    /* Hidden by default */
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+
+    /* Center content when visible */
+    align-items: center !important;
+    justify-content: center !important;
+
+    /* Smooth transitions */
+    transition: opacity 0.3s ease, visibility 0.3s ease !important;
+}
+
+/* Show modal when active class is present */
+#modalOverlay.active, .modal-overlay.active {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Modal Container */
+.modal-container {
+    background: white !important;
+    border-radius: 15px !important;
+    max-width: 500px !important;
+    width: 90% !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3) !important;
+
+    /* Scale animation */
+    transform: scale(0.9) !important;
+    transition: transform 0.3s ease !important;
+}
+
+/* Scale to normal when active */
+.modal-overlay.active .modal-container {
+    transform: scale(1) !important;
+}
+
+/* Modal Header */
+.modal-header {
+    padding: 20px !important;
+    border-bottom: 1px solid #eee !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    background: #f8f9fa !important;
+    border-radius: 15px 15px 0 0 !important;
+}
+
+.modal-header h2 {
+    margin: 0 !important;
+    color: #333 !important;
+    font-size: 18px !important;
+}
+
+/* Modal Body */
+.modal-body {
+    padding: 20px !important;
+}
+
+/* Modal Close Button */
+.modal-close {
+    background: none !important;
+    border: none !important;
+    font-size: 24px !important;
+    cursor: pointer !important;
+    color: #999 !important;
+    width: 30px !important;
+    height: 30px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    transition: all 0.2s ease !important;
+}
+
+.modal-close:hover {
+    background: #f0f0f0 !important;
+    color: #333 !important;
+}
+
+/* Form Styles in Modal */
+.modal-body .form-group {
+    margin-bottom: 15px !important;
+}
+
+.modal-body .form-label {
+    display: block !important;
+    margin-bottom: 5px !important;
+    font-weight: 600 !important;
+    color: #333 !important;
+}
+
+.modal-body .form-label.required::after {
+    content: ' *' !important;
+    color: #dc3545 !important;
+}
+
+.modal-body .form-input,
+.modal-body .form-textarea {
+    width: 100% !important;
+    padding: 12px !important;
+    border: 1px solid #ddd !important;
+    border-radius: 5px !important;
+    font-size: 14px !important;
+    box-sizing: border-box !important;
+    transition: all 0.2s ease !important;
+}
+
+.modal-body .form-input:focus,
+.modal-body .form-textarea:focus {
+    border-color: #667eea !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+}
+
+/* Modal Actions */
+.modal-actions {
+    display: flex !important;
+    gap: 10px !important;
+    justify-content: flex-end !important;
+    margin-top: 20px !important;
+    padding-top: 20px !important;
+    border-top: 1px solid #eee !important;
+}
+
+/* Button Styles in Modal */
+.modal-body .button {
+    padding: 12px 24px !important;
+    border: none !important;
+    border-radius: 5px !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+}
+
+.modal-body .button-primary {
+    background: linear-gradient(45deg, #667eea, #764ba2) !important;
+    color: white !important;
+}
+
+.modal-body .button-primary:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+}
+
+.modal-body .button-outline {
+    background: transparent !important;
+    color: #667eea !important;
+    border: 1px solid #667eea !important;
+}
+
+.modal-body .button-outline:hover {
+    background: #667eea !important;
+    color: white !important;
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    z-index: 10000 !important;
+}
+
+.toast {
+    background: white !important;
+    border-radius: 8px !important;
+    padding: 15px !important;
+    margin-bottom: 10px !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-width: 300px !important;
+    animation: slideInToast 0.3s ease !important;
+    border: 1px solid #e0e0e0 !important;
+}
+
+.toast-success {
+    border-left: 4px solid #28a745 !important;
+}
+
+.toast-error {
+    border-left: 4px solid #dc3545 !important;
+}
+
+.toast-warning {
+    border-left: 4px solid #ffc107 !important;
+}
+
+.toast-info {
+    border-left: 4px solid #17a2b8 !important;
+}
+
+.toast-content {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    flex: 1 !important;
+}
+
+.toast-message {
+    color: #333 !important;
+    font-size: 14px !important;
+}
+
+.toast-close {
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    color: #999 !important;
+    font-size: 18px !important;
+    padding: 5px !important;
+    border-radius: 50% !important;
+    transition: background-color 0.2s ease !important;
+}
+
+.toast-close:hover {
+    background: #f0f0f0 !important;
+}
+
+@keyframes slideInToast {
+    from {
+        transform: translateX(100%) !important;
+        opacity: 0 !important;
+    }
+    to {
+        transform: translateX(0) !important;
+        opacity: 1 !important;
+    }
+}
+

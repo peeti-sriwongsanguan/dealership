@@ -1,6 +1,7 @@
-//static/js/modules/customers.js
+// static/js/modules/customers.js
 /**
  * Customers Module - Customer Management for OL Service POS
+ * Fixed version with proper button classes and modal integration
  */
 
 class CustomersModule {
@@ -8,8 +9,6 @@ class CustomersModule {
         this.customers = [];
         this.currentCustomer = null;
         this.isLoading = false;
-
-        // DOM elements will be cached here
         this.elements = {};
     }
 
@@ -53,12 +52,8 @@ class CustomersModule {
         console.log('📋 Loading customers module for new app...');
 
         try {
-            // Refresh customer data
             await this.loadCustomers();
-
-            // Return HTML content instead of rendering directly
             return this.getHTML();
-
         } catch (error) {
             console.error('Failed to load customers module:', error);
             return this.getErrorHTML(error);
@@ -75,10 +70,10 @@ class CustomersModule {
                 <div class="action-bar">
                     <h2 class="action-bar-title">👥 Customer Management</h2>
                     <div class="action-bar-actions">
-                        <button class="btn btn-outline" onclick="window.Customers.exportCustomers()">
+                        <button class="button button-outline" onclick="window.Customers.exportCustomers()">
                             📤 Export
                         </button>
-                        <button class="btn btn-primary" onclick="window.Customers.showAddModal()">
+                        <button class="button button-primary" onclick="window.Customers.showAddModal()">
                             ➕ Add Customer
                         </button>
                     </div>
@@ -128,7 +123,8 @@ class CustomersModule {
                                 <input
                                     type="text"
                                     placeholder="Search customers..."
-                                    class="search-input"
+                                    class="form-input"
+                                    style="width: 300px;"
                                     oninput="window.Customers.filterCustomers(this.value)"
                                 >
                                 <span class="search-icon">🔍</span>
@@ -154,49 +150,15 @@ class CustomersModule {
                 <h2 class="error-title">Failed to Load Customers</h2>
                 <p class="error-message">${error.message}</p>
                 <div class="error-actions">
-                    <button class="btn btn-primary" onclick="window.olServiceApp.loadSection('customers')">
+                    <button class="button button-primary" onclick="window.olServiceApp.loadSection('customers')">
                         🔄 Retry
                     </button>
-                    <button class="btn btn-outline" onclick="window.olServiceApp.navigateToSection('welcome')">
+                    <button class="button button-outline" onclick="window.olServiceApp.navigateToSection('welcome')">
                         ← Back to Home
                     </button>
                 </div>
             </div>
         `;
-    }
-
-    /**
-     * Load and display customers section (legacy method)
-     */
-    async load() {
-        if (this.isLoading) return;
-
-        this.isLoading = true;
-
-        try {
-            // Refresh customer data
-            await this.loadCustomers();
-
-            // Render the customers interface
-            this.render();
-
-        } catch (error) {
-            console.error('Failed to load customers section:', error);
-            this.renderError(error);
-        } finally {
-            this.isLoading = false;
-        }
-    }
-
-    /**
-     * Render the customers interface (legacy method)
-     */
-    render() {
-        const html = this.getHTML();
-
-        if (window.app) {
-            window.app.setContent(html);
-        }
     }
 
     /**
@@ -235,7 +197,7 @@ class CustomersModule {
             new Date(customer.registration_date).toLocaleDateString() : 'Unknown';
 
         return `
-            <tr onclick="window.Customers.viewCustomer(${customer.id})" class="table-row-clickable">
+            <tr onclick="window.Customers.viewCustomer(${customer.id})" class="table-row-clickable" style="cursor: pointer;">
                 <td>
                     <div class="customer-info">
                         <div class="avatar">${this.getCustomerInitials(customer)}</div>
@@ -249,7 +211,7 @@ class CustomersModule {
                     <div class="contact-info">
                         ${customer.phone ? `<div class="contact-item">📞 ${customer.phone}</div>` : ''}
                         ${customer.email ? `<div class="contact-item">📧 ${customer.email}</div>` : ''}
-                        ${!customer.phone && !customer.email ? '<span class="text-muted">No contact info</span>' : ''}
+                        ${!customer.phone && !customer.email ? '<span style="color: #7f8c8d;">No contact info</span>' : ''}
                     </div>
                 </td>
                 <td>
@@ -263,14 +225,14 @@ class CustomersModule {
                 <td>
                     <div class="table-actions">
                         <button
-                            class="btn btn-sm btn-outline"
+                            class="button button-small button-outline"
                             onclick="event.stopPropagation(); window.Customers.editCustomer(${customer.id})"
                             title="Edit Customer"
                         >
                             ✏️
                         </button>
                         <button
-                            class="btn btn-sm btn-outline"
+                            class="button button-small button-outline"
                             onclick="event.stopPropagation(); window.Customers.viewVehicles(${customer.id})"
                             title="View Vehicles"
                         >
@@ -293,7 +255,7 @@ class CustomersModule {
                 <p class="empty-state-description">
                     Get started by adding your first customer to the system.
                 </p>
-                <button class="btn btn-primary" onclick="window.Customers.showAddModal()">
+                <button class="button button-primary" onclick="window.Customers.showAddModal()">
                     ➕ Add First Customer
                 </button>
             </div>
@@ -301,28 +263,30 @@ class CustomersModule {
     }
 
     /**
-     * Render error state (legacy method)
-     */
-    renderError(error) {
-        const html = this.getErrorHTML(error);
-
-        if (window.app) {
-            window.app.setContent(html);
-        }
-    }
-
-    /**
      * Show add customer modal
      */
     showAddModal() {
-        const modalContent = `
+        console.log('🔧 Opening add customer modal...');
+
+        // Get modal elements directly
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalContainer = document.getElementById('modalContainer');
+
+        if (!modalOverlay || !modalContainer) {
+            console.error('Modal elements not found');
+            alert('Unable to open modal. Please refresh the page.');
+            return;
+        }
+
+        // Set modal content directly without wrapping
+        modalContainer.innerHTML = `
             <div class="modal-header">
                 <h2>➕ Add New Customer</h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <button class="modal-close" onclick="window.closeModal()">×</button>
             </div>
 
             <div class="modal-body">
-                <form id="addCustomerForm" onsubmit="window.Customers.submitCustomer(event)">
+                <form id="addCustomerForm" onsubmit="window.Customers.handleAddCustomer(event)">
                     <div class="form-group">
                         <label class="form-label required">Customer Name</label>
                         <input
@@ -365,10 +329,10 @@ class CustomersModule {
                     </div>
 
                     <div class="modal-actions">
-                        <button type="button" class="btn btn-outline" onclick="closeModal()">
+                        <button type="button" class="button button-outline" onclick="window.closeModal()">
                             Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="button button-primary">
                             💾 Save Customer
                         </button>
                     </div>
@@ -376,40 +340,44 @@ class CustomersModule {
             </div>
         `;
 
-        if (typeof showModal !== 'undefined') {
-            showModal('Add Customer', modalContent);
-        } else if (window.app) {
-            window.app.showModal(modalContent);
-        } else {
-            console.log('Modal system not available');
-        }
+        // Show modal by adding active class
+        modalOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        console.log('✅ Modal displayed with active class');
     }
 
     /**
-     * Submit customer form
+     * Handle add customer form submission
      */
-    async submitCustomer(event) {
+    async handleAddCustomer(event) {
         event.preventDefault();
+        console.log('📋 Submitting customer form...');
 
-        const form = event.target;
-        const formData = new FormData(form);
-
-        const customerData = {
-            name: formData.get('name').trim(),
-            phone: formData.get('phone').trim(),
-            email: formData.get('email').trim(),
-            address: formData.get('address').trim()
-        };
-
-        // Validate required fields
-        if (!customerData.name) {
-            if (typeof showToast !== 'undefined') {
-                showToast('Customer name is required', 'error');
-            }
+        // Prevent double submission
+        if (this.isLoading) {
+            console.log('Already submitting...');
             return;
         }
 
+        const form = event.target;
+        const submitButton = form.querySelector('button[type="submit"]');
+
         try {
+            this.isLoading = true;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '⏳ Saving...';
+
+            const formData = new FormData(form);
+            const customerData = {
+                name: formData.get('name').trim(),
+                phone: formData.get('phone').trim(),
+                email: formData.get('email').trim(),
+                address: formData.get('address').trim()
+            };
+
+            console.log('Sending customer data:', customerData);
+
             const response = await fetch('/api/customers', {
                 method: 'POST',
                 headers: {
@@ -418,35 +386,46 @@ class CustomersModule {
                 body: JSON.stringify(customerData)
             });
 
+            const result = await response.json();
+
             if (response.ok) {
-                const result = await response.json();
+                console.log('✅ Customer created:', result);
 
-                if (typeof showToast !== 'undefined') {
-                    showToast('✅ Customer added successfully!', 'success');
+                // Show success message
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Customer created successfully!', 'success');
                 }
 
-                if (typeof closeModal !== 'undefined') {
-                    closeModal();
+                // Close the modal
+                if (typeof window.closeModal === 'function') {
+                    window.closeModal();
+                } else {
+                    // Fallback: directly manipulate DOM
+                    const modalOverlay = document.getElementById('modalOverlay');
+                    if (modalOverlay) {
+                        modalOverlay.classList.remove('active');
+                        document.body.style.overflow = '';
+                    }
                 }
 
-                // Refresh the customer list
+                // Reload the customers list
                 await this.loadCustomers();
 
-                // If we're currently in the customers section, reload it
-                if (window.olServiceApp && window.olServiceApp.currentSection === 'customers') {
+                // Refresh the display
+                if (window.olServiceApp) {
                     window.olServiceApp.loadSection('customers');
                 }
-
             } else {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to add customer');
+                throw new Error(result.error || 'Failed to create customer');
             }
 
         } catch (error) {
-            console.error('Failed to add customer:', error);
-            if (typeof showToast !== 'undefined') {
-                showToast(`❌ ${error.message}`, 'error');
-            }
+            console.error('❌ Error creating customer:', error);
+            window.showToast(error.message || 'Failed to create customer', 'error');
+        } finally {
+            this.isLoading = false;
+            submitButton.disabled = false;
+            submitButton.innerHTML = '💾 Save Customer';
         }
     }
 
@@ -468,9 +447,7 @@ class CustomersModule {
      * View customer details
      */
     viewCustomer(customerId) {
-        if (typeof showToast !== 'undefined') {
-            showToast(`View customer ${customerId} - Feature coming soon!`, 'info');
-        }
+        window.showToast(`View customer ${customerId} - Feature coming soon!`, 'info');
         console.log('View customer:', customerId);
     }
 
@@ -478,9 +455,7 @@ class CustomersModule {
      * Edit customer
      */
     editCustomer(customerId) {
-        if (typeof showToast !== 'undefined') {
-            showToast(`Edit customer ${customerId} - Feature coming soon!`, 'info');
-        }
+        window.showToast(`Edit customer ${customerId} - Feature coming soon!`, 'info');
         console.log('Edit customer:', customerId);
     }
 
@@ -488,9 +463,7 @@ class CustomersModule {
      * View customer vehicles
      */
     viewVehicles(customerId) {
-        if (typeof showToast !== 'undefined') {
-            showToast(`View vehicles for customer ${customerId} - Feature coming soon!`, 'info');
-        }
+        window.showToast(`View vehicles for customer ${customerId} - Feature coming soon!`, 'info');
         console.log('View vehicles for customer:', customerId);
     }
 
@@ -498,11 +471,32 @@ class CustomersModule {
      * Export customers
      */
     exportCustomers() {
-        if (typeof showToast !== 'undefined') {
-            showToast('Export customers - Feature coming soon!', 'info');
+        if (!this.customers.length) {
+            if (typeof showToast === 'function') {
+                showToast('No customers to export', 'warning');
+            }
+            return;
         }
-        console.log('Export customers');
+
+        const headers = ['ID', 'Name', 'Phone', 'Email', 'Address'];
+        const rows = this.customers.map(c => [c.id, c.name, c.phone, c.email, c.address]);
+        const csv = [headers, ...rows].map(row => row.map(v => `"${v || ''}"`).join(",")).join("\n");
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const now = new Date();
+        const timestamp = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}_${now.getHours()}-${now.getMinutes()}-${now.getSeconds()}`;
+        const filename = `customers_export_${timestamp}.csv`;
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }
+
+
 
     /**
      * Utility methods
@@ -539,8 +533,11 @@ class CustomersModule {
 
 // Create global instance
 window.Customers = new CustomersModule();
-
-// Also create the expected module reference
 window.customersModule = window.Customers;
+
+// Initialize the module
+window.Customers.init().catch(err => {
+    console.error('Failed to initialize Customers module:', err);
+});
 
 console.log('✅ Customers module loaded successfully');

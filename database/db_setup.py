@@ -1,14 +1,14 @@
-# database/db_setup.py (Enhanced with Photo Documentation)
+# database/db_setup.py
 
 """
 Database Setup for OL Service POS System
-Creates tables and initializes the database with sample data
-Enhanced with comprehensive photo documentation system
+Creates tables and core configuration only
+Enhanced with comprehensive photo documentation system and truck repair management
 """
 
 import sqlite3
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from database.connection_manager import db_manager
 
@@ -40,6 +40,7 @@ def create_tables():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 first_name TEXT NOT NULL,
                 last_name TEXT NOT NULL,
+                name TEXT GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED,
                 email TEXT,
                 phone TEXT,
                 address TEXT,
@@ -211,37 +212,119 @@ def create_tables():
             )
         """)
 
-        # Settings table for application configuration
+        # TRUCK REPAIR MANAGEMENT TABLES
+
+        # Material Forms table for truck repair material requisitions
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS settings (
+            CREATE TABLE IF NOT EXISTS material_forms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                category TEXT NOT NULL,
-                key TEXT NOT NULL,
-                value TEXT,
-                description TEXT,
+                vehicle_registration TEXT,
+                date TEXT,
+                requester_name TEXT NOT NULL,
+                recipient_name TEXT,
+                total_items INTEGER DEFAULT 0,
+                service_id INTEGER,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(category, key)
+                status TEXT DEFAULT 'pending',
+                notes TEXT,
+                FOREIGN KEY (service_id) REFERENCES services (id)
             )
         """)
 
-        # Audit log table for tracking changes
+        # Material Form Items table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS audit_log (
+            CREATE TABLE IF NOT EXISTS material_form_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                table_name TEXT NOT NULL,
-                record_id INTEGER,
-                action TEXT NOT NULL,
-                old_values TEXT,
-                new_values TEXT,
-                timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-                ip_address TEXT,
-                FOREIGN KEY (user_id) REFERENCES users (id)
+                form_id INTEGER NOT NULL,
+                item_number INTEGER,
+                material_description TEXT,
+                material_code TEXT,
+                quantity INTEGER DEFAULT 0,
+                unit TEXT,
+                unit_cost REAL DEFAULT 0.0,
+                total_cost REAL DEFAULT 0.0,
+                supplier TEXT,
+                notes TEXT,
+                FOREIGN KEY (form_id) REFERENCES material_forms (id) ON DELETE CASCADE
+            )
+        """)
+
+        # Repair Quotes table for truck repair estimates
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS repair_quotes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                quote_number TEXT UNIQUE NOT NULL,
+                vehicle_registration TEXT,
+                chassis_number TEXT,
+                engine_number TEXT,
+                damage_date TEXT,
+                quote_date TEXT NOT NULL,
+                customer_name TEXT,
+                vehicle_make TEXT,
+                vehicle_model TEXT,
+                vehicle_year INTEGER,
+                vehicle_color TEXT,
+                repair_type TEXT DEFAULT 'general',
+                total_amount REAL DEFAULT 0,
+                tax_amount REAL DEFAULT 0,
+                discount_amount REAL DEFAULT 0,
+                final_amount REAL DEFAULT 0,
+                status TEXT DEFAULT 'new',
+                service_id INTEGER,
+                approved_by TEXT,
+                approved_date TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT,
+                FOREIGN KEY (service_id) REFERENCES services (id)
+            )
+        """)
+
+        # Repair Quote Items table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS repair_quote_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                quote_id INTEGER NOT NULL,
+                item_number INTEGER,
+                part_code TEXT,
+                description TEXT,
+                color TEXT,
+                side TEXT,
+                quantity INTEGER DEFAULT 1,
+                unit_price REAL DEFAULT 0,
+                total_price REAL DEFAULT 0,
+                category TEXT DEFAULT 'parts',
+                supplier TEXT,
+                estimated_delivery TEXT,
+                notes TEXT,
+                FOREIGN KEY (quote_id) REFERENCES repair_quotes (id) ON DELETE CASCADE
+            )
+        """)
+
+        # Truck Parts Inventory table (for parts management)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS truck_parts_inventory (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                part_code TEXT UNIQUE NOT NULL,
+                part_name_thai TEXT NOT NULL,
+                part_name_english TEXT,
+                category TEXT,
+                supplier TEXT,
+                cost_price REAL DEFAULT 0,
+                selling_price REAL DEFAULT 0,
+                quantity_in_stock INTEGER DEFAULT 0,
+                min_stock_level INTEGER DEFAULT 0,
+                location TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                is_active INTEGER DEFAULT 1
             )
         """)
 
         # Create indexes for better performance
+
+        # Photo system indexes
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_vehicle_photos_vehicle_id ON vehicle_photos(vehicle_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_vehicle_photos_customer_id ON vehicle_photos(customer_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_vehicle_photos_category ON vehicle_photos(category)")
@@ -250,8 +333,104 @@ def create_tables():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_photo_sessions_session_type ON photo_sessions(session_type)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_session_photos_session_id ON session_photos(session_id)")
 
+        # Truck repair indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_material_forms_date ON material_forms(date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_material_forms_status ON material_forms(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_material_forms_service_id ON material_forms(service_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_repair_quotes_quote_number ON repair_quotes(quote_number)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_repair_quotes_status ON repair_quotes(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_repair_quotes_service_id ON repair_quotes(service_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_truck_parts_part_code ON truck_parts_inventory(part_code)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_truck_parts_category ON truck_parts_inventory(category)")
+
         conn.commit()
         print("✅ Database tables created successfully")
+
+
+def fix_and_create_settings_table():
+    """Fix settings table schema and create if needed"""
+
+    with db_manager.get_connection() as conn:
+        cursor = conn.cursor()
+
+        # Check if settings table exists
+        cursor.execute("""
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='settings'
+        """)
+
+        if not cursor.fetchone():
+            # Table doesn't exist, create new one
+            print("📝 Creating new settings table...")
+            cursor.execute("""
+                CREATE TABLE settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT,
+                    description TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(category, key)
+                )
+            """)
+            conn.commit()
+            return
+
+        # Check current table structure
+        cursor.execute("PRAGMA table_info(settings)")
+        columns = cursor.fetchall()
+        column_names = [col[1] for col in columns]
+
+        # If we don't have category column, recreate table
+        required_columns = {'category', 'key', 'value', 'description', 'created_at', 'updated_at'}
+        if not required_columns.issubset(set(column_names)):
+
+            print("🔄 Migrating settings table to new schema...")
+
+            # Backup existing data
+            cursor.execute("SELECT * FROM settings")
+            existing_data = cursor.fetchall()
+            old_columns = column_names
+
+            # Drop and recreate
+            cursor.execute("DROP TABLE settings")
+            cursor.execute("""
+                CREATE TABLE settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT,
+                    description TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(category, key)
+                )
+            """)
+
+            # Try to migrate old data if any
+            if existing_data:
+                print(f"📦 Migrating {len(existing_data)} existing settings...")
+                for row in existing_data:
+                    old_row_dict = dict(zip(old_columns, row))
+
+                    # Map old structure to new
+                    category = old_row_dict.get('category', 'system')
+                    key = old_row_dict.get('key',
+                                           old_row_dict.get('name', f'setting_{old_row_dict.get("id", "unknown")}'))
+                    value = old_row_dict.get('value', '')
+                    description = old_row_dict.get('description', '')
+
+                    try:
+                        cursor.execute("""
+                            INSERT INTO settings (category, key, value, description)
+                            VALUES (?, ?, ?, ?)
+                        """, (category, key, value, description))
+                    except Exception as e:
+                        print(f"Warning: Could not migrate setting {key}: {e}")
+
+            conn.commit()
+            print("✅ Settings table migration completed")
 
 
 def create_default_users():
@@ -310,91 +489,18 @@ def create_default_users():
             print("✅ Users already exist, skipping user creation")
 
 
-def create_test_data():
-    """Create sample test data for development and testing"""
+def create_default_settings():
+    """Create default application settings"""
 
     with db_manager.get_connection() as conn:
         cursor = conn.cursor()
 
-        # Check if test data already exists
-        cursor.execute("SELECT COUNT(*) FROM customers")
-        customer_count = cursor.fetchone()[0]
+        # Check if settings already exist
+        cursor.execute("SELECT COUNT(*) FROM settings")
+        settings_count = cursor.fetchone()[0]
 
-        if customer_count == 0:
-            # Create sample customers
-            sample_customers = [
-                ("John", "Smith", "john.smith@email.com", "555-1234", "123 Main St", "Springfield", "IL", "62701"),
-                ("Jane", "Doe", "jane.doe@email.com", "555-5678", "456 Oak Ave", "Springfield", "IL", "62702"),
-                ("Bob", "Johnson", "bob.johnson@email.com", "555-9012", "789 Pine Rd", "Springfield", "IL", "62703"),
-                ("Alice", "Williams", "alice.williams@email.com", "555-3456", "321 Elm St", "Springfield", "IL",
-                 "62704"),
-                ("Mike", "Brown", "mike.brown@email.com", "555-7890", "654 Maple Dr", "Springfield", "IL", "62705")
-            ]
-
-            for customer in sample_customers:
-                cursor.execute("""
-                    INSERT INTO customers (first_name, last_name, email, phone, address, city, state, zip_code)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, customer)
-
-            # Create sample vehicles
-            sample_vehicles = [
-                (1, "Toyota", "Camry", 2020, "1HGBH41JXMN109186", "ABC123", "Silver", 25000, "car"),
-                (1, "Honda", "Civic", 2019, "2HGFC2F59JH123456", "DEF456", "Blue", 30000, "car"),
-                (2, "Ford", "F-150", 2021, "1FTFW1ET5MFA12345", "GHI789", "Red", 15000, "truck"),
-                (3, "Chevrolet", "Malibu", 2018, "1G1ZD5ST4JF123456", "JKL012", "White", 45000, "car"),
-                (4, "BMW", "X5", 2022, "5UXCR6C05M0A12345", "MNO345", "Black", 8000, "suv"),
-                (5, "Mercedes", "Sprinter", 2020, "WD3PE8CD5L5123456", "PQR678", "White", 35000, "van")
-            ]
-
-            for vehicle in sample_vehicles:
-                cursor.execute("""
-                    INSERT INTO vehicles (customer_id, make, model, year, vin, license_plate, color, mileage, vehicle_type)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, vehicle)
-
-            # Create sample services
-            sample_services = [
-                (1, 1, "Oil Change", "Regular oil change service", "completed",
-                 (datetime.now() - timedelta(days=7)).isoformat(),
-                 (datetime.now() - timedelta(days=6)).isoformat(), 50.0, 45.0, 2),
-                (2, 3, "Brake Inspection", "Annual brake system inspection", "in_progress",
-                 datetime.now().isoformat(), None, 150.0, 0.0, 2),
-                (3, 4, "Tire Rotation", "Rotate all four tires", "pending",
-                 (datetime.now() + timedelta(days=2)).isoformat(), None, 80.0, 0.0, 2),
-                (4, 5, "Transmission Service", "Transmission fluid change", "completed",
-                 (datetime.now() - timedelta(days=14)).isoformat(),
-                 (datetime.now() - timedelta(days=13)).isoformat(), 200.0, 185.0, 2),
-                (5, 6, "Pre-delivery Inspection", "Complete vehicle inspection before delivery", "pending",
-                 (datetime.now() + timedelta(days=1)).isoformat(), None, 300.0, 0.0, 2)
-            ]
-
-            for service in sample_services:
-                cursor.execute("""
-                    INSERT INTO services (customer_id, vehicle_id, service_type, description, status, 
-                                        scheduled_date, completed_date, estimated_cost, actual_cost, technician_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, service)
-
-            # Create sample photo sessions
-            sample_photo_sessions = [
-                (6, 5, 5, "check-in", "Pre-delivery Check-in Photos",
-                 (datetime.now() - timedelta(hours=2)).isoformat(), None, "admin",
-                 "Initial vehicle documentation for pre-delivery inspection", 0),
-                (3, 2, 2, "service-documentation", "Brake Inspection Photos",
-                 (datetime.now() - timedelta(hours=4)).isoformat(), None, "mechanic",
-                 "Documentation during brake system inspection", 0)
-            ]
-
-            for session in sample_photo_sessions:
-                cursor.execute("""
-                    INSERT INTO photo_sessions (vehicle_id, customer_id, service_id, session_type, session_name,
-                                              start_time, end_time, created_by, notes, total_photos)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, session)
-
-            # Create sample settings
-            sample_settings = [
+        if settings_count == 0:
+            default_settings = [
                 ("ui", "theme", "default", "Application theme"),
                 ("ui", "window_width", "1200", "Main window width"),
                 ("ui", "window_height", "800", "Main window height"),
@@ -404,20 +510,83 @@ def create_test_data():
                 ("photos", "required_angles", "front,rear,driver_side,passenger_side",
                  "Required photo angles for check-in"),
                 ("photos", "max_file_size", "10485760", "Maximum photo file size in bytes (10MB)"),
+                ("truck_repair", "default_tax_rate", "7", "Default tax rate percentage for quotes"),
+                ("truck_repair", "quote_validity_days", "30", "Quote validity period in days"),
+                ("truck_repair", "auto_generate_quote_number", "true", "Auto-generate quote numbers"),
+                ("truck_repair", "require_approval", "true", "Require approval for material forms"),
                 ("system", "backup_enabled", "true", "Enable automatic backups"),
                 ("system", "backup_interval", "24", "Backup interval in hours")
             ]
 
-            for setting in sample_settings:
+            for setting in default_settings:
                 cursor.execute("""
-                    INSERT INTO settings (category, key, value, description)
+                    INSERT OR IGNORE INTO settings (category, key, value, description)
                     VALUES (?, ?, ?, ?)
                 """, setting)
 
             conn.commit()
-            print("✅ Test data created successfully")
+            print("✅ Default settings created successfully")
         else:
-            print("✅ Test data already exists, skipping data creation")
+            print("✅ Settings already exist, skipping creation")
+
+
+def initialize_truck_parts_inventory():
+    """Initialize the truck parts inventory with common parts"""
+
+    with db_manager.get_connection() as conn:
+        cursor = conn.cursor()
+
+        # Check if parts already exist
+        cursor.execute("SELECT COUNT(*) FROM truck_parts_inventory")
+        parts_count = cursor.fetchone()[0]
+
+        if parts_count == 0:
+            # Common truck parts with Thai names
+            truck_parts = [
+                ("MIR1", "ขากระจก", "Mirror Bracket", "exterior", "Local Supplier", 150.00, 300.00, 50, 10, "A-01"),
+                ("HEA1", "ไฟหน้า", "Headlight", "lighting", "OEM Parts", 800.00, 1500.00, 20, 5, "B-02"),
+                ("DOO1", "ประตู", "Door", "body", "Body Parts Co", 2500.00, 4500.00, 10, 2, "C-01"),
+                ("WIN1", "กระจก", "Window/Glass", "glass", "Glass Specialist", 600.00, 1200.00, 15, 3, "D-01"),
+                ("TAI1", "ไฟท้าย", "Tail Light", "lighting", "OEM Parts", 450.00, 850.00, 25, 5, "B-03"),
+                ("FRO1", "กระจังหน้า", "Front Grille", "exterior", "Local Supplier", 1200.00, 2200.00, 8, 2, "A-02"),
+                ("FRO2", "กันชนหน้า", "Front Bumper", "body", "Body Parts Co", 3500.00, 6000.00, 6, 1, "C-02"),
+                ("TUR1", "ไฟเลี้ยว", "Turn Signal", "lighting", "OEM Parts", 250.00, 480.00, 30, 8, "B-04"),
+                ("DOO2", "เบ้ามือโด", "Door Handle Housing", "hardware", "Hardware Plus", 180.00, 350.00, 40, 10,
+                 "E-01"),
+                (
+                    "WIN2", "ที่ปัดน้ำฝน", "Windshield Wiper", "maintenance", "Auto Parts", 120.00, 250.00, 60, 15,
+                    "F-01"),
+                ("LIG1", "แก้มไฟหรือหน้า", "Light Panel or Front Cover", "lighting", "OEM Parts", 350.00, 650.00, 18, 4,
+                 "B-05"),
+                ("REA1", "พลาสติกบังฝุ่นหลัง", "Rear Dust Cover (Plastic)", "exterior", "Plastic Parts", 95.00, 190.00,
+                 35, 8, "A-03"),
+                ("BUM1", "พลาสติกมุมกันชน", "Bumper Corner Plastic", "body", "Plastic Parts", 220.00, 420.00, 22, 5,
+                 "C-03"),
+                ("BUM2", "พลาสติกปิดมุมกันชน", "Bumper Corner Cover", "body", "Plastic Parts", 180.00, 350.00, 28, 6,
+                 "C-04"),
+                ("BUM3", "ไฟในกันชน", "Bumper Light", "lighting", "OEM Parts", 320.00, 600.00, 16, 4, "B-06"),
+                ("BUM4", "พลาสติกปิดกันชน", "Bumper Cover", "body", "Plastic Parts", 450.00, 850.00, 12, 3, "C-05"),
+                ("WAS1", "กระป๋องดีดน้ำ", "Washer Fluid Container", "maintenance", "Auto Parts", 85.00, 170.00, 45, 10,
+                 "F-02"),
+                ("BRA1", "แป้นจ่ายเบรคตรัซ", "Brake/Clutch Pedal", "brake_system", "Brake Specialist", 280.00, 520.00,
+                 14, 3, "G-01"),
+                ("FRO3", "มือจับแยงหน้า", "Front Handle", "hardware", "Hardware Plus", 130.00, 260.00, 38, 8, "E-02"),
+                ("DOO3", "กันสาดประตู", "Door Visor/Rain Guard", "exterior", "Accessories", 75.00, 150.00, 55, 12,
+                 "A-04")
+            ]
+
+            for part in truck_parts:
+                cursor.execute("""
+                    INSERT INTO truck_parts_inventory (
+                        part_code, part_name_thai, part_name_english, category, supplier,
+                        cost_price, selling_price, quantity_in_stock, min_stock_level, location
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, part)
+
+            conn.commit()
+            print("✅ Truck parts inventory initialized successfully")
+        else:
+            print("✅ Truck parts inventory already exists, skipping initialization")
 
 
 def verify_password(username: str, password: str) -> bool:
@@ -488,7 +657,7 @@ def update_last_login(username: str) -> bool:
 
 
 def setup_database():
-    """Main database setup function"""
+    """Main database setup function - creates tables and essential configuration only"""
     try:
         print("🔧 Setting up database...")
 
@@ -496,49 +665,45 @@ def setup_database():
         data_dir = Path("data")
         data_dir.mkdir(exist_ok=True)
 
-        # Create tables
+        # Create tables (excluding settings table)
         create_tables()
+
+        # Fix and create settings table with proper schema FIRST
+        fix_and_create_settings_table()
 
         # Create default users
         create_default_users()
+
+        # Create default settings (now that table has proper schema)
+        create_default_settings()
+
+        # Initialize truck parts inventory
+        initialize_truck_parts_inventory()
 
         print("✅ Database setup completed successfully")
         return True
 
     except Exception as e:
         print(f"❌ Error setting up database: {e}")
-        return False
-
-
-def initialize_with_test_data():
-    """Initialize database with test data"""
-    try:
-        setup_database()
-        create_test_data()
-        print("✅ Database initialized with test data")
-        return True
-
-    except Exception as e:
-        print(f"❌ Error initializing test data: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
 if __name__ == "__main__":
     # Run setup when called directly
-    print("🚀 Initializing OL Service POS Database...")
-    success = initialize_with_test_data()
+    print("🚀 Initializing OL Service POS Database (Core Schema)...")
+    success = setup_database()
 
     if success:
-        print("\n🎉 Database setup complete!")
-        print("📋 You can now start the application with: python main.py")
+        print("\n✅ Core database setup complete!")
+        print("📋 You can now start the application")
         print("🔑 Default login credentials:")
         print("   Username: admin    Password: admin123")
         print("   Username: mechanic Password: mech123")
         print("   Username: manager  Password: manager123")
-        print("\n📸 Photo Documentation Features:")
-        print("   - Check-in/Check-out photo sessions")
-        print("   - Service documentation photos")
-        print("   - Damage inspection with photos")
-        print("   - Automatic thumbnail generation")
+        print("\n📝 Next steps:")
+        print("   - Run 'python -m database.sample_data' to add sample data (optional)")
+        print("   - Start the application with 'python main.py'")
     else:
         print("\n❌ Database setup failed. Please check the error messages above.")
