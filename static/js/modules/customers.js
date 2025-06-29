@@ -476,7 +476,31 @@ class CustomersModule {
                     <button class="button button-primary" type="submit">Save</button>
                 </div>
             </form>`;
-        UIUtils.showModal(`✏️ Edit Customer #${customerId}`, form);
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalContainer = document.getElementById('modalContainer');
+
+        if (!modalOverlay || !modalContainer) {
+            console.error('Modal elements not found');
+            alert('Unable to open modal. Please refresh the page.');
+            return;
+        }
+
+        modalContainer.innerHTML = `
+            <div class="modal-header">
+                <h2>✏️ Edit Customer #${customerId}</h2>
+                <button class="modal-close" onclick="window.closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                ${form}
+            </div>
+        `;
+
+        modalOverlay.classList.add('active');
+        modalOverlay.style.display = 'flex';
+        modalOverlay.style.opacity = '1';
+        modalOverlay.style.visibility = 'visible';
+        document.body.style.overflow = 'hidden';
+
     }
 
     async handleEditCustomer(event, id) {
