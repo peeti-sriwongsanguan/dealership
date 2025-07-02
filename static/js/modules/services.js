@@ -108,17 +108,14 @@ const servicesModule = {
 
                 <!-- Action Buttons -->
                 <div class="section-actions">
-                    <button class="btn btn-primary" onclick="servicesModule.showAddServiceModal()">
-                        <span class="btn-icon">➕</span>
-                        Add New Service
+                    <button class="button button-primary" onclick="servicesModule.showAddServiceModal()">
+                        ➕ Add New Service
                     </button>
-                    <button class="btn btn-secondary" onclick="servicesModule.showTruckRepairModal()">
-                        <span class="btn-icon">🚛</span>
-                        Truck Repair System
+                    <button class="button button-secondary" onclick="servicesModule.showTruckRepairModal()">
+                        🚛 Truck Repair System
                     </button>
-                    <button class="btn btn-secondary" onclick="servicesModule.refreshServices()">
-                        <span class="btn-icon">🔄</span>
-                        Refresh
+                    <button class="button button-secondary" onclick="servicesModule.refreshServices()">
+                        🔄 Refresh
                     </button>
                 </div>
 

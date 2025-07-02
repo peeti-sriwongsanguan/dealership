@@ -122,7 +122,8 @@ class VehiclesModule {
                                     <input
                                         type="text"
                                         placeholder="Search vehicles..."
-                                        class="search-input"
+                                        class="form-input"
+                                        style="width: 300px;"
                                         oninput="window.Vehicles.filterVehicles(this.value)"
                                     >
                                     <span class="search-icon">🔍</span>

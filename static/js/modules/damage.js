@@ -115,10 +115,10 @@ class DamageInspectionModule {
 
                     <!-- Drawing Action Controls -->
                     <div class="drawing-actions" style="margin-top: 1rem; text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-                        <button class="btn btn-outline" onclick="window.Damage.undo()" title="Undo Last Drawing">
+                        <button class="button button-outline" onclick="window.Damage.undo()" title="Undo Last Drawing">
                             ↶ Undo
                         </button>
-                        <button class="btn btn-outline" onclick="window.Damage.clearAll()" title="Clear All Drawings">
+                        <button class="button button-outline" onclick="window.Damage.clearAll()" title="Clear All Drawings">
                             🗑️ Clear All
                         </button>
                     </div>
@@ -145,7 +145,7 @@ class DamageInspectionModule {
                             placeholder="Add general notes about the vehicle condition, damage observations, or special instructions..."
                             rows="4"
                         ></textarea>
-                        <button class="btn btn-outline notes-add-btn" onclick="window.Damage.addNote()">
+                        <button class="button button-outline notes-add-btn" onclick="window.Damage.addNote()">
                             ➕ Add Note
                         </button>
                     </div>
@@ -155,10 +155,10 @@ class DamageInspectionModule {
 
                     <!-- Save and Export Controls -->
                     <div class="save-export-actions" style="margin-top: 1.5rem; text-align: center; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
-                        <button class="btn btn-outline" onclick="window.Damage.exportReport()" title="Export Damage Report">
+                        <button class="button button-outline" onclick="window.Damage.exportReport()" title="Export Damage Report">
                             📤 Export Report
                         </button>
-                        <button class="btn btn-primary" onclick="window.Damage.saveInspection()" title="Save Inspection">
+                        <button class="button button-primary" onclick="window.Damage.saveInspection()" title="Save Inspection">
                             💾 Save Inspection
                         </button>
                     </div>
