@@ -536,11 +536,86 @@ class VehiclesModule {
         console.log('View history for vehicle:', vehicleId);
     }
 
+    /**
+     * Export vehicles function - replaces the placeholder in vehicles.js
+     * Add this method to the VehiclesModule class
+     */
+
     exportVehicles() {
-        if (typeof showToast !== 'undefined') {
-            showToast('Export vehicles - Feature coming soon!', 'info');
+        if (!this.vehicles.length) {
+            if (typeof showToast === 'function') {
+                showToast('No vehicles to export', 'warning');
+            }
+            return;
         }
-        console.log('Export vehicles');
+
+        // Define CSV headers
+        const headers = [
+            'Vehicle ID',
+            'Make',
+            'Model',
+            'Year',
+            'License Plate',
+            'VIN',
+            'Vehicle Type',
+            'Mileage',
+            'Customer ID',
+            'Customer Name',
+            'Customer Phone',
+            'Customer Email',
+            'Registration Date'
+        ];
+
+        // Map vehicle data to CSV rows
+        const rows = this.vehicles.map(vehicle => [
+            vehicle.id || '',
+            vehicle.make || '',
+            vehicle.model || '',
+            vehicle.year || '',
+            vehicle.license_plate || '',
+            vehicle.vin || '',
+            vehicle.vehicle_type || 'Car',
+            vehicle.mileage || '',
+            vehicle.customer_id || '',
+            vehicle.customer_name || 'Unknown Owner',
+            vehicle.customer_phone || '',
+            vehicle.customer_email || '',
+            vehicle.registration_date ? new Date(vehicle.registration_date).toLocaleDateString() : ''
+        ]);
+
+        // Create CSV content
+        const csv = [headers, ...rows]
+            .map(row => row.map(value => `"${value}"`).join(','))
+            .join('\n');
+
+        // Create and download the file
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        // Generate timestamp for filename
+        const now = new Date();
+        const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+        const filename = `vehicles_export_${timestamp}.csv`;
+
+        // Create download link and trigger download
+        const downloadLink = document.createElement('a');
+        downloadLink.href = url;
+        downloadLink.download = filename;
+        downloadLink.style.display = 'none';
+
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        // Clean up the URL object
+        URL.revokeObjectURL(url);
+
+        // Show success message
+        if (typeof showToast === 'function') {
+            showToast(`Exported ${this.vehicles.length} vehicles to ${filename}`, 'success');
+        }
+
+        console.log(`📤 Exported ${this.vehicles.length} vehicles to ${filename}`);
     }
 
     // Utility methods
