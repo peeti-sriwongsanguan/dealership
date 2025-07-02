@@ -55,15 +55,15 @@ class VehiclesModule {
      */
     getHTML() {
         return `
-            <div class="vehicles-section">
+            <div class="customers-section">
                 <!-- Action Bar -->
                 <div class="action-bar">
                     <h2 class="action-bar-title">🚗 Vehicle Management</h2>
                     <div class="action-bar-actions">
-                        <button class="btn btn-outline" onclick="window.Vehicles.exportVehicles()">
+                        <button class="button button-outline" onclick="window.Vehicles.exportVehicles()">
                             📤 Export
                         </button>
-                        <button class="btn btn-primary" onclick="window.Vehicles.showAddModal()">
+                        <button class="button button-primary" onclick="window.Vehicles.showAddModal()">
                             ➕ Add Vehicle
                         </button>
                     </div>

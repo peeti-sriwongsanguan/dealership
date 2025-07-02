@@ -68,7 +68,7 @@ const servicesModule = {
         const totalPages = Math.ceil(services.length / this.itemsPerPage);
 
         return `
-            <div class="section-content">
+            <div class="customers-section">
                 <div class="section-header">
                     <h2>🔧 Services Management</h2>
                     <p>Manage service orders and truck repair documentation</p>
