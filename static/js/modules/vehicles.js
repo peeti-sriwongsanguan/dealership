@@ -307,90 +307,201 @@ class VehiclesModule {
         `;
     }
 
+
+    /**
+     * Show improved add vehicle modal
+     */
     showAddModal() {
-        const modalContent = `
+        console.log('🚗 Opening add vehicle modal...');
+
+        // Check if customers are available
+        if (!this.customers || this.customers.length === 0) {
+            if (typeof showToast === 'function') {
+                showToast('⚠️ Please add customers first before adding vehicles', 'warning');
+            }
+            return;
+        }
+
+        // Get modal elements directly
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalContainer = document.getElementById('modalContainer');
+
+        if (!modalOverlay || !modalContainer) {
+            console.error('Modal elements not found');
+            alert('Unable to open modal. Please refresh the page.');
+            return;
+        }
+
+        // Generate current year for max year validation
+        const currentYear = new Date().getFullYear();
+
+        // Set modal content
+        modalContainer.innerHTML = `
             <div class="modal-header">
                 <h2>➕ Add New Vehicle</h2>
-                <button class="modal-close" onclick="closeModal()">×</button>
+                <button class="modal-close" onclick="window.closeModal()">×</button>
             </div>
 
             <div class="modal-body">
                 <form id="addVehicleForm" onsubmit="window.Vehicles.submitVehicle(event)">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label required">Make</label>
-                            <select name="make" class="form-input" required>
-                                <option value="">Select make</option>
-                                ${this.vehicleMakes.map(make => `<option value="${make}">${make}</option>`).join('')}
-                            </select>
+                    <!-- Vehicle Basic Information -->
+                    <div class="form-section">
+                        <h3 class="form-section-title">Vehicle Information</h3>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label required">Make</label>
+                                <select name="make" class="form-input" required onchange="window.Vehicles.onMakeChange(this)">
+                                    <option value="">Select make</option>
+                                    ${this.vehicleMakes.map(make => `<option value="${make}">${make}</option>`).join('')}
+                                    <option value="other">Other (Custom)</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label required">Model</label>
+                                <input
+                                    type="text"
+                                    name="model"
+                                    class="form-input"
+                                    placeholder="Enter model"
+                                    required
+                                >
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label class="form-label required">Model</label>
-                            <input
-                                type="text"
-                                name="model"
-                                class="form-input"
-                                placeholder="Enter model"
-                                required
-                            >
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label required">Year</label>
+                                <input
+                                    type="number"
+                                    name="year"
+                                    class="form-input"
+                                    placeholder="e.g. ${currentYear}"
+                                    min="1900"
+                                    max="${currentYear + 2}"
+                                    required
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Vehicle Type</label>
+                                <select name="vehicle_type" class="form-input">
+                                    ${this.vehicleTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">License Plate</label>
+                                <input
+                                    type="text"
+                                    name="license_plate"
+                                    class="form-input"
+                                    placeholder="ABC123"
+                                    style="text-transform: uppercase;"
+                                    maxlength="10"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Color</label>
+                                <input
+                                    type="text"
+                                    name="color"
+                                    class="form-input"
+                                    placeholder="e.g. Silver, Blue"
+                                >
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label required">Year</label>
-                            <input
-                                type="number"
-                                name="year"
-                                class="form-input"
-                                placeholder="2023"
-                                min="1900"
-                                max="${new Date().getFullYear() + 1}"
-                                required
-                            >
-                        </div>
+                    <!-- Vehicle Details -->
+                    <div class="form-section">
+                        <h3 class="form-section-title">Vehicle Details</h3>
 
                         <div class="form-group">
-                            <label class="form-label">License Plate</label>
+                            <label class="form-label">VIN (Vehicle Identification Number)</label>
                             <input
                                 type="text"
-                                name="license_plate"
+                                name="vin"
                                 class="form-input"
-                                placeholder="ABC123"
+                                placeholder="1HGCM82633A123456"
+                                maxlength="17"
                                 style="text-transform: uppercase;"
+                                oninput="window.Vehicles.validateVIN(this)"
                             >
+                            <small class="form-help">17 characters - Leave blank if unknown</small>
+                            <div id="vinError" class="form-error" style="display: none;"></div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Mileage</label>
+                                <input
+                                    type="number"
+                                    name="mileage"
+                                    class="form-input"
+                                    placeholder="e.g. 50000"
+                                    min="0"
+                                    max="999999"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Engine Size</label>
+                                <input
+                                    type="text"
+                                    name="engine_size"
+                                    class="form-input"
+                                    placeholder="e.g. 2.0L, V6"
+                                >
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label required">Vehicle Owner</label>
-                        <select name="customer_id" class="form-input" required>
-                            <option value="">Select customer</option>
-                            ${this.customers.map(customer =>
-                                `<option value="${customer.id}">${customer.name} (ID: ${customer.id})</option>`
-                            ).join('')}
-                        </select>
+                    <!-- Owner Information -->
+                    <div class="form-section">
+                        <h3 class="form-section-title">Owner Information</h3>
+
+                        <div class="form-group">
+                            <label class="form-label required">Vehicle Owner</label>
+                            <select name="customer_id" class="form-input" required>
+                                <option value="">Select customer</option>
+                                ${this.customers
+                                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                    .map(customer =>
+                                        `<option value="${customer.id}">${customer.name || 'Unnamed Customer'} (ID: ${customer.id})</option>`
+                                    ).join('')}
+                            </select>
+                            <small class="form-help">
+                                Don't see the customer?
+                                <a href="#" onclick="window.Vehicles.openCustomerModal(); return false;">Add new customer</a>
+                            </small>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">VIN (Vehicle Identification Number)</label>
-                        <input
-                            type="text"
-                            name="vin"
-                            class="form-input"
-                            placeholder="1HGCM82633A123456"
-                            maxlength="17"
-                            style="text-transform: uppercase;"
-                        >
-                        <small class="form-help">17 characters</small>
+                    <!-- Additional Notes -->
+                    <div class="form-section">
+                        <h3 class="form-section-title">Additional Information</h3>
+
+                        <div class="form-group">
+                            <label class="form-label">Notes</label>
+                            <textarea
+                                name="notes"
+                                class="form-textarea"
+                                placeholder="Any additional notes about the vehicle..."
+                                rows="3"
+                            ></textarea>
+                        </div>
                     </div>
 
                     <div class="modal-actions">
-                        <button type="button" class="btn btn-outline" onclick="closeModal()">
+                        <button type="button" class="button button-outline" onclick="window.closeModal()">
                             Cancel
                         </button>
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="button button-primary">
                             💾 Save Vehicle
                         </button>
                     </div>
@@ -398,46 +509,60 @@ class VehiclesModule {
             </div>
         `;
 
-        if (typeof showModal !== 'undefined') {
-            showModal('Add Vehicle', modalContent);
-        } else if (window.app) {
-            window.app.showModal(modalContent);
-        } else {
-            console.log('Modal system not available');
-        }
+        // Show modal
+        modalOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+
+        console.log('✅ Add vehicle modal displayed');
     }
 
+    /**
+     * Handle add vehicle form submission (replaces submitVehicle)
+     */
     async submitVehicle(event) {
         event.preventDefault();
+        console.log('🚗 Submitting vehicle form...');
+
+        // Prevent double submission
+        if (this.isLoading) {
+            console.log('Already submitting...');
+            return;
+        }
 
         const form = event.target;
-        const formData = new FormData(form);
-
-        const vehicleData = {
-            make: formData.get('make').trim(),
-            model: formData.get('model').trim(),
-            year: parseInt(formData.get('year')),
-            license_plate: formData.get('license_plate').trim().toUpperCase(),
-            customer_id: parseInt(formData.get('customer_id')),
-            vin: formData.get('vin').trim().toUpperCase()
-        };
-
-        // Validation
-        if (!vehicleData.make || !vehicleData.model || !vehicleData.year || !vehicleData.customer_id) {
-            if (typeof showToast !== 'undefined') {
-                showToast('Please fill in all required fields', 'error');
-            }
-            return;
-        }
-
-        if (vehicleData.vin && vehicleData.vin.length !== 17) {
-            if (typeof showToast !== 'undefined') {
-                showToast('VIN must be exactly 17 characters', 'error');
-            }
-            return;
-        }
+        const submitButton = form.querySelector('button[type="submit"]');
 
         try {
+            this.isLoading = true;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '⏳ Saving...';
+
+            const formData = new FormData(form);
+
+            // Build vehicle data object
+            const vehicleData = {
+                make: formData.get('make').trim(),
+                model: formData.get('model').trim(),
+                year: parseInt(formData.get('year')),
+                vehicle_type: formData.get('vehicle_type') || 'Car',
+                license_plate: formData.get('license_plate').trim().toUpperCase(),
+                color: formData.get('color').trim(),
+                vin: formData.get('vin').trim().toUpperCase(),
+                mileage: formData.get('mileage') ? parseInt(formData.get('mileage')) : null,
+                engine_size: formData.get('engine_size').trim(),
+                customer_id: parseInt(formData.get('customer_id')),
+                notes: formData.get('notes').trim()
+            };
+
+            // Client-side validation
+            const validationResult = this.validateVehicleData(vehicleData);
+            if (!validationResult.isValid) {
+                throw new Error(validationResult.message);
+            }
+
+            console.log('Sending vehicle data:', vehicleData);
+
+            // Submit to API
             const response = await fetch('/api/vehicles', {
                 method: 'POST',
                 headers: {
@@ -446,36 +571,163 @@ class VehiclesModule {
                 body: JSON.stringify(vehicleData)
             });
 
-            if (response.ok) {
-                const result = await response.json();
+            const result = await response.json();
 
-                if (typeof showToast !== 'undefined') {
-                    showToast('✅ Vehicle added successfully!', 'success');
+            if (response.ok) {
+                console.log('✅ Vehicle created:', result);
+
+                // Show success message
+                if (typeof window.showToast === 'function') {
+                    window.showToast('✅ Vehicle added successfully!', 'success');
                 }
 
-                if (typeof closeModal !== 'undefined') {
-                    closeModal();
+                // Close the modal
+                if (typeof window.closeModal === 'function') {
+                    window.closeModal();
                 }
 
                 // Refresh the vehicle list
                 await this.loadVehicles();
 
-                // If we're currently in the vehicles section, reload it
+                // Refresh the display if we're in the vehicles section
                 if (window.olServiceApp && window.olServiceApp.currentSection === 'vehicles') {
                     window.olServiceApp.loadSection('vehicles');
                 }
 
             } else {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to add vehicle');
+                throw new Error(result.error || 'Failed to add vehicle');
             }
 
         } catch (error) {
-            console.error('Failed to add vehicle:', error);
-            if (typeof showToast !== 'undefined') {
-                showToast(`❌ ${error.message}`, 'error');
+            console.error('❌ Error adding vehicle:', error);
+            if (typeof window.showToast === 'function') {
+                window.showToast(`❌ ${error.message}`, 'error');
+            }
+        } finally {
+            this.isLoading = false;
+            submitButton.disabled = false;
+            submitButton.innerHTML = '💾 Save Vehicle';
+        }
+    }
+
+    /**
+     * Validate vehicle data
+     */
+    validateVehicleData(data) {
+        // Required fields validation
+        if (!data.make || !data.model || !data.year || !data.customer_id) {
+            return {
+                isValid: false,
+                message: 'Please fill in all required fields (Make, Model, Year, Owner)'
+            };
+        }
+
+        // Year validation
+        const currentYear = new Date().getFullYear();
+        if (data.year < 1900 || data.year > currentYear + 2) {
+            return {
+                isValid: false,
+                message: `Year must be between 1900 and ${currentYear + 2}`
+            };
+        }
+
+        // VIN validation (if provided)
+        if (data.vin && data.vin.length > 0 && data.vin.length !== 17) {
+            return {
+                isValid: false,
+                message: 'VIN must be exactly 17 characters if provided'
+            };
+        }
+
+        // Mileage validation
+        if (data.mileage && (data.mileage < 0 || data.mileage > 999999)) {
+            return {
+                isValid: false,
+                message: 'Mileage must be between 0 and 999,999'
+            };
+        }
+
+        return { isValid: true };
+    }
+
+    /**
+     * Handle make selection change
+     */
+    onMakeChange(selectElement) {
+        const customMakeGroup = document.getElementById('customMakeGroup');
+
+        if (selectElement.value === 'other') {
+            // If "Other" is selected, show custom input
+            if (!customMakeGroup) {
+                const customInput = document.createElement('div');
+                customInput.id = 'customMakeGroup';
+                customInput.className = 'form-group';
+                customInput.innerHTML = `
+                    <label class="form-label required">Custom Make</label>
+                    <input
+                        type="text"
+                        name="custom_make"
+                        class="form-input"
+                        placeholder="Enter custom make"
+                        required
+                    >
+                `;
+                selectElement.closest('.form-group').insertAdjacentElement('afterend', customInput);
+            }
+        } else {
+            // Remove custom input if it exists
+            if (customMakeGroup) {
+                customMakeGroup.remove();
             }
         }
+    }
+
+    /**
+     * Validate VIN as user types
+     */
+    validateVIN(input) {
+        const vin = input.value.toUpperCase();
+        const errorDiv = document.getElementById('vinError');
+
+        if (vin.length === 0) {
+            errorDiv.style.display = 'none';
+            input.style.borderColor = '';
+            return;
+        }
+
+        if (vin.length !== 17) {
+            errorDiv.textContent = `VIN must be 17 characters (currently ${vin.length})`;
+            errorDiv.style.display = 'block';
+            input.style.borderColor = '#dc3545';
+        } else {
+            // Check for invalid characters (I, O, Q are not allowed in VINs)
+            const invalidChars = vin.match(/[IOQ]/g);
+            if (invalidChars) {
+                errorDiv.textContent = 'VIN cannot contain the letters I, O, or Q';
+                errorDiv.style.display = 'block';
+                input.style.borderColor = '#dc3545';
+            } else {
+                errorDiv.style.display = 'none';
+                input.style.borderColor = '#28a745';
+            }
+        }
+    }
+
+    /**
+     * Open customer modal from vehicle form
+     */
+    openCustomerModal() {
+        // Close current modal first
+        if (typeof window.closeModal === 'function') {
+            window.closeModal();
+        }
+
+        // Open customer add modal
+        setTimeout(() => {
+            if (window.Customers && typeof window.Customers.showAddModal === 'function') {
+                window.Customers.showAddModal();
+            }
+        }, 300);
     }
 
     filterVehicles(searchTerm) {
