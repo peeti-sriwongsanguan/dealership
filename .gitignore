@@ -65,3 +65,5 @@ logs/
 htmlcov/
 coverage.xml
 *.cover
+
+media

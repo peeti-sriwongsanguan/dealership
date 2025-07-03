@@ -821,6 +821,7 @@ class CustomersModule {
     /**
      * View customer vehicles
      */
+
     async viewVehicles(customerId) {
         console.log('🚗 Viewing vehicles for customer:', customerId);
 
@@ -853,16 +854,8 @@ class CustomersModule {
                 const vehicleRows = vehicles.map(vehicle => `
                     <tr>
                         <td>
-                            <div class="vehicle-info">
-                                <div class="vehicle-icon">🚗</div>
-                                <div>
-                                    <div style="font-weight: 600; color: #333;">
-                                        ${vehicle.year || ''} ${vehicle.make} ${vehicle.model}
-                                    </div>
-                                    <div style="font-size: 12px; color: #666;">
-                                        VIN: ${vehicle.vin || 'Not provided'}
-                                    </div>
-                                </div>
+                            <div class="vehicle-info-with-photo">
+                                ${this.renderCustomerVehicleDisplay(vehicle)}
                             </div>
                         </td>
                         <td>
@@ -876,17 +869,24 @@ class CustomersModule {
                             </div>
                         </td>
                         <td>
-                            <button class="button button-small button-outline"
-                                onclick="window.Customers.editVehicle(${vehicle.id}, ${customerId})"
-                                title="Edit Vehicle">
-                                ✏️
-                            </button>
-                            <button class="button button-small button-outline"
-                                onclick="window.Customers.deleteVehicle(${vehicle.id}, ${customerId})"
-                                title="Delete Vehicle"
-                                style="color: #dc3545; border-color: #dc3545;">
-                                🗑️
-                            </button>
+                            <div class="vehicle-action-buttons">
+                                <button class="button button-small button-outline"
+                                    onclick="window.Customers.editVehicle(${vehicle.id}, ${customerId})"
+                                    title="Edit Vehicle">
+                                    ✏️
+                                </button>
+                                <button class="button button-small button-outline"
+                                    onclick="window.Customers.viewVehiclePhotos(${vehicle.id})"
+                                    title="View Photos">
+                                    📷
+                                </button>
+                                <button class="button button-small button-outline"
+                                    onclick="window.Customers.deleteVehicle(${vehicle.id}, ${customerId})"
+                                    title="Delete Vehicle"
+                                    style="color: #dc3545; border-color: #dc3545;">
+                                    🗑️
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `).join('');
@@ -945,6 +945,60 @@ class CustomersModule {
         } catch (error) {
             console.error('❌ Error loading vehicles:', error);
             window.showToast('Failed to load vehicles', 'error');
+        }
+    }
+
+    /**
+     * Render vehicle display with photo for customer vehicle list
+     */
+    renderCustomerVehicleDisplay(vehicle) {
+        const vehicleInfo = `${vehicle.year || ''} ${vehicle.make} ${vehicle.model}`.trim();
+
+        if (vehicle.photo_url || vehicle.photos) {
+            const primaryPhoto = vehicle.photo_url || (vehicle.photos && vehicle.photos[0]?.url);
+
+            return `
+                <div class="customer-vehicle-with-photo">
+                    <div class="vehicle-photo-thumbnail">
+                        <img
+                            src="${primaryPhoto}"
+                            alt="${vehicleInfo}"
+                            class="vehicle-thumbnail-img"
+                            onclick="window.Customers.viewVehiclePhotos(${vehicle.id})"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                        >
+                        <div class="vehicle-thumbnail-fallback" style="display: none;">
+                            <span class="vehicle-icon">🚗</span>
+                        </div>
+                        ${vehicle.photos && vehicle.photos.length > 1 ? `
+                            <div class="photo-count-badge">+${vehicle.photos.length - 1}</div>
+                        ` : ''}
+                    </div>
+                    <div class="vehicle-text-info">
+                        <div class="vehicle-name-primary">${vehicleInfo}</div>
+                        <div class="vehicle-details-secondary">
+                            VIN: ${vehicle.vin ? vehicle.vin.slice(-6) : 'N/A'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="customer-vehicle-no-photo">
+                    <div class="vehicle-icon-placeholder">
+                        <span class="vehicle-icon">🚗</span>
+                        <div class="add-photo-hint" onclick="window.Customers.addVehiclePhoto(${vehicle.id})">
+                            📷 Add Photo
+                        </div>
+                    </div>
+                    <div class="vehicle-text-info">
+                        <div class="vehicle-name-primary">${vehicleInfo}</div>
+                        <div class="vehicle-details-secondary">
+                            VIN: ${vehicle.vin ? vehicle.vin.slice(-6) : 'N/A'}
+                        </div>
+                    </div>
+                </div>
+            `;
         }
     }
     /**

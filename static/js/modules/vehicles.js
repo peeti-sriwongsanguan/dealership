@@ -236,13 +236,21 @@ class VehiclesModule {
         `;
     }
 
+    // ============================================================================
+    // FOR VEHICLES MODULE - Enhanced vehicle row rendering with photos
+    // ============================================================================
+
+    /**
+     * Enhanced renderVehicleRow with photo support
+     * Replace the existing renderVehicleRow method in VehiclesModule
+     */
     renderVehicleRow(vehicle) {
         return `
             <tr onclick="window.Vehicles.viewVehicle(${vehicle.id})" class="table-row-clickable">
                 <td>
                     <div class="vehicle-info">
-                        <div class="avatar" style="background: ${this.getVehicleColor(vehicle.make)}">
-                            ${this.getVehicleIcon(vehicle.make)}
+                        <div class="vehicle-avatar-container">
+                            ${this.renderVehicleAvatar(vehicle)}
                         </div>
                         <div class="vehicle-details">
                             <div class="vehicle-name">${vehicle.year} ${vehicle.make} ${vehicle.model}</div>
@@ -286,12 +294,384 @@ class VehiclesModule {
                         >
                             📋
                         </button>
+                        <button
+                            class="btn btn-sm btn-outline"
+                            onclick="event.stopPropagation(); window.Vehicles.managePhotos(${vehicle.id})"
+                            title="Manage Photos"
+                        >
+                            📷
+                        </button>
                     </div>
                 </td>
             </tr>
         `;
     }
 
+    /**
+     * Render vehicle avatar with photo support
+     */
+    renderVehicleAvatar(vehicle) {
+        if (vehicle.photo_url || vehicle.photos) {
+            // If vehicle has photos, show the primary photo
+            const primaryPhoto = vehicle.photo_url || (vehicle.photos && vehicle.photos[0]?.url);
+
+            return `
+                <div class="vehicle-photo-avatar" style="background: ${this.getVehicleColor(vehicle.make)}">
+                    <img
+                        src="${primaryPhoto}"
+                        alt="${vehicle.year} ${vehicle.make} ${vehicle.model}"
+                        class="vehicle-photo-img"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                    >
+                    <div class="vehicle-icon-fallback" style="display: none;">
+                        ${this.getVehicleIcon(vehicle.make)}
+                    </div>
+                    <div class="photo-indicator">📷</div>
+                </div>
+            `;
+        } else {
+            // Default avatar with icon
+            return `
+                <div class="avatar" style="background: ${this.getVehicleColor(vehicle.make)}">
+                    ${this.getVehicleIcon(vehicle.make)}
+                    <div class="no-photo-indicator" title="No photo available">📷</div>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * NEW METHOD: Manage vehicle photos (main entry point)
+     * ADD this new method to VehiclesModule
+     */
+    async managePhotos(vehicleId) {
+        console.log('📷 Managing photos for vehicle:', vehicleId);
+
+        // Find the vehicle
+        const vehicle = this.vehicles.find(v => v.id === vehicleId);
+        if (!vehicle) {
+            if (typeof showToast === 'function') {
+                showToast('Vehicle not found', 'error');
+            }
+            return;
+        }
+
+        // Show photo management options
+        const modalContent = `
+            <div class="modal-header">
+                <h2>📷 Photo Management - ${vehicle.year} ${vehicle.make} ${vehicle.model}</h2>
+                <button class="modal-close" onclick="window.closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="photo-management-options">
+                    <div class="management-option" onclick="window.Vehicles.viewVehiclePhotos(${vehicleId})">
+                        <div class="option-icon">👁️</div>
+                        <div class="option-content">
+                            <h3>View Photos</h3>
+                            <p>Browse existing vehicle photos</p>
+                        </div>
+                    </div>
+
+                    <div class="management-option" onclick="window.Vehicles.addVehiclePhoto(${vehicleId})">
+                        <div class="option-icon">📷</div>
+                        <div class="option-content">
+                            <h3>Add Photos</h3>
+                            <p>Upload new vehicle photos</p>
+                        </div>
+                    </div>
+
+                    <div class="management-option" onclick="window.Vehicles.openPhotoSession(${vehicleId})">
+                        <div class="option-icon">📸</div>
+                        <div class="option-content">
+                            <h3>Photo Session</h3>
+                            <p>Start professional documentation</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Show modal
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalContainer = document.getElementById('modalContainer');
+
+        if (modalOverlay && modalContainer) {
+            modalContainer.innerHTML = modalContent;
+            modalOverlay.classList.add('active');
+            modalOverlay.style.display = 'flex';
+            modalOverlay.style.opacity = '1';
+            modalOverlay.style.visibility = 'visible';
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    /**
+     * NEW METHOD: View vehicle photos
+     * ADD this new method to VehiclesModule
+     */
+    async viewVehiclePhotos(vehicleId) {
+        console.log('📷 Viewing photos for vehicle:', vehicleId);
+
+        try {
+            // Fetch vehicle photos from API
+            const response = await fetch(`/api/vehicles/${vehicleId}/photos`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to load photos');
+            }
+
+            const photos = data.photos || [];
+            const vehicle = data.vehicle || { id: vehicleId };
+
+            const modalContent = `
+                <div class="modal-header">
+                    <h2>📷 Vehicle Photos - ${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}</h2>
+                    <button class="modal-close" onclick="window.closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="photo-gallery-header">
+                        <div class="photo-count">
+                            Total Photos: <strong>${photos.length}</strong>
+                        </div>
+                        <button class="button button-primary" onclick="window.Vehicles.addVehiclePhoto(${vehicleId})">
+                            📷 Add Photo
+                        </button>
+                    </div>
+
+                    ${photos.length > 0 ? `
+                        <div class="photo-gallery">
+                            ${photos.map((photo, index) => `
+                                <div class="photo-gallery-item" data-photo-id="${photo.id}">
+                                    <img
+                                        src="${photo.url}"
+                                        alt="Vehicle Photo ${index + 1}"
+                                        class="gallery-photo"
+                                        onclick="window.Vehicles.viewFullPhoto('${photo.url}', '${photo.caption || ''}')"
+                                    >
+                                    <div class="photo-overlay">
+                                        <div class="photo-actions">
+                                            <button class="photo-action-btn" onclick="window.Vehicles.setAsPrimaryPhoto(${photo.id}, ${vehicleId})" title="Set as Primary">
+                                                ${photo.is_primary ? '⭐' : '☆'}
+                                            </button>
+                                            <button class="photo-action-btn" onclick="window.Vehicles.editPhotoCaption(${photo.id})" title="Edit Caption">
+                                                ✏️
+                                            </button>
+                                            <button class="photo-action-btn delete" onclick="window.Vehicles.deletePhoto(${photo.id}, ${vehicleId})" title="Delete">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                    </div>
+                                    ${photo.caption ? `
+                                        <div class="photo-caption">${photo.caption}</div>
+                                    ` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : `
+                        <div class="no-photos-state">
+                            <div class="no-photos-icon">📷</div>
+                            <h3>No Photos Available</h3>
+                            <p>This vehicle has no photos yet. Add some photos to help identify and showcase the vehicle.</p>
+                            <button class="button button-primary" onclick="window.Vehicles.addVehiclePhoto(${vehicleId})">
+                                📷 Add First Photo
+                            </button>
+                        </div>
+                    `}
+                </div>
+            `;
+
+            // Show modal
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalContainer = document.getElementById('modalContainer');
+
+            if (modalOverlay && modalContainer) {
+                modalContainer.innerHTML = modalContent;
+                modalOverlay.classList.add('active');
+                modalOverlay.style.display = 'flex';
+                modalOverlay.style.opacity = '1';
+                modalOverlay.style.visibility = 'visible';
+                document.body.style.overflow = 'hidden';
+            }
+
+        } catch (error) {
+            console.error('❌ Error loading vehicle photos:', error);
+            window.showToast('Failed to load vehicle photos', 'error');
+        }
+    }
+
+    /**
+     * NEW METHOD: Add vehicle photo
+     * ADD this new method to VehiclesModule
+     */
+    addVehiclePhoto(vehicleId) {
+        const modalContent = `
+            <div class="modal-header">
+                <h2>📷 Add Vehicle Photo</h2>
+                <button class="modal-close" onclick="window.closeModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="addPhotoForm" onsubmit="window.Vehicles.handlePhotoUpload(event, ${vehicleId})">
+                    <div class="form-group">
+                        <label class="form-label required">Select Photo</label>
+                        <input
+                            type="file"
+                            name="photo"
+                            class="form-input"
+                            accept="image/*"
+                            required
+                            onchange="window.Vehicles.previewPhoto(this)"
+                        >
+                        <small class="form-help">Supported formats: JPG, PNG, WebP (Max 5MB)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Photo Caption</label>
+                        <input
+                            type="text"
+                            name="caption"
+                            class="form-input"
+                            placeholder="e.g., Front view, Interior, After repair..."
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <input type="checkbox" name="is_primary" value="1"> Set as primary photo
+                        </label>
+                    </div>
+
+                    <div id="photoPreview" class="photo-preview" style="display: none;">
+                        <img id="previewImage" src="" alt="Preview">
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="button button-outline" onclick="window.closeModal()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="button button-primary">
+                            📷 Upload Photo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        // Show modal
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalContainer = document.getElementById('modalContainer');
+
+        if (modalOverlay && modalContainer) {
+            modalContainer.innerHTML = modalContent;
+            modalOverlay.classList.add('active');
+            modalOverlay.style.display = 'flex';
+            modalOverlay.style.opacity = '1';
+            modalOverlay.style.visibility = 'visible';
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    /**
+     * NEW METHOD: Open photo session (integrates with your existing photos module)
+     * ADD this new method to VehiclesModule
+     */
+    openPhotoSession(vehicleId) {
+        // Close current modal
+        if (typeof window.closeModal === 'function') {
+            window.closeModal();
+        }
+
+        // Open the Photos module with this vehicle selected
+        setTimeout(() => {
+            if (window.olServiceApp && typeof window.olServiceApp.loadSection === 'function') {
+                window.olServiceApp.loadSection('photos');
+
+                // After photos module loads, select this vehicle
+                setTimeout(() => {
+                    if (window.Photos && typeof window.Photos.selectVehicle === 'function') {
+                        window.Photos.selectVehicle(vehicleId);
+                    }
+                }, 500);
+            }
+        }, 300);
+    }
+
+    /**
+     * NEW METHOD: Preview photo before upload
+     * ADD this new method to VehiclesModule
+     */
+    previewPhoto(input) {
+        const preview = document.getElementById('photoPreview');
+        const previewImg = document.getElementById('previewImage');
+
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+
+            // Check file size (5MB limit)
+            if (file.size > 5 * 1024 * 1024) {
+                window.showToast('Photo size must be less than 5MB', 'error');
+                input.value = '';
+                preview.style.display = 'none';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    /**
+     * NEW METHOD: Handle photo upload
+     * ADD this new method to VehiclesModule
+     */
+    async handlePhotoUpload(event, vehicleId) {
+        event.preventDefault();
+
+        const form = event.target;
+        const submitButton = form.querySelector('button[type="submit"]');
+
+        try {
+            submitButton.disabled = true;
+            submitButton.innerHTML = '⏳ Uploading...';
+
+            const formData = new FormData(form);
+            formData.append('vehicle_id', vehicleId);
+
+            const response = await fetch('/api/vehicles/photos', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to upload photo');
+            }
+
+            window.showToast('✅ Photo uploaded successfully!', 'success');
+            window.closeModal();
+
+            // Refresh vehicle data
+            await this.loadVehicles();
+
+            // Refresh the vehicles section if currently displayed
+            if (window.olServiceApp && window.olServiceApp.currentSection === 'vehicles') {
+                window.olServiceApp.loadSection('vehicles');
+            }
+
+        } catch (error) {
+            console.error('❌ Error uploading photo:', error);
+            window.showToast(error.message, 'error');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = '📷 Upload Photo';
+        }
+    }
     renderEmptyState() {
         return `
             <div class="empty-state">

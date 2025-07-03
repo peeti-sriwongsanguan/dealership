@@ -367,18 +367,24 @@ def delete_customer(customer_id):
 # VEHICLE MANAGEMENT API
 # =============================================================================
 
+
 @app.route('/api/vehicles', methods=['GET'])
 def get_vehicles():
-    """Get all vehicles"""
+    """Get all vehicles with photo information"""
     try:
         customer_id = request.args.get('customer_id')
         conn = get_db_connection()
         cursor = conn.cursor()
 
         query = """
-            SELECT v.*, COALESCE(c.name, 'Unknown Customer') as customer_name
+            SELECT v.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown Customer') as customer_name,
+                   c.phone as customer_phone,
+                   c.email as customer_email,
+                   vp.id as photo_id
             FROM vehicles v
             LEFT JOIN customers c ON v.customer_id = c.id
+            LEFT JOIN vehicle_photos vp ON v.id = vp.vehicle_id AND vp.is_primary = 1
         """
         params = []
 
@@ -389,7 +395,22 @@ def get_vehicles():
         query += " ORDER BY v.id DESC"
 
         cursor.execute(query, params)
-        vehicles = [dict(row) for row in cursor.fetchall()]
+        vehicles = []
+
+        for row in cursor.fetchall():
+            vehicle = dict(row)
+
+            # Add photo URL if primary photo exists
+            if vehicle['photo_id']:
+                vehicle['photo_url'] = f'/api/photos/{vehicle["photo_id"]}'
+                vehicle['thumbnail_url'] = f'/api/photos/{vehicle["photo_id"]}/thumbnail'
+                vehicle['photos'] = [{'url': vehicle['photo_url']}]  # For compatibility
+
+            # Remove photo-specific fields
+            vehicle.pop('photo_id', None)
+
+            vehicles.append(vehicle)
+
         conn.close()
         return jsonify({"vehicles": vehicles})
     except Exception as e:
@@ -397,15 +418,20 @@ def get_vehicles():
         return jsonify({"error": str(e)}), 500
 
 
+
+
 @app.route('/api/vehicles/<int:vehicle_id>', methods=['GET'])
 def get_vehicle(vehicle_id):
-    """Get specific vehicle"""
+    """Get specific vehicle with photo information"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT v.*, c.name as customer_name
+            SELECT v.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown Customer') as customer_name,
+                   c.phone as customer_phone,
+                   c.email as customer_email
             FROM vehicles v
             LEFT JOIN customers c ON v.customer_id = c.id
             WHERE v.id = ?
@@ -422,9 +448,21 @@ def get_vehicle(vehicle_id):
         cursor.execute("SELECT * FROM services WHERE vehicle_id = ? ORDER BY created_at DESC", (vehicle_id,))
         vehicle_data['services'] = [dict(row) for row in cursor.fetchall()]
 
-        # Get photo count
+        # Get photo count and primary photo
         cursor.execute("SELECT COUNT(*) FROM vehicle_photos WHERE vehicle_id = ?", (vehicle_id,))
         vehicle_data['photo_count'] = cursor.fetchone()[0]
+
+        # Get primary photo
+        cursor.execute("""
+            SELECT id FROM vehicle_photos 
+            WHERE vehicle_id = ? AND is_primary = 1 
+            ORDER BY created_at DESC LIMIT 1
+        """, (vehicle_id,))
+
+        primary_photo = cursor.fetchone()
+        if primary_photo:
+            vehicle_data['photo_url'] = f'/api/photos/{primary_photo["id"]}'
+            vehicle_data['thumbnail_url'] = f'/api/photos/{primary_photo["id"]}/thumbnail'
 
         conn.close()
         return jsonify(vehicle_data)
@@ -972,6 +1010,403 @@ def get_vehicle_photos(vehicle_id):
         logger.error(f"Error getting vehicle photos: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+# =============================================================================
+# VEHICLE PHOTO MANAGEMENT API (Additional Endpoints)
+# =============================================================================
+
+@app.route('/api/vehicles/photos', methods=['POST'])
+def upload_vehicle_photo():
+    """Upload a photo specifically for a vehicle (matches frontend expectation)"""
+    try:
+        if 'photo' not in request.files:
+            return jsonify({'error': 'No photo file provided'}), 400
+
+        file = request.files['photo']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+
+        if not (file and allowed_file(file.filename)):
+            return jsonify({'error': 'File type not allowed'}), 400
+
+        # Get form data
+        vehicle_id = request.form.get('vehicle_id')
+        caption = request.form.get('caption', '')
+        is_primary = request.form.get('is_primary') == '1'
+
+        if not vehicle_id:
+            return jsonify({'error': 'vehicle_id is required'}), 400
+
+        # Get vehicle info to get customer_id
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT customer_id FROM vehicles WHERE id = ?", (vehicle_id,))
+        vehicle = cursor.fetchone()
+
+        if not vehicle:
+            conn.close()
+            return jsonify({'error': 'Vehicle not found'}), 404
+
+        customer_id = vehicle['customer_id']
+
+        # Generate unique filename
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{uuid.uuid4()}.{file_extension}"
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        # Save the file
+        file.save(file_path)
+
+        # Create thumbnail
+        thumbnail_filename = f"thumb_{filename}"
+        thumbnail_path = os.path.join(app.config['THUMBNAILS_FOLDER'], thumbnail_filename)
+        create_thumbnail(file_path, thumbnail_path)
+
+        # Get file info
+        file_size = os.path.getsize(file_path)
+
+        # Get image dimensions
+        image_width, image_height = None, None
+        try:
+            with Image.open(file_path) as img:
+                image_width, image_height = img.size
+        except Exception:
+            pass
+
+        # If this is set as primary, unset other primary photos for this vehicle
+        if is_primary:
+            cursor.execute("""
+                UPDATE vehicle_photos 
+                SET is_primary = 0 
+                WHERE vehicle_id = ? AND is_primary = 1
+            """, (vehicle_id,))
+
+        # Insert photo record
+        cursor.execute("""
+            INSERT INTO vehicle_photos (
+                vehicle_id, customer_id, category, description, caption,
+                filename, file_path, file_size, mime_type, thumbnail_path,
+                created_by, image_width, image_height, is_primary
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            vehicle_id, customer_id, 'vehicle_photo', caption, caption,
+            filename, filename, file_size, file.mimetype, thumbnail_filename,
+            'user', image_width, image_height, is_primary
+        ))
+
+        photo_id = cursor.lastrowid
+        conn.commit()
+
+        # Get the created photo record
+        cursor.execute("SELECT * FROM vehicle_photos WHERE id = ?", (photo_id,))
+        photo = dict(cursor.fetchone())
+
+        # Add URLs
+        photo['url'] = f'/api/photos/{photo_id}'
+        photo['thumbnail_url'] = f'/api/photos/{photo_id}/thumbnail'
+
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Photo uploaded successfully',
+            'photo': photo
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error uploading vehicle photo: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/vehicles/<int:vehicle_id>/details', methods=['GET'])
+def get_vehicle_details(vehicle_id):
+    """Get detailed vehicle information (matches frontend expectation)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get vehicle with customer info
+        cursor.execute("""
+            SELECT v.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown Customer') as customer_name,
+                   c.phone as customer_phone,
+                   c.email as customer_email
+            FROM vehicles v
+            LEFT JOIN customers c ON v.customer_id = c.id
+            WHERE v.id = ?
+        """, (vehicle_id,))
+
+        vehicle = cursor.fetchone()
+        if not vehicle:
+            conn.close()
+            return jsonify({"error": "Vehicle not found"}), 404
+
+        vehicle_data = dict(vehicle)
+
+        # Get primary photo
+        cursor.execute("""
+            SELECT * FROM vehicle_photos 
+            WHERE vehicle_id = ? AND is_primary = 1 
+            ORDER BY created_at DESC LIMIT 1
+        """, (vehicle_id,))
+
+        primary_photo = cursor.fetchone()
+        if primary_photo:
+            vehicle_data['photo_url'] = f'/api/photos/{primary_photo["id"]}'
+            vehicle_data['thumbnail_url'] = f'/api/photos/{primary_photo["id"]}/thumbnail'
+
+        # Get photo count
+        cursor.execute("SELECT COUNT(*) as count FROM vehicle_photos WHERE vehicle_id = ?", (vehicle_id,))
+        photo_count = cursor.fetchone()
+        vehicle_data['photo_count'] = photo_count['count'] if photo_count else 0
+
+        conn.close()
+        return jsonify({
+            "success": True,
+            "vehicle": vehicle_data
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting vehicle details: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/vehicles/<int:vehicle_id>/service-history', methods=['GET'])
+def get_vehicle_service_history(vehicle_id):
+    """Get service history for a vehicle (matches frontend expectation)"""
+    try:
+        limit = request.args.get('limit', type=int)
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if vehicle exists
+        cursor.execute("SELECT id FROM vehicles WHERE id = ?", (vehicle_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return jsonify({"error": "Vehicle not found"}), 404
+
+        # Get service history
+        query = """
+            SELECT s.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name
+            FROM services s
+            LEFT JOIN customers c ON s.customer_id = c.id
+            WHERE s.vehicle_id = ?
+            ORDER BY s.created_at DESC
+        """
+        params = [vehicle_id]
+
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+
+        cursor.execute(query, params)
+        service_records = [dict(row) for row in cursor.fetchall()]
+
+        # Format service records to match expected structure
+        formatted_records = []
+        for record in service_records:
+            formatted_record = {
+                "id": record["id"],
+                "service_date": record.get("scheduled_date") or record.get("created_at", "").split("T")[0],
+                "description": record.get("description", "Service"),
+                "service_type": record.get("service_type", "general"),
+                "total_cost": record.get("actual_cost") or record.get("estimated_cost", 0),
+                "mileage": None,  # Add mileage field to services table if needed
+                "technician": record.get("notes", "").split("Technician:")[-1].strip() if "Technician:" in record.get(
+                    "notes", "") else None,
+                "notes": record.get("notes", ""),
+                "service_items": [],  # Could be populated from service_items table
+                "parts_used": []  # Could be populated from parts table
+            }
+            formatted_records.append(formatted_record)
+
+        conn.close()
+        return jsonify({
+            "success": True,
+            "service_records": formatted_records
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting vehicle service history: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/vehicles/<int:vehicle_id>/photos', methods=['GET'])
+def get_vehicle_photos_enhanced(vehicle_id):
+    """Enhanced get vehicle photos (replaces existing endpoint)"""
+    try:
+        category = request.args.get('category')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Check if vehicle exists and get vehicle info
+        cursor.execute("""
+            SELECT v.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name
+            FROM vehicles v
+            LEFT JOIN customers c ON v.customer_id = c.id
+            WHERE v.id = ?
+        """, (vehicle_id,))
+
+        vehicle = cursor.fetchone()
+        if not vehicle:
+            conn.close()
+            return jsonify({"error": "Vehicle not found"}), 404
+
+        # Get photos
+        query = "SELECT * FROM vehicle_photos WHERE vehicle_id = ?"
+        params = [vehicle_id]
+
+        if category:
+            query += " AND category = ?"
+            params.append(category)
+
+        query += " ORDER BY is_primary DESC, created_at DESC"
+
+        cursor.execute(query, params)
+        photos = [dict(row) for row in cursor.fetchall()]
+
+        # Add URLs for each photo
+        for photo in photos:
+            photo['url'] = f'/api/photos/{photo["id"]}'
+            photo['thumbnail_url'] = f'/api/photos/{photo["id"]}/thumbnail'
+
+        conn.close()
+        return jsonify({
+            "success": True,
+            "photos": photos,
+            "vehicle": dict(vehicle)
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting vehicle photos: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/vehicles/photos/<int:photo_id>', methods=['DELETE'])
+def delete_vehicle_photo(photo_id):
+    """Delete a vehicle photo"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get photo info before deletion
+        cursor.execute("SELECT * FROM vehicle_photos WHERE id = ?", (photo_id,))
+        photo = cursor.fetchone()
+
+        if not photo:
+            conn.close()
+            return jsonify({"error": "Photo not found"}), 404
+
+        # Delete files from filesystem
+        try:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], photo['filename'])
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+            if photo['thumbnail_path']:
+                thumbnail_path = os.path.join(app.config['THUMBNAILS_FOLDER'], photo['thumbnail_path'])
+                if os.path.exists(thumbnail_path):
+                    os.remove(thumbnail_path)
+        except Exception as e:
+            logger.warning(f"Error deleting photo files: {e}")
+
+        # Delete from database
+        cursor.execute("DELETE FROM vehicle_photos WHERE id = ?", (photo_id,))
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Photo deleted successfully"
+        })
+
+    except Exception as e:
+        logger.error(f"Error deleting vehicle photo: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/vehicles/photos/<int:photo_id>/primary', methods=['POST'])
+def set_primary_vehicle_photo(photo_id):
+    """Set a photo as primary for the vehicle"""
+    try:
+        data = request.get_json() if request.is_json else {}
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get photo info
+        cursor.execute("SELECT vehicle_id FROM vehicle_photos WHERE id = ?", (photo_id,))
+        photo = cursor.fetchone()
+
+        if not photo:
+            conn.close()
+            return jsonify({"error": "Photo not found"}), 404
+
+        vehicle_id = photo['vehicle_id']
+
+        # Unset all primary photos for this vehicle
+        cursor.execute("""
+            UPDATE vehicle_photos 
+            SET is_primary = 0 
+            WHERE vehicle_id = ?
+        """, (vehicle_id,))
+
+        # Set this photo as primary
+        cursor.execute("""
+            UPDATE vehicle_photos 
+            SET is_primary = 1 
+            WHERE id = ?
+        """, (photo_id,))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Photo set as primary successfully"
+        })
+
+    except Exception as e:
+        logger.error(f"Error setting primary photo: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# DATABASE SCHEMA UPDATE (Run this once to add missing columns)
+# =============================================================================
+
+def update_vehicle_photos_table():
+    """Update vehicle_photos table to add missing columns"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Add missing columns if they don't exist
+        try:
+            cursor.execute("ALTER TABLE vehicle_photos ADD COLUMN is_primary INTEGER DEFAULT 0")
+        except:
+            pass  # Column already exists
+
+        try:
+            cursor.execute("ALTER TABLE vehicle_photos ADD COLUMN caption TEXT")
+        except:
+            pass  # Column already exists
+
+        conn.commit()
+        conn.close()
+        logger.info("Vehicle photos table updated successfully")
+
+    except Exception as e:
+        logger.error(f"Error updating vehicle photos table: {e}")
+
+
+# Call this function when the app starts
+update_vehicle_photos_table()
 
 # =============================================================================
 # TRUCK REPAIR MANAGEMENT API
