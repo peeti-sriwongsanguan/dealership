@@ -1,5 +1,5 @@
 // static/js/modules/photos.js - Complete Camera Module
-// This is the complete, working version with all camera functionality
+
 
 class PhotosModule {
     constructor() {
@@ -109,13 +109,432 @@ class PhotosModule {
             this.customers = [];
         }
 
-        // Load photos from localStorage as fallback
+        // Load ALL vehicle photos from API
         try {
-            const stored = localStorage.getItem('vehicle_photos');
-            this.photos = stored ? JSON.parse(stored) : [];
-            console.log(`📸 Loaded ${this.photos.length} photos`);
-        } catch (error) {
             this.photos = [];
+
+            // For each vehicle, get its photos
+            for (const vehicle of this.vehicles) {
+                try {
+                    const photosResponse = await fetch(`/api/vehicles/${vehicle.id}/photos`);
+                    if (photosResponse.ok) {
+                        const photosData = await photosResponse.json();
+                        if (photosData.photos && photosData.photos.length > 0) {
+                            // Convert API photos to the format expected by photos module
+                            const vehiclePhotos = photosData.photos.map(photo => ({
+                                id: `api_${photo.id}`,
+                                vehicle_id: vehicle.id,
+                                customer_id: vehicle.customer_id,
+                                category: photo.category || 'vehicle_photo',
+                                timestamp: photo.created_at || photo.timestamp,
+                                description: photo.caption || photo.description || 'Vehicle photo',
+                                filename: photo.filename,
+                                size: photo.file_size,
+                                source: 'api',
+                                url: photo.url,
+                                thumbnail_url: photo.thumbnail_url,
+                                is_primary: photo.is_primary
+                            }));
+
+                            this.photos.push(...vehiclePhotos);
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`Error loading photos for vehicle ${vehicle.id}:`, error);
+                }
+            }
+
+            console.log(`📸 Loaded ${this.photos.length} photos from API`);
+
+            // Also load any localStorage photos for backward compatibility
+            try {
+                const stored = localStorage.getItem('vehicle_photos');
+                if (stored) {
+                    const localPhotos = JSON.parse(stored);
+                    const formattedLocalPhotos = localPhotos.map(photo => ({
+                        ...photo,
+                        id: `local_${photo.id}`,
+                        source: 'localStorage'
+                    }));
+                    this.photos.push(...formattedLocalPhotos);
+                    console.log(`📸 Also loaded ${localPhotos.length} photos from localStorage`);
+                }
+            } catch (error) {
+                console.error('Error loading localStorage photos:', error);
+            }
+
+        } catch (error) {
+            console.error('Error loading photos:', error);
+            this.photos = [];
+        }
+    }
+    // File Upload Methods
+    triggerFileUpload() {
+        const fileInput = document.getElementById('photoFileInput');
+        if (fileInput) {
+            fileInput.click();
+        }
+    }
+
+    async handleFileUpload(files) {
+        console.log('📁 Handling file upload...', files.length, 'files');
+
+        if (!this.currentVehicle) {
+            this.showToast('Please select a vehicle first', 'warning');
+            return;
+        }
+
+        let successCount = 0;
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+
+            try {
+                // Validate file
+                if (!file.type.startsWith('image/')) {
+                    throw new Error(`${file.name} is not an image file`);
+                }
+
+                if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                    throw new Error(`${file.name} is too large (max 10MB)`);
+                }
+
+                // Upload to API
+                const formData = new FormData();
+                formData.append('photo', file);
+                formData.append('vehicle_id', this.currentVehicle.id);
+                formData.append('caption', `${this.currentCategory} photo - File upload`);
+                formData.append('is_primary', '0');
+
+                const response = await fetch('/api/vehicles/photos', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to upload photo');
+                }
+
+                const result = await response.json();
+                console.log('✅ File uploaded to API:', result);
+                successCount++;
+
+                console.log('✅ File processed:', file.name);
+
+            } catch (error) {
+                console.error('❌ File processing failed:', error);
+                this.showToast(`Failed to process ${file.name}: ${error.message}`, 'error');
+            }
+        }
+
+        // Refresh photos for this vehicle after all uploads
+        if (successCount > 0) {
+            await this.refreshVehiclePhotos(this.currentVehicle.id);
+            this.showToast(`${successCount} photo(s) uploaded successfully!`, 'success');
+        }
+
+        // Clear file input
+        document.getElementById('photoFileInput').value = '';
+    }
+
+    updateCameraStatus(message) {
+        const statusElement = document.getElementById('cameraStatus');
+        if (statusElement) {
+            statusElement.textContent = message;
+        }
+        console.log(`📷 Camera Status: ${message}`);
+    }
+
+    savePhotos() {
+        try {
+            // Save to localStorage (for backward compatibility)
+            const photosToSave = this.photos.filter(p => p.source === 'localStorage').map(photo => ({
+                ...photo,
+                // Don't save blob URLs to localStorage
+                url: photo.url && photo.url.startsWith('blob:') ? null : photo.url
+            }));
+
+            localStorage.setItem('vehicle_photos', JSON.stringify(photosToSave));
+            console.log('💾 Photos saved to localStorage');
+        } catch (error) {
+            console.error('❌ Failed to save photos:', error);
+        }
+    }
+
+    refreshGallery() {
+        const photosGrid = document.querySelector('.photos-grid');
+        if (photosGrid) {
+            photosGrid.innerHTML = this.renderPhotoGallery();
+        }
+    }
+
+    /**
+     * Enhanced selectVehicle method with photo refresh
+     */
+    async selectVehicle(vehicleId) {
+        console.log('Selecting vehicle:', vehicleId);
+        this.currentVehicle = this.vehicles.find(v => v.id === vehicleId);
+
+        if (this.currentVehicle) {
+            // Refresh photos for this vehicle to ensure we have the latest
+            await this.refreshVehiclePhotos(vehicleId);
+        }
+
+        this.refreshContent();
+    }
+
+    selectCategory(category) {
+        console.log('Selecting category:', category);
+        this.currentCategory = category;
+        this.refreshContent();
+    }
+
+    refreshContent() {
+        const contentContainer = document.getElementById('dynamicContent');
+        if (contentContainer) {
+            contentContainer.innerHTML = this.render();
+        }
+    }
+
+    showNewSessionModal() {
+        if (!this.currentVehicle) {
+            this.showToast('Please select a vehicle first', 'warning');
+            return;
+        }
+
+        const cameraAvailable = this.camera.hasCamera && this.camera.isSecureContext;
+
+        const modal = this.createModal('Start Photo Session', `
+            <h3>Vehicle: ${this.currentVehicle.year || ''} ${this.currentVehicle.make} ${this.currentVehicle.model}</h3>
+            <p>Select a category and start documenting this vehicle.</p>
+            <p><strong>Current Category:</strong> ${this.currentCategory}</p>
+
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin: 1rem 0;">
+                <h4>📱 Photo Capture Options:</h4>
+                ${cameraAvailable ?
+                    '<p>✅ <strong>Camera:</strong> Take photos directly with device camera</p>' :
+                    '<p>⚠️ <strong>Camera:</strong> Requires HTTPS connection</p>'
+                }
+                <p>📁 <strong>File Upload:</strong> Select photos from device gallery</p>
+            </div>
+
+            <div style="margin-top: 2rem;">
+                <button class="button button-outline" onclick="this.closest('.modal-overlay').style.display='none'">
+                    Close
+                </button>
+                <button class="button button-primary" onclick="this.closest('.modal-overlay').style.display='none'">
+                    Start Taking Photos
+                </button>
+            </div>
+        `);
+
+        document.body.appendChild(modal);
+    }
+
+    createModal(title, content) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        `;
+
+        modal.innerHTML = `
+            <div class="modal-container" style="
+                background: white;
+                border-radius: 10px;
+                padding: 2rem;
+                max-width: 500px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+            ">
+                <div class="modal-header" style="margin-bottom: 1rem;">
+                    <h2>${title}</h2>
+                </div>
+                <div class="modal-body">
+                    ${content}
+                </div>
+            </div>
+        `;
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+
+        return modal;
+    }
+
+    viewPhoto(photoId) {
+        const photo = this.photos.find(p => p.id === photoId);
+        if (!photo) return;
+
+        const modal = this.createModal('Photo View', `
+            <div style="text-align: center;">
+                <img src="${photo.url || photo.thumbnail_url}" alt="Photo" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 400px;">
+                <div style="margin-top: 1rem; text-align: left;">
+                    <p><strong>Category:</strong> ${photo.category}</p>
+                    <p><strong>Description:</strong> ${photo.description || 'No description'}</p>
+                    <p><strong>Date:</strong> ${new Date(photo.timestamp).toLocaleString()}</p>
+                    <p><strong>Size:</strong> ${this.formatFileSize(photo.size)}</p>
+                    ${photo.width ? `<p><strong>Dimensions:</strong> ${photo.width}x${photo.height}</p>` : ''}
+                    <p><strong>Source:</strong> ${photo.source === 'camera' ? '📷 Camera' : photo.source === 'api' ? '🌐 API' : '📁 File Upload'}</p>
+                </div>
+                <button class="button button-outline" onclick="this.closest('.modal-overlay').remove()" style="margin-top: 1rem;">
+                    Close
+                </button>
+            </div>
+        `);
+
+        document.body.appendChild(modal);
+    }
+
+    showToast(message, type = 'info') {
+        console.log(`${type.toUpperCase()}: ${message}`);
+
+        // Create simple toast
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'warning' ? '#f39c12' : type === 'error' ? '#e74c3c' : type === 'success' ? '#27ae60' : '#3498db'};
+            color: white;
+            padding: 1rem;
+            border-radius: 5px;
+            z-index: 1001;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        toast.textContent = message;
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.remove();
+            }
+        }, 4000);
+    }
+
+    getVehiclePhotoCount(vehicleId) {
+        return this.photos.filter(p => p.vehicle_id === vehicleId).length;
+    }
+
+    getCategoryPhotoCount(category) {
+        if (!this.currentVehicle) return 0;
+        return this.photos.filter(p =>
+            p.vehicle_id === this.currentVehicle.id && p.category === category
+        ).length;
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    generateId() {
+        return 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    renderError() {
+        return `
+            <div class="error-container" style="text-align: center; padding: 3rem;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
+                <h2>Failed to Load Photos</h2>
+                <p>There was an error loading the photo documentation system.</p>
+                <button class="button button-primary" onclick="photosModule.loadModule().then(content => {
+                    const container = document.getElementById('dynamicContent');
+                    if (container) container.innerHTML = content;
+                })">
+                    🔄 Retry
+                </button>
+            </div>
+        `;
+    }
+
+
+
+
+    /**
+     * Refresh photos for a specific vehicle from API
+     */
+    async refreshVehiclePhotos(vehicleId) {
+        console.log(`🔄 Refreshing photos for vehicle ${vehicleId}`);
+
+        try {
+            const response = await fetch(`/api/vehicles/${vehicleId}/photos`);
+            if (response.ok) {
+                const data = await response.json();
+
+                // Remove old photos for this vehicle
+                this.photos = this.photos.filter(p => p.vehicle_id !== vehicleId);
+
+                // Add updated photos
+                if (data.photos && data.photos.length > 0) {
+                    const vehiclePhotos = data.photos.map(photo => ({
+                        id: `api_${photo.id}`,
+                        vehicle_id: vehicleId,
+                        customer_id: photo.customer_id,
+                        category: photo.category || 'vehicle_photo',
+                        timestamp: photo.created_at || photo.timestamp,
+                        description: photo.caption || photo.description || 'Vehicle photo',
+                        filename: photo.filename,
+                        size: photo.file_size,
+                        source: 'api',
+                        url: photo.url,
+                        thumbnail_url: photo.thumbnail_url,
+                        is_primary: photo.is_primary
+                    }));
+
+                    this.photos.push(...vehiclePhotos);
+                }
+
+                // Refresh gallery if this vehicle is currently selected
+                if (this.currentVehicle && this.currentVehicle.id === vehicleId) {
+                    this.refreshGallery();
+                }
+
+                console.log(`✅ Refreshed photos for vehicle ${vehicleId}`);
+            }
+        } catch (error) {
+            console.error(`❌ Error refreshing photos for vehicle ${vehicleId}:`, error);
+        }
+    }
+
+    /**
+     * Test photo integration for debugging
+     */
+    async testPhotoIntegration(vehicleId) {
+        console.log(`🧪 Testing photo integration for vehicle ${vehicleId}`);
+
+        try {
+            const response = await fetch(`/api/vehicles/${vehicleId}/photos`);
+            const data = await response.json();
+            console.log('API Response:', data);
+
+            await this.refreshVehiclePhotos(vehicleId);
+            const vehiclePhotos = this.photos.filter(p => p.vehicle_id === vehicleId);
+            console.log('Photos in module:', vehiclePhotos);
+
+            return { api: data, module: vehiclePhotos };
+        } catch (error) {
+            console.error('Test failed:', error);
         }
     }
 
@@ -433,8 +852,8 @@ class PhotosModule {
 
         return vehiclePhotos.map(photo => `
             <div class="photo-item" data-photo-id="${photo.id}">
-                <div class="photo-image" style="background-image: url('${photo.url}'); background-size: cover; background-position: center;">
-                    ${!photo.url ? '📸' : ''}
+                <div class="photo-image" style="background-image: url('${photo.url || photo.thumbnail_url}'); background-size: cover; background-position: center;">
+                    ${!photo.url && !photo.thumbnail_url ? '📸' : ''}
                 </div>
                 <div class="photo-info">
                     <div class="photo-category-badge" style="background: #667eea;">
@@ -604,365 +1023,10 @@ class PhotosModule {
             this.showToast(`Failed to switch camera: ${error.message}`, 'error');
         }
     }
-
-    async capturePhoto() {
-        console.log('📸 Capturing photo...');
-
-        try {
-            if (!this.camera.isActive || !this.camera.video || !this.camera.canvas) {
-                throw new Error('Camera not active');
-            }
-
-            if (!this.currentVehicle) {
-                throw new Error('No vehicle selected');
-            }
-
-            // Ensure video is playing
-            if (this.camera.video.readyState !== 4) {
-                throw new Error('Video not ready');
-            }
-
-            // Set canvas size to video size
-            this.camera.canvas.width = this.camera.video.videoWidth;
-            this.camera.canvas.height = this.camera.video.videoHeight;
-
-            // Draw video frame to canvas
-            const ctx = this.camera.canvas.getContext('2d');
-            ctx.drawImage(this.camera.video, 0, 0);
-
-            // Convert canvas to blob
-            const blob = await new Promise(resolve => {
-                this.camera.canvas.toBlob(resolve, 'image/jpeg', 0.8);
-            });
-
-            if (!blob) {
-                throw new Error('Failed to create image');
-            }
-
-            // Create photo data
-            const photoData = {
-                id: this.generateId(),
-                vehicle_id: this.currentVehicle.id,
-                category: this.currentCategory,
-                timestamp: new Date().toISOString(),
-                description: `${this.currentCategory} photo - Camera capture`,
-                size: blob.size,
-                width: this.camera.canvas.width,
-                height: this.camera.canvas.height,
-                source: 'camera',
-                url: URL.createObjectURL(blob) // Create temporary URL for display
-            };
-
-            // Add to photos array
-            this.photos.push(photoData);
-
-            // Save to localStorage
-            this.savePhotos();
-
-            // Show success
-            this.showToast('📸 Photo captured successfully!', 'success');
-
-            // Refresh gallery
-            this.refreshGallery();
-
-            console.log('✅ Photo captured:', {
-                id: photoData.id,
-                size: this.formatFileSize(photoData.size),
-                dimensions: `${photoData.width}x${photoData.height}`
-            });
-
-        } catch (error) {
-            console.error('❌ Photo capture failed:', error);
-            this.showToast(`Capture failed: ${error.message}`, 'error');
-        }
-    }
-
-    // File Upload Methods
-    triggerFileUpload() {
-        const fileInput = document.getElementById('photoFileInput');
-        if (fileInput) {
-            fileInput.click();
-        }
-    }
-
-    async handleFileUpload(files) {
-        console.log('📁 Handling file upload...', files.length, 'files');
-
-        if (!this.currentVehicle) {
-            this.showToast('Please select a vehicle first', 'warning');
-            return;
-        }
-
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-
-            try {
-                // Validate file
-                if (!file.type.startsWith('image/')) {
-                    throw new Error(`${file.name} is not an image file`);
-                }
-
-                if (file.size > 10 * 1024 * 1024) { // 10MB limit
-                    throw new Error(`${file.name} is too large (max 10MB)`);
-                }
-
-                // Create photo data
-                const photoData = {
-                    id: this.generateId(),
-                    vehicle_id: this.currentVehicle.id,
-                    category: this.currentCategory,
-                    timestamp: new Date().toISOString(),
-                    description: `${this.currentCategory} photo - File upload`,
-                    filename: file.name,
-                    size: file.size,
-                    source: 'upload',
-                    url: URL.createObjectURL(file)
-                };
-
-                // Add to photos array
-                this.photos.push(photoData);
-
-                console.log('✅ File processed:', photoData.filename);
-
-            } catch (error) {
-                console.error('❌ File processing failed:', error);
-                this.showToast(`Failed to process ${file.name}: ${error.message}`, 'error');
-            }
-        }
-
-        // Save and refresh
-        this.savePhotos();
-        this.refreshGallery();
-        this.showToast(`${files.length} photo(s) uploaded successfully!`, 'success');
-
-        // Clear file input
-        document.getElementById('photoFileInput').value = '';
-    }
-
-    updateCameraStatus(message) {
-        const statusElement = document.getElementById('cameraStatus');
-        if (statusElement) {
-            statusElement.textContent = message;
-        }
-        console.log(`📷 Camera Status: ${message}`);
-    }
-
-    savePhotos() {
-        try {
-            // Save to localStorage (in real app, would save to server)
-            const photosToSave = this.photos.map(photo => ({
-                ...photo,
-                // Don't save blob URLs to localStorage
-                url: photo.url.startsWith('blob:') ? null : photo.url
-            }));
-
-            localStorage.setItem('vehicle_photos', JSON.stringify(photosToSave));
-            console.log('💾 Photos saved to localStorage');
-        } catch (error) {
-            console.error('❌ Failed to save photos:', error);
-        }
-    }
-
-    refreshGallery() {
-        const photosGrid = document.querySelector('.photos-grid');
-        if (photosGrid) {
-            photosGrid.innerHTML = this.renderPhotoGallery();
-        }
-    }
-
-    selectVehicle(vehicleId) {
-        console.log('Selecting vehicle:', vehicleId);
-        this.currentVehicle = this.vehicles.find(v => v.id === vehicleId);
-        this.refreshContent();
-    }
-
-    selectCategory(category) {
-        console.log('Selecting category:', category);
-        this.currentCategory = category;
-        this.refreshContent();
-    }
-
-    refreshContent() {
-        const contentContainer = document.getElementById('dynamicContent');
-        if (contentContainer) {
-            contentContainer.innerHTML = this.render();
-        }
-    }
-
-    showNewSessionModal() {
-        if (!this.currentVehicle) {
-            this.showToast('Please select a vehicle first', 'warning');
-            return;
-        }
-
-        const cameraAvailable = this.camera.hasCamera && this.camera.isSecureContext;
-
-        const modal = this.createModal('Start Photo Session', `
-            <h3>Vehicle: ${this.currentVehicle.year || ''} ${this.currentVehicle.make} ${this.currentVehicle.model}</h3>
-            <p>Select a category and start documenting this vehicle.</p>
-            <p><strong>Current Category:</strong> ${this.currentCategory}</p>
-
-            <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin: 1rem 0;">
-                <h4>📱 Photo Capture Options:</h4>
-                ${cameraAvailable ?
-                    '<p>✅ <strong>Camera:</strong> Take photos directly with device camera</p>' :
-                    '<p>⚠️ <strong>Camera:</strong> Requires HTTPS connection</p>'
-                }
-                <p>📁 <strong>File Upload:</strong> Select photos from device gallery</p>
-            </div>
-
-            <div style="margin-top: 2rem;">
-                <button class="button button-outline" onclick="this.closest('.modal-overlay').style.display='none'">
-                    Close
-                </button>
-                <button class="button button-primary" onclick="this.closest('.modal-overlay').style.display='none'">
-                    Start Taking Photos
-                </button>
-            </div>
-        `);
-
-        document.body.appendChild(modal);
-    }
-
-    createModal(title, content) {
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        `;
-
-        modal.innerHTML = `
-            <div class="modal-container" style="
-                background: white;
-                border-radius: 10px;
-                padding: 2rem;
-                max-width: 500px;
-                width: 90%;
-                max-height: 80vh;
-                overflow-y: auto;
-            ">
-                <div class="modal-header" style="margin-bottom: 1rem;">
-                    <h2>${title}</h2>
-                </div>
-                <div class="modal-body">
-                    ${content}
-                </div>
-            </div>
-        `;
-
-        // Close modal when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-
-        return modal;
-    }
-
-    viewPhoto(photoId) {
-        const photo = this.photos.find(p => p.id === photoId);
-        if (!photo) return;
-
-        const modal = this.createModal('Photo View', `
-            <div style="text-align: center;">
-                <img src="${photo.url}" alt="Photo" style="max-width: 100%; height: auto; border-radius: 8px; max-height: 400px;">
-                <div style="margin-top: 1rem; text-align: left;">
-                    <p><strong>Category:</strong> ${photo.category}</p>
-                    <p><strong>Description:</strong> ${photo.description || 'No description'}</p>
-                    <p><strong>Date:</strong> ${new Date(photo.timestamp).toLocaleString()}</p>
-                    <p><strong>Size:</strong> ${this.formatFileSize(photo.size)}</p>
-                    ${photo.width ? `<p><strong>Dimensions:</strong> ${photo.width}x${photo.height}</p>` : ''}
-                    <p><strong>Source:</strong> ${photo.source === 'camera' ? '📷 Camera' : '📁 File Upload'}</p>
-                </div>
-                <button class="button button-outline" onclick="this.closest('.modal-overlay').remove()" style="margin-top: 1rem;">
-                    Close
-                </button>
-            </div>
-        `);
-
-        document.body.appendChild(modal);
-    }
-
-    showToast(message, type = 'info') {
-        console.log(`${type.toUpperCase()}: ${message}`);
-
-        // Create simple toast
-        const toast = document.createElement('div');
-        toast.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${type === 'warning' ? '#f39c12' : type === 'error' ? '#e74c3c' : type === 'success' ? '#27ae60' : '#3498db'};
-            color: white;
-            padding: 1rem;
-            border-radius: 5px;
-            z-index: 1001;
-            max-width: 300px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        `;
-        toast.textContent = message;
-
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            if (toast.parentElement) {
-                toast.remove();
-            }
-        }, 4000);
-    }
-
-    getVehiclePhotoCount(vehicleId) {
-        return this.photos.filter(p => p.vehicle_id === vehicleId).length;
-    }
-
-    getCategoryPhotoCount(category) {
-        if (!this.currentVehicle) return 0;
-        return this.photos.filter(p =>
-            p.vehicle_id === this.currentVehicle.id && p.category === category
-        ).length;
-    }
-
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    generateId() {
-        return 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    }
-
-    renderError() {
-        return `
-            <div class="error-container" style="text-align: center; padding: 3rem;">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">❌</div>
-                <h2>Failed to Load Photos</h2>
-                <p>There was an error loading the photo documentation system.</p>
-                <button class="button button-primary" onclick="photosModule.loadModule().then(content => {
-                    const container = document.getElementById('dynamicContent');
-                    if (container) container.innerHTML = content;
-                })">
-                    🔄 Retry
-                </button>
-            </div>
-        `;
-    }
-}
-
+ }
 // Create global instance
 const photosModule = new PhotosModule();
+window.photosModule = photosModule;
 
 // Legacy compatibility
 window.Photos = {
@@ -994,7 +1058,9 @@ window.Photos = {
     showNewSessionModal: () => photosModule.showNewSessionModal(),
     startCamera: () => photosModule.startCamera(),
     capturePhoto: () => photosModule.capturePhoto(),
-    stopCamera: () => photosModule.stopCamera()
+    stopCamera: () => photosModule.stopCamera(),
+    testPhotoIntegration: (vehicleId) => photosModule.testPhotoIntegration(vehicleId),
+    refreshVehiclePhotos: (vehicleId) => photosModule.refreshVehiclePhotos(vehicleId)
 };
 
 console.log('✅ Complete Photos module loaded with working camera functionality');
