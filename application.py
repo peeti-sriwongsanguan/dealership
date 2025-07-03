@@ -128,65 +128,135 @@ def api_info():
     })
 
 
-# @app.route('/health', methods=['GET'])
-# def health_check():
-#     """Health check endpoint"""
-#     try:
-#         conn = get_db_connection()
-#         cursor = conn.cursor()
-#         cursor.execute("SELECT 1")
-#         conn.close()
-#
-#         return jsonify({
-#             "status": "healthy",
-#             "timestamp": datetime.now().isoformat(),
-#             "database": "connected",
-#             "photos_dir": os.path.exists(PHOTOS_DIR),
-#             "thumbnails_dir": os.path.exists(THUMBNAILS_DIR)
-#         })
-#     except Exception as e:
-#         return jsonify({"status": "unhealthy", "error": str(e)}), 500
+
+
 
 
 # =============================================================================
-# CUSTOMER MANAGEMENT API
+# ENHANCED CUSTOMER MANAGEMENT API WITH THAI ID OCR SUPPORT
 # =============================================================================
+
+def ensure_thai_id_columns():
+    """Ensure Thai ID columns exist in customers table"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get current table schema
+        cursor.execute("PRAGMA table_info(customers)")
+        columns = [col[1] for col in cursor.fetchall()]
+
+        # Add Thai ID columns if they don't exist
+        thai_columns = [
+            ('thai_id_number', 'TEXT'),
+            ('thai_name', 'TEXT'),
+            ('english_name', 'TEXT'),
+            ('date_of_birth', 'TEXT'),
+            ('id_card_address', 'TEXT'),
+            ('issue_date', 'TEXT'),
+            ('expiry_date', 'TEXT')
+        ]
+
+        for column_name, column_type in thai_columns:
+            if column_name not in columns:
+                try:
+                    cursor.execute(f"ALTER TABLE customers ADD COLUMN {column_name} {column_type}")
+                    logger.info(f"Added column {column_name} to customers table")
+                except Exception as e:
+                    logger.warning(f"Could not add column {column_name}: {e}")
+
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        logger.error(f"Error ensuring Thai ID columns: {e}")
+
+
+# Initialize Thai ID columns on startup
+ensure_thai_id_columns()
 
 
 @app.route('/api/customers', methods=['GET'])
 def get_customers():
-    """Get all customers with computed name field"""
+    """Get all customers with computed name field and Thai ID support"""
     try:
+        search_term = request.args.get('search', '').strip()
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT c.*, 
-                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, '') as name,
-                   COUNT(v.id) as vehicle_count
-            FROM customers c
-            LEFT JOIN vehicles v ON c.id = v.customer_id
-            GROUP BY c.id
-            ORDER BY c.first_name, c.last_name
-        """)
+
+        if search_term:
+            # Enhanced search including Thai ID fields
+            cursor.execute("""
+                SELECT c.*, 
+                       COALESCE(c.first_name || ' ' || c.last_name, c.first_name, '') as name,
+                       COUNT(v.id) as vehicle_count
+                FROM customers c
+                LEFT JOIN vehicles v ON c.id = v.customer_id
+                WHERE 
+                    c.first_name LIKE ? OR c.last_name LIKE ? OR 
+                    c.phone LIKE ? OR c.email LIKE ? OR
+                    c.thai_name LIKE ? OR c.english_name LIKE ? OR 
+                    c.thai_id_number LIKE ?
+                GROUP BY c.id
+                ORDER BY c.first_name, c.last_name
+            """, tuple([f'%{search_term}%'] * 7))
+        else:
+            cursor.execute("""
+                SELECT c.*, 
+                       COALESCE(c.first_name || ' ' || c.last_name, c.first_name, '') as name,
+                       COUNT(v.id) as vehicle_count
+                FROM customers c
+                LEFT JOIN vehicles v ON c.id = v.customer_id
+                GROUP BY c.id
+                ORDER BY c.first_name, c.last_name
+            """)
+
         customers = [dict(row) for row in cursor.fetchall()]
         conn.close()
-        return jsonify({"customers": customers})
+
+        return jsonify({
+            "success": True,
+            "customers": customers,
+            "total": len(customers)
+        })
+
     except Exception as e:
         logger.error(f"Error getting customers: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/api/customers', methods=['POST'])
 def add_customer():
-    """Add new customer - Fixed version"""
+    """Enhanced add customer with Thai ID OCR support"""
     try:
         if not request.is_json:
-            return jsonify({"error": "Request must be JSON"}), 400
+            return jsonify({"success": False, "error": "Request must be JSON"}), 400
 
         data = request.get_json()
-
-        # Debug: Log the received data
         logger.info(f"Received customer data: {data}")
+
+        # Check if this is OCR-enhanced data
+        has_ocr_data = any(key in data for key in ['id_number', 'thai_name', 'english_name', 'date_of_birth'])
+
+        # Check for duplicate Thai ID if provided
+        thai_id = data.get('id_number', '').strip()
+        if thai_id:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT id, first_name, last_name FROM customers WHERE thai_id_number = ?", (thai_id,))
+            existing = cursor.fetchone()
+            if existing:
+                conn.close()
+                return jsonify({
+                    "success": False,
+                    "error": f"Customer with Thai ID {thai_id} already exists",
+                    "existing_customer": {
+                        "id": existing['id'],
+                        "name": f"{existing['first_name']} {existing['last_name']}".strip()
+                    }
+                }), 409
+            conn.close()
 
         # Handle name format - support both single 'name' and separate first/last names
         if 'name' in data and data['name'].strip():
@@ -199,16 +269,29 @@ def add_customer():
             first_name = data.get('first_name', '').strip()
             last_name = data.get('last_name', '').strip()
 
+        # If OCR data provided, use Thai name as primary if no manual name
+        if has_ocr_data and not first_name and data.get('thai_name'):
+            thai_name_parts = data['thai_name'].strip().split(' ', 1)
+            first_name = thai_name_parts[0]
+            last_name = thai_name_parts[1] if len(thai_name_parts) > 1 else ''
+        elif has_ocr_data and not first_name and data.get('english_name'):
+            english_name_parts = data['english_name'].strip().split(' ', 1)
+            first_name = english_name_parts[0]
+            last_name = english_name_parts[1] if len(english_name_parts) > 1 else ''
+
         if not first_name:
-            return jsonify({"error": "Customer name is required"}), 400
+            return jsonify({"success": False, "error": "Customer name is required"}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Insert customer
+        # Insert customer with Thai ID fields
         cursor.execute("""
-            INSERT INTO customers (first_name, last_name, phone, email, address, city, state, zip_code, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO customers (
+                first_name, last_name, phone, email, address, city, state, zip_code, notes,
+                thai_id_number, thai_name, english_name, date_of_birth, 
+                id_card_address, issue_date, expiry_date, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             first_name,
             last_name,
@@ -218,6 +301,15 @@ def add_customer():
             data.get('city', ''),
             data.get('state', ''),
             data.get('zip_code', ''),
+            data.get('notes', ''),
+            # Thai ID fields
+            thai_id,
+            data.get('thai_name', ''),
+            data.get('english_name', ''),
+            data.get('date_of_birth', ''),
+            data.get('id_card_address', '') or data.get('address', ''),
+            data.get('issue_date', ''),
+            data.get('expiry_date', ''),
             datetime.now().isoformat()
         ))
 
@@ -240,17 +332,18 @@ def add_customer():
         return jsonify({
             "success": True,
             "message": "Customer created successfully",
-            "customer": new_customer
+            "customer": new_customer,
+            "customer_id": customer_id
         }), 201
 
     except Exception as e:
         logger.error(f"Error creating customer: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/api/customers/<int:customer_id>', methods=['GET'])
 def get_customer(customer_id):
-    """Get specific customer"""
+    """Get specific customer with Thai ID information"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -262,9 +355,10 @@ def get_customer(customer_id):
             WHERE id = ?
         """, (customer_id,))
         customer = cursor.fetchone()
+
         if not customer:
             conn.close()
-            return jsonify({"error": "Customer not found"}), 404
+            return jsonify({"success": False, "error": "Customer not found"}), 404
 
         customer_data = dict(customer)
 
@@ -281,19 +375,26 @@ def get_customer(customer_id):
         """, (customer_id,))
         customer_data['recent_services'] = [dict(row) for row in cursor.fetchall()]
 
+        # Add registration_date for compatibility
+        customer_data['registration_date'] = customer_data['created_at']
+
         conn.close()
-        return jsonify(customer_data)
+        return jsonify({
+            "success": True,
+            "customer": customer_data
+        })
+
     except Exception as e:
         logger.error(f"Error getting customer: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/api/customers/<int:customer_id>', methods=['PUT'])
 def update_customer(customer_id):
-    """Update customer"""
+    """Update customer with Thai ID support"""
     try:
         if not request.is_json:
-            return jsonify({"error": "Request must be JSON"}), 400
+            return jsonify({"success": False, "error": "Request must be JSON"}), 400
 
         data = request.get_json()
         conn = get_db_connection()
@@ -303,7 +404,20 @@ def update_customer(customer_id):
         cursor.execute("SELECT id FROM customers WHERE id = ?", (customer_id,))
         if not cursor.fetchone():
             conn.close()
-            return jsonify({"error": "Customer not found"}), 404
+            return jsonify({"success": False, "error": "Customer not found"}), 404
+
+        # Check for duplicate Thai ID if being updated
+        if 'thai_id_number' in data and data['thai_id_number']:
+            cursor.execute("""
+                SELECT id FROM customers 
+                WHERE thai_id_number = ? AND id != ?
+            """, (data['thai_id_number'], customer_id))
+            if cursor.fetchone():
+                conn.close()
+                return jsonify({
+                    "success": False,
+                    "error": "Another customer already has this Thai ID number"
+                }), 409
 
         update_fields = []
         params = []
@@ -314,9 +428,19 @@ def update_customer(customer_id):
             update_fields.extend(["first_name = ?", "last_name = ?"])
             params.extend([name_parts[0], name_parts[1] if len(name_parts) > 1 else ''])
 
-        # Other fields
-        for field in ['first_name', 'last_name', 'phone', 'email', 'address', 'city', 'state', 'zip_code']:
+        # Standard fields
+        standard_fields = ['first_name', 'last_name', 'phone', 'email', 'address',
+                           'city', 'state', 'zip_code', 'notes']
+        for field in standard_fields:
             if field in data and field != 'name':
+                update_fields.append(f"{field} = ?")
+                params.append(data[field])
+
+        # Thai ID fields
+        thai_fields = ['thai_id_number', 'thai_name', 'english_name', 'date_of_birth',
+                       'id_card_address', 'issue_date', 'expiry_date']
+        for field in thai_fields:
+            if field in data:
                 update_fields.append(f"{field} = ?")
                 params.append(data[field])
 
@@ -329,38 +453,271 @@ def update_customer(customer_id):
             conn.commit()
 
         conn.close()
-        return jsonify({"message": "Customer updated successfully"})
+        return jsonify({
+            "success": True,
+            "message": "Customer updated successfully"
+        })
+
     except Exception as e:
         logger.error(f"Error updating customer: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route('/api/customers/<int:customer_id>', methods=['DELETE'])
 def delete_customer(customer_id):
-    """Delete customer"""
+    """Delete customer (unchanged but with success response format)"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
         # Check exists
-        cursor.execute("SELECT id FROM customers WHERE id = ?", (customer_id,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT first_name, last_name FROM customers WHERE id = ?", (customer_id,))
+        customer = cursor.fetchone()
+        if not customer:
             conn.close()
-            return jsonify({"error": "Customer not found"}), 404
+            return jsonify({"success": False, "error": "Customer not found"}), 404
+
+        customer_name = f"{customer['first_name']} {customer['last_name']}".strip()
 
         # Check dependencies
         cursor.execute("SELECT COUNT(*) FROM vehicles WHERE customer_id = ?", (customer_id,))
         if cursor.fetchone()[0] > 0:
             conn.close()
-            return jsonify({"error": "Cannot delete customer with vehicles"}), 400
+            return jsonify({
+                "success": False,
+                "error": "Cannot delete customer with vehicles"
+            }), 400
 
         cursor.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
         conn.commit()
         conn.close()
-        return jsonify({"message": "Customer deleted successfully"})
+
+        return jsonify({
+            "success": True,
+            "message": f"Customer {customer_name} deleted successfully"
+        })
+
     except Exception as e:
         logger.error(f"Error deleting customer: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# =============================================================================
+# ADDITIONAL THAI ID SPECIFIC ENDPOINTS
+# =============================================================================
+
+@app.route('/api/customers/search', methods=['GET'])
+def search_customers():
+    """Enhanced search customers including Thai names and ID"""
+    try:
+        search_term = request.args.get('q', '').strip()
+
+        if not search_term:
+            return jsonify({
+                "success": True,
+                "customers": [],
+                "message": "No search term provided"
+            })
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT c.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, '') as name,
+                   COUNT(v.id) as vehicle_count
+            FROM customers c
+            LEFT JOIN vehicles v ON c.id = v.customer_id
+            WHERE 
+                c.first_name LIKE ? OR c.last_name LIKE ? OR 
+                c.phone LIKE ? OR c.email LIKE ? OR
+                c.thai_name LIKE ? OR c.english_name LIKE ? OR 
+                c.thai_id_number LIKE ?
+            GROUP BY c.id
+            ORDER BY c.first_name, c.last_name
+        """, tuple([f'%{search_term}%'] * 7))
+
+        customers = [dict(row) for row in cursor.fetchall()]
+
+        # Add registration_date for compatibility
+        for customer in customers:
+            customer['registration_date'] = customer['created_at']
+
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "customers": customers,
+            "total": len(customers),
+            "search_term": search_term
+        })
+
+    except Exception as e:
+        logger.error(f"Error searching customers: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/customers/thai-id/<thai_id>', methods=['GET'])
+def get_customer_by_thai_id(thai_id):
+    """Get customer by Thai ID number"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT *, 
+                   COALESCE(first_name || ' ' || last_name, first_name, '') as name
+            FROM customers 
+            WHERE thai_id_number = ?
+        """, (thai_id,))
+
+        customer = cursor.fetchone()
+
+        if not customer:
+            conn.close()
+            return jsonify({
+                "success": False,
+                "error": "Customer with this Thai ID not found"
+            }), 404
+
+        customer_dict = dict(customer)
+        customer_dict['registration_date'] = customer_dict['created_at']
+
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "customer": customer_dict
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting customer by Thai ID {thai_id}: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/customers/validate-thai-id', methods=['POST'])
+def validate_thai_id():
+    """Validate Thai ID number and check for duplicates"""
+    try:
+        data = request.get_json()
+        thai_id = data.get('thai_id_number', '').strip()
+
+        if not thai_id:
+            return jsonify({
+                "success": False,
+                "error": "Thai ID number is required"
+            }), 400
+
+        # Basic format validation (Thai ID is 13 digits)
+        clean_id = thai_id.replace('-', '').replace(' ', '')
+        if not clean_id.isdigit() or len(clean_id) != 13:
+            return jsonify({
+                "success": False,
+                "error": "Invalid Thai ID format. Must be 13 digits."
+            }), 400
+
+        # Check for existing customer
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, first_name, last_name, thai_name 
+            FROM customers 
+            WHERE thai_id_number = ?
+        """, (thai_id,))
+
+        existing_customer = cursor.fetchone()
+        conn.close()
+
+        if existing_customer:
+            return jsonify({
+                "success": False,
+                "error": f"Customer with Thai ID {thai_id} already exists",
+                "existing_customer": {
+                    "id": existing_customer['id'],
+                    "name": f"{existing_customer['first_name']} {existing_customer['last_name']}".strip(),
+                    "thai_name": existing_customer['thai_name']
+                }
+            }), 409  # Conflict
+
+        return jsonify({
+            "success": True,
+            "message": "Thai ID is valid and available"
+        })
+
+    except Exception as e:
+        logger.error(f"Error validating Thai ID: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/customers/statistics', methods=['GET'])
+def get_customer_statistics():
+    """Get customer statistics including Thai ID usage"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        stats = {}
+
+        # Total customers
+        cursor.execute("SELECT COUNT(*) as count FROM customers")
+        stats['total_customers'] = cursor.fetchone()['count']
+
+        # Customers with Thai ID
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM customers 
+            WHERE thai_id_number IS NOT NULL AND thai_id_number != ''
+        """)
+        stats['with_thai_id'] = cursor.fetchone()['count']
+
+        # Customers with phone
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM customers 
+            WHERE phone IS NOT NULL AND phone != ''
+        """)
+        stats['with_phone'] = cursor.fetchone()['count']
+
+        # Customers with email
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM customers 
+            WHERE email IS NOT NULL AND email != ''
+        """)
+        stats['with_email'] = cursor.fetchone()['count']
+
+        # New customers last 30 days
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM customers 
+            WHERE created_at >= datetime('now', '-30 days')
+        """)
+        stats['new_last_30_days'] = cursor.fetchone()['count']
+
+        # New customers last 90 days
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM customers 
+            WHERE created_at >= datetime('now', '-90 days')
+        """)
+        stats['new_last_90_days'] = cursor.fetchone()['count']
+
+        # Calculate Thai ID usage percentage
+        if stats['total_customers'] > 0:
+            stats['thai_id_percentage'] = round(
+                (stats['with_thai_id'] / stats['total_customers']) * 100, 1
+            )
+        else:
+            stats['thai_id_percentage'] = 0
+
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "statistics": stats
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting customer statistics: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 
 
 # =============================================================================
@@ -1791,8 +2148,9 @@ def update_quote(quote_id):
 def generate_quote_number():
     """Generate a new quote number"""
     try:
-        year = request.args.get('year', datetime.now().year)
-        month = request.args.get('month', datetime.now().month)
+        # Convert to integers since request.args.get() returns strings
+        year = int(request.args.get('year', datetime.now().year))
+        month = int(request.args.get('month', datetime.now().month))
 
         conn = get_db_connection()
         cursor = conn.cursor()

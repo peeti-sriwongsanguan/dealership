@@ -1,7 +1,7 @@
 // static/js/modules/customers.js
 /**
  * Customers Module - Customer Management for OL Service POS
- * Fixed version with proper button classes and modal integration
+ * Enhanced with Thai ID Card OCR Scanner
  */
 
 class CustomersModule {
@@ -10,6 +10,8 @@ class CustomersModule {
         this.currentCustomer = null;
         this.isLoading = false;
         this.elements = {};
+        this.ocrWorker = null;
+        this.mediaStream = null;
     }
 
     /**
@@ -20,10 +22,26 @@ class CustomersModule {
 
         try {
             await this.loadCustomers();
-            console.log('✅ Customers module initialized');
+            await this.initOCR();
+            console.log('✅ Customers module initialized with OCR support');
         } catch (error) {
             console.error('❌ Failed to initialize Customers module:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Initialize OCR capabilities
+     */
+    async initOCR() {
+        try {
+            // Pre-load Tesseract worker for better performance
+            if (typeof Tesseract !== 'undefined') {
+                console.log('🔍 Initializing OCR worker...');
+                // We'll create the worker when needed to avoid blocking startup
+            }
+        } catch (error) {
+            console.warn('OCR initialization failed:', error);
         }
     }
 
@@ -136,6 +154,163 @@ class CustomersModule {
                         ${this.renderCustomerTable()}
                     </div>
                 </div>
+
+                <!-- OCR Styles -->
+                <style>
+                    .ocr-scanner {
+                        background: #f8f9fa;
+                        border: 2px dashed #dee2e6;
+                        border-radius: 12px;
+                        padding: 20px;
+                        margin-bottom: 20px;
+                        text-align: center;
+                        transition: all 0.3s ease;
+                    }
+
+                    .ocr-scanner:hover {
+                        border-color: #667eea;
+                        background: #f0f2ff;
+                    }
+
+                    .ocr-buttons {
+                        display: flex;
+                        gap: 10px;
+                        justify-content: center;
+                        flex-wrap: wrap;
+                        margin-bottom: 15px;
+                    }
+
+                    .ocr-button {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border: none;
+                        padding: 12px 20px;
+                        border-radius: 25px;
+                        font-size: 14px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+
+                    .ocr-button:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+                    }
+
+                    .ocr-button.camera {
+                        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                    }
+
+                    .ocr-button.camera:hover {
+                        box-shadow: 0 8px 16px rgba(17, 153, 142, 0.3);
+                    }
+
+                    .ocr-preview {
+                        margin: 15px 0;
+                        max-width: 100%;
+                    }
+
+                    .ocr-preview img {
+                        max-width: 100%;
+                        max-height: 200px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    }
+
+                    .ocr-video-container {
+                        position: relative;
+                        margin: 15px 0;
+                        display: none;
+                    }
+
+                    .ocr-video {
+                        width: 100%;
+                        max-width: 300px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    }
+
+                    .ocr-capture-btn {
+                        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 20px;
+                        margin-top: 10px;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                    }
+
+                    .ocr-capture-btn:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 12px rgba(255, 107, 107, 0.3);
+                    }
+
+                    .ocr-status {
+                        padding: 12px;
+                        border-radius: 6px;
+                        margin: 10px 0;
+                        font-weight: 500;
+                        text-align: center;
+                    }
+
+                    .ocr-status.processing {
+                        background: #fff3cd;
+                        border: 1px solid #ffeaa7;
+                        color: #856404;
+                    }
+
+                    .ocr-status.success {
+                        background: #d4edda;
+                        border: 1px solid #c3e6cb;
+                        color: #155724;
+                    }
+
+                    .ocr-status.error {
+                        background: #f8d7da;
+                        border: 1px solid #f5c6cb;
+                        color: #721c24;
+                    }
+
+                    .ocr-progress-bar {
+                        width: 100%;
+                        height: 6px;
+                        background: #e9ecef;
+                        border-radius: 3px;
+                        overflow: hidden;
+                        margin: 8px 0;
+                    }
+
+                    .ocr-progress-fill {
+                        height: 100%;
+                        background: linear-gradient(90deg, #667eea, #764ba2);
+                        width: 0%;
+                        transition: width 0.3s ease;
+                    }
+
+                    .thai-text {
+                        font-family: 'Sarabun', sans-serif;
+                    }
+
+                    .file-input-hidden {
+                        display: none;
+                    }
+
+                    @media (max-width: 768px) {
+                        .ocr-buttons {
+                            flex-direction: column;
+                            align-items: center;
+                        }
+
+                        .ocr-button {
+                            width: 100%;
+                            max-width: 250px;
+                            justify-content: center;
+                        }
+                    }
+                </style>
             </div>
         `;
     }
@@ -263,10 +438,10 @@ class CustomersModule {
     }
 
     /**
-     * Show add customer modal
+     * Show add customer modal with OCR scanner
      */
     showAddModal() {
-        console.log('🔧 Opening add customer modal...');
+        console.log('🔧 Opening add customer modal with OCR...');
 
         // Get modal elements directly
         const modalOverlay = document.getElementById('modalOverlay');
@@ -278,7 +453,7 @@ class CustomersModule {
             return;
         }
 
-        // Set modal content directly without wrapping
+        // Set modal content with OCR scanner
         modalContainer.innerHTML = `
             <div class="modal-header">
                 <h2>➕ Add New Customer</h2>
@@ -286,12 +461,52 @@ class CustomersModule {
             </div>
 
             <div class="modal-body">
+                <!-- OCR Scanner Section -->
+                <div class="ocr-scanner">
+                    <h3 style="margin: 0 0 15px 0; color: #333;">🆔 Scan Thai ID Card / สแกนบัตรประชาชน</h3>
+                    <p style="margin: 0 0 15px 0; color: #666; font-size: 14px;">
+                        Take a photo or upload an image of the Thai ID card to auto-fill customer information
+                    </p>
+
+                    <div class="ocr-buttons">
+                        <input type="file" id="ocrFileInput" class="file-input-hidden" accept="image/*">
+                        <button type="button" class="ocr-button" onclick="window.Customers.uploadIDImage()">
+                            📂 Upload ID Card
+                        </button>
+                        <button type="button" class="ocr-button camera" onclick="window.Customers.startIDCamera()">
+                            📷 Take Photo
+                        </button>
+                    </div>
+
+                    <div id="ocrVideoContainer" class="ocr-video-container">
+                        <video id="ocrVideo" class="ocr-video" autoplay muted></video>
+                        <canvas id="ocrCanvas" style="display: none;"></canvas>
+                        <div style="margin-top: 10px;">
+                            <button type="button" class="ocr-capture-btn" onclick="window.Customers.captureIDPhoto()">
+                                📸 Capture / ถ่ายรูป
+                            </button>
+                            <button type="button" class="ocr-capture-btn" onclick="window.Customers.stopIDCamera()"
+                                style="background: #6c757d; margin-left: 10px;">
+                                Stop / หยุด
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="ocrPreview" class="ocr-preview"></div>
+                    <div id="ocrStatus"></div>
+                    <div id="ocrProgressBar" class="ocr-progress-bar" style="display: none;">
+                        <div id="ocrProgressFill" class="ocr-progress-fill"></div>
+                    </div>
+                </div>
+
+                <!-- Customer Form -->
                 <form id="addCustomerForm" onsubmit="window.Customers.handleAddCustomer(event)">
                     <div class="form-group">
                         <label class="form-label required">Customer Name</label>
                         <input
                             type="text"
                             name="name"
+                            id="customerName"
                             class="form-input"
                             placeholder="Enter customer name"
                             required
@@ -303,6 +518,7 @@ class CustomersModule {
                         <input
                             type="tel"
                             name="phone"
+                            id="customerPhone"
                             class="form-input"
                             placeholder="(555) 123-4567"
                         >
@@ -313,6 +529,7 @@ class CustomersModule {
                         <input
                             type="email"
                             name="email"
+                            id="customerEmail"
                             class="form-input"
                             placeholder="customer@example.com"
                         >
@@ -322,10 +539,19 @@ class CustomersModule {
                         <label class="form-label">Address</label>
                         <textarea
                             name="address"
+                            id="customerAddress"
                             class="form-textarea"
                             placeholder="Enter customer address"
                             rows="3"
                         ></textarea>
+                    </div>
+
+                    <!-- Hidden ID-specific fields -->
+                    <div class="form-group" style="display: none;">
+                        <input type="text" name="id_number" id="customerIdNumber">
+                        <input type="text" name="date_of_birth" id="customerDateOfBirth">
+                        <input type="text" name="thai_name" id="customerThaiName">
+                        <input type="text" name="english_name" id="customerEnglishName">
                     </div>
 
                     <div class="modal-actions">
@@ -340,11 +566,291 @@ class CustomersModule {
             </div>
         `;
 
+        // Add event listener for file input
+        setTimeout(() => {
+            const fileInput = document.getElementById('ocrFileInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', (e) => {
+                    if (e.target.files[0]) {
+                        this.processIDImage(e.target.files[0]);
+                    }
+                });
+            }
+        }, 100);
+
         // Show modal by adding active class
         modalOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
 
-        console.log('✅ Modal displayed with active class');
+        console.log('✅ Modal displayed with OCR scanner');
+    }
+
+    /**
+     * Upload ID image
+     */
+    uploadIDImage() {
+        const fileInput = document.getElementById('ocrFileInput');
+        if (fileInput) {
+            fileInput.click();
+        }
+    }
+
+    /**
+     * Start camera for ID scanning
+     */
+    async startIDCamera() {
+        try {
+            this.mediaStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+
+            const video = document.getElementById('ocrVideo');
+            const container = document.getElementById('ocrVideoContainer');
+
+            if (video && container) {
+                video.srcObject = this.mediaStream;
+                container.style.display = 'block';
+            }
+
+        } catch (error) {
+            console.error('Camera Error:', error);
+            const statusDiv = document.getElementById('ocrStatus');
+            if (statusDiv) {
+                statusDiv.innerHTML = '<div class="ocr-status error">❌ Cannot access camera. Please check permissions. / ไม่สามารถเข้าถึงกล้องได้ กรุณาตรวจสอบสิทธิ์</div>';
+            }
+        }
+    }
+
+    /**
+     * Capture photo from camera
+     */
+    captureIDPhoto() {
+        const video = document.getElementById('ocrVideo');
+        const canvas = document.getElementById('ocrCanvas');
+
+        if (!video || !canvas) return;
+
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0);
+
+        const imageData = canvas.toDataURL('image/jpeg', 0.8);
+
+        // Display captured image
+        const previewDiv = document.getElementById('ocrPreview');
+        if (previewDiv) {
+            previewDiv.innerHTML = `<img src="${imageData}" alt="Captured ID" style="max-width: 100%; max-height: 200px; border-radius: 8px;">`;
+        }
+
+        // Process the captured image
+        this.performOCR(imageData);
+
+        // Stop camera
+        this.stopIDCamera();
+    }
+
+    /**
+     * Stop camera
+     */
+    stopIDCamera() {
+        if (this.mediaStream) {
+            this.mediaStream.getTracks().forEach(track => track.stop());
+            this.mediaStream = null;
+        }
+
+        const container = document.getElementById('ocrVideoContainer');
+        if (container) {
+            container.style.display = 'none';
+        }
+    }
+
+    /**
+     * Process uploaded ID image
+     */
+    processIDImage(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const previewDiv = document.getElementById('ocrPreview');
+            if (previewDiv) {
+                previewDiv.innerHTML = `<img src="${e.target.result}" alt="Uploaded ID" style="max-width: 100%; max-height: 200px; border-radius: 8px;">`;
+            }
+
+            // Start OCR processing
+            this.performOCR(e.target.result);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    /**
+     * Perform OCR on Thai ID card
+     */
+    async performOCR(imageSrc) {
+        const statusDiv = document.getElementById('ocrStatus');
+        const progressBar = document.getElementById('ocrProgressBar');
+        const progressFill = document.getElementById('ocrProgressFill');
+
+        if (statusDiv) {
+            statusDiv.innerHTML = '<div class="ocr-status processing">🔄 Processing ID card... / กำลังประมวลผลบัตรประชาชน...</div>';
+        }
+
+        if (progressBar) {
+            progressBar.style.display = 'block';
+        }
+
+        try {
+            // Check if Tesseract is available
+            if (typeof Tesseract === 'undefined') {
+                throw new Error('OCR library not loaded. Please refresh the page.');
+            }
+
+            const worker = await Tesseract.createWorker(['eng', 'tha']);
+
+            // Configure OCR for Thai ID cards
+            await worker.setParameters({
+                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./: กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮะาิีึืุูเแโใไํ่้๊๋์'
+            });
+
+            const result = await worker.recognize(imageSrc, {
+                logger: m => {
+                    if (m.status === 'recognizing text' && progressFill) {
+                        const progress = Math.round(m.progress * 100);
+                        progressFill.style.width = progress + '%';
+                    }
+                }
+            });
+
+            await worker.terminate();
+
+            if (progressBar) {
+                progressBar.style.display = 'none';
+            }
+
+            // Parse the OCR result and fill form
+            this.parseThaiIDCard(result.data.text);
+
+            if (statusDiv) {
+                statusDiv.innerHTML = '<div class="ocr-status success">✅ ID card processed successfully! / ประมวลผลบัตรประชาชนสำเร็จ!</div>';
+            }
+
+        } catch (error) {
+            console.error('OCR Error:', error);
+            if (statusDiv) {
+                statusDiv.innerHTML = '<div class="ocr-status error">❌ Error processing ID card. Please try again. / เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่</div>';
+            }
+            if (progressBar) {
+                progressBar.style.display = 'none';
+            }
+        }
+    }
+
+    /**
+     * Parse Thai ID card OCR results and fill form
+     */
+    parseThaiIDCard(text) {
+        console.log('OCR Result:', text);
+
+        // Enhanced Thai ID card parsing patterns
+        const patterns = {
+            idNumber: /(\d{1}[-\s]?\d{4}[-\s]?\d{5}[-\s]?\d{2}[-\s]?\d{1})/,
+            dateOfBirth: /(\d{1,2}[-\/]\d{1,2}[-\/]\d{4})/g,
+            thaiName: /(?:นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.)\s*([ก-๙\s]+)/,
+            englishName: /(Mr\.|Mrs\.|Miss|MS\.)\s*([A-Za-z\s]+)/i,
+            phone: /(\d{3}[-\s]?\d{3}[-\s]?\d{4})/,
+            email: /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/
+        };
+
+        // Extract and fill ID number
+        const idMatch = text.match(patterns.idNumber);
+        if (idMatch) {
+            const formattedId = idMatch[1].replace(/[-\s]/g, '').replace(/(\d{1})(\d{4})(\d{5})(\d{2})(\d{1})/, '$1-$2-$3-$4-$5');
+            this.setFormValue('customerIdNumber', formattedId);
+        }
+
+        // Extract dates (birth date primarily)
+        const dateMatches = text.match(patterns.dateOfBirth);
+        if (dateMatches && dateMatches.length >= 1) {
+            this.setFormValue('customerDateOfBirth', dateMatches[0]);
+        }
+
+        // Extract Thai names and set as primary name
+        const thaiMatch = text.match(patterns.thaiName);
+        if (thaiMatch) {
+            const thaiFullName = thaiMatch[1].trim();
+            this.setFormValue('customerThaiName', thaiFullName);
+
+            // Use Thai name as the primary customer name
+            this.setFormValue('customerName', thaiFullName);
+
+            // Try to parse first/last name
+            const thaiNameParts = thaiFullName.split(/\s+/);
+            if (thaiNameParts.length >= 2) {
+                // For Thai names, typically first name + last name
+                const firstName = thaiNameParts[0];
+                const lastName = thaiNameParts.slice(1).join(' ');
+                // Could add separate first/last name fields if needed
+            }
+        }
+
+        // Extract English names (fallback if no Thai name)
+        const englishMatch = text.match(patterns.englishName);
+        if (englishMatch && !thaiMatch) {
+            const englishFullName = englishMatch[2].trim();
+            this.setFormValue('customerEnglishName', englishFullName);
+            this.setFormValue('customerName', englishFullName);
+        }
+
+        // Extract phone number if present
+        const phoneMatch = text.match(patterns.phone);
+        if (phoneMatch) {
+            this.setFormValue('customerPhone', phoneMatch[1]);
+        }
+
+        // Extract email if present (less common on ID cards)
+        const emailMatch = text.match(patterns.email);
+        if (emailMatch) {
+            this.setFormValue('customerEmail', emailMatch[1]);
+        }
+
+        // Try to extract address information
+        const addressKeywords = ['ที่อยู่', 'อำเภอ', 'จังหวัด', 'ตำบล', 'Address'];
+        const lines = text.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+            if (addressKeywords.some(keyword => lines[i].includes(keyword))) {
+                // Extract address from nearby lines
+                const addressLines = lines.slice(i, i + 3).join(' ')
+                    .replace(/ที่อยู่|Address/g, '')
+                    .trim();
+                if (addressLines && addressLines.length > 10) {
+                    this.setFormValue('customerAddress', addressLines);
+                    break;
+                }
+            }
+        }
+
+        // Show success notification
+        window.showToast('ID card information extracted successfully!', 'success');
+    }
+
+    /**
+     * Helper method to set form values safely
+     */
+    setFormValue(fieldId, value) {
+        const field = document.getElementById(fieldId);
+        if (field && value) {
+            field.value = value;
+
+            // Add visual feedback for auto-filled fields
+            field.style.backgroundColor = '#e8f5e8';
+            setTimeout(() => {
+                field.style.backgroundColor = '';
+            }, 2000);
+        }
     }
 
     /**
@@ -369,11 +875,36 @@ class CustomersModule {
             submitButton.innerHTML = '⏳ Saving...';
 
             const formData = new FormData(form);
+
+            // Parse name into first_name and last_name for database compatibility
+            const fullName = formData.get('name').trim();
+            const nameParts = fullName.split(' ');
+            const firstName = nameParts[0] || '';
+            const lastName = nameParts.slice(1).join(' ') || '';
+
             const customerData = {
-                name: formData.get('name').trim(),
+                // Database schema fields
+                first_name: firstName,
+                last_name: lastName,
+                name: fullName,
                 phone: formData.get('phone').trim(),
                 email: formData.get('email').trim(),
-                address: formData.get('address').trim()
+                address: formData.get('address').trim(),
+                city: '',  // Can be extended later
+                state: '',
+                zip_code: '',
+                notes: '',
+
+                // OCR extracted Thai ID data
+                id_number: formData.get('id_number') ? formData.get('id_number').trim() : '',
+                thai_name: formData.get('thai_name') ? formData.get('thai_name').trim() : '',
+                english_name: formData.get('english_name') ? formData.get('english_name').trim() : '',
+                date_of_birth: formData.get('date_of_birth') ? formData.get('date_of_birth').trim() : '',
+
+                // Additional OCR fields that might be extracted
+                issue_date: '',
+                expiry_date: '',
+                id_card_address: formData.get('address').trim() // Use form address as ID card address
             };
 
             console.log('Sending customer data:', customerData);
@@ -443,13 +974,9 @@ class CustomersModule {
         });
     }
 
-
-
-
     /**
      * Edit customer
      */
-
     editCustomer(customerId) {
         const c = this.customers.find(c => c.id === customerId);
         if (!c) return;
@@ -500,7 +1027,6 @@ class CustomersModule {
         modalOverlay.style.opacity = '1';
         modalOverlay.style.visibility = 'visible';
         document.body.style.overflow = 'hidden';
-
     }
 
     async handleEditCustomer(event, id) {
@@ -529,8 +1055,6 @@ class CustomersModule {
             showToast('Failed to update customer', 'error');
         }
     }
-
-
 
      /**
      * Show add vehicle modal
@@ -732,8 +1256,9 @@ class CustomersModule {
             window.showToast(error.message || 'Failed to delete vehicle', 'error');
         }
     }
+
     /**
-     * View customer vehicles
+     * View customer details
      */
     viewCustomer(customerId) {
         console.log('👁️ Viewing customer:', customerId);
@@ -817,11 +1342,9 @@ class CustomersModule {
         }
     }
 
-
     /**
      * View customer vehicles
      */
-
     async viewVehicles(customerId) {
         console.log('🚗 Viewing vehicles for customer:', customerId);
 
@@ -1001,10 +1524,10 @@ class CustomersModule {
             `;
         }
     }
+
     /**
      * Export customers
      */
-
     exportCustomers() {
         if (!this.customers.length) {
             if (typeof showToast === 'function') {
@@ -1030,8 +1553,6 @@ class CustomersModule {
         a.click();
         document.body.removeChild(a);
     }
-
-
 
     /**
      * Utility methods
@@ -1064,6 +1585,20 @@ class CustomersModule {
             return regDate >= oneMonthAgo;
         }).length;
     }
+
+    /**
+     * Cleanup method called when module is unloaded
+     */
+    cleanup() {
+        // Stop any active camera streams
+        this.stopIDCamera();
+
+        // Cleanup OCR worker if active
+        if (this.ocrWorker) {
+            this.ocrWorker.terminate();
+            this.ocrWorker = null;
+        }
+    }
 }
 
 // Create global instance
@@ -1075,4 +1610,4 @@ window.Customers.init().catch(err => {
     console.error('Failed to initialize Customers module:', err);
 });
 
-console.log('✅ Customers module loaded successfully');
+console.log('✅ Enhanced Customers module with OCR loaded successfully');
