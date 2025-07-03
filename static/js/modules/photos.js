@@ -392,9 +392,17 @@ class PhotosModule {
                     ${photo.width ? `<p><strong>Dimensions:</strong> ${photo.width}x${photo.height}</p>` : ''}
                     <p><strong>Source:</strong> ${photo.source === 'camera' ? '📷 Camera' : photo.source === 'api' ? '🌐 API' : '📁 File Upload'}</p>
                 </div>
-                <button class="button button-outline" onclick="this.closest('.modal-overlay').remove()" style="margin-top: 1rem;">
-                    Close
-                </button>
+                <div style="margin-top: 1rem; display: flex; gap: 1rem; justify-content: center;">
+                    ${!photo.is_primary ?
+                        `<button class="button button-primary" onclick="photosModule.setPrimaryPhoto('${photo.id}'); this.closest('.modal-overlay').remove();">
+                            ⭐ Set as Primary
+                        </button>` :
+                        '<span style="color: #27ae60; font-weight: bold;">⭐ Primary Photo</span>'
+                    }
+                    <button class="button button-outline" onclick="this.closest('.modal-overlay').remove();">
+                        Close
+                    </button>
+                </div>
             </div>
         `);
 
@@ -637,7 +645,7 @@ class PhotosModule {
                 ${this.renderSecurityWarning()}
 
                 <div class="vehicle-selector">
-                    <h3>🚗 Select Vehicle for Photo Documentation</h3>
+                    <h3>Select Vehicle for Photo Documentation</h3>
                     <div class="vehicle-grid">
                         ${this.renderVehicleOptions()}
                     </div>
@@ -674,9 +682,16 @@ class PhotosModule {
 
     renderVehicleOptions() {
         if (this.vehicles.length === 0) {
+            const primaryPhoto = this.getPrimaryPhoto(vehicle.id);
             return `
-                <div style="text-align: center; padding: 2rem; color: #7f8c8d; grid-column: 1 / -1;">
-                    <div style="font-size: 2rem; margin-bottom: 1rem;">🚗</div>
+                <div class="vehicle-option ${isSelected ? 'selected' : ''}" data-vehicle-id="${vehicle.id}">
+                    <div class="vehicle-icon">
+                        ${primaryPhoto ?
+                            `<img src="${primaryPhoto.thumbnail_url || primaryPhoto.url}" alt="Vehicle" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover;">` :
+                            '🚐'
+                        }
+                    </div>
+                    <div class="vehicle-name">${vehicle.year || ''} ${vehicle.make} ${vehicle.model}</div>
                     <p>No vehicles available for photo documentation.</p>
                     <p>Please add vehicles first in the Vehicles section.</p>
                 </div>
@@ -685,9 +700,18 @@ class PhotosModule {
 
         return this.vehicles.map(vehicle => {
             const isSelected = this.currentVehicle && this.currentVehicle.id === vehicle.id;
+            const primaryPhoto = this.getPrimaryPhoto(vehicle.id);
+
             return `
                 <div class="vehicle-option ${isSelected ? 'selected' : ''}" data-vehicle-id="${vehicle.id}">
-                    <div class="vehicle-icon">🚐</div>
+                    <div class="vehicle-icon">
+                        ${primaryPhoto ?
+                            `<img src="${primaryPhoto.thumbnail_url || primaryPhoto.url}"
+                                  alt="Vehicle Photo"
+                                  style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 2px solid #ddd;">` :
+                            '🚐'
+                        }
+                    </div>
                     <div class="vehicle-name">${vehicle.year || ''} ${vehicle.make} ${vehicle.model}</div>
                     <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 0.25rem;">
                         ${vehicle.license_plate || 'No Plate'} • ${vehicle.customer_name || 'Customer'}
@@ -702,6 +726,22 @@ class PhotosModule {
 
     renderPhotoInterface() {
         return `
+            <div class="vehicle-header" style="display: flex; align-items: center; margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                <div class="vehicle-avatar" style="margin-right: 1rem;">
+                    ${this.getPrimaryPhoto(this.currentVehicle.id) ?
+                        `<img src="${this.getPrimaryPhoto(this.currentVehicle.id).thumbnail_url || this.getPrimaryPhoto(this.currentVehicle.id).url}"
+                              alt="Vehicle"
+                              style="width: 80px; height: 80px; border-radius: 12px; object-fit: cover; border: 3px solid #667eea;">` :
+                        '<div style="width: 80px; height: 80px; background: #667eea; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 2rem; color: white;">🚐</div>'
+                    }
+                </div>
+                <div class="vehicle-info">
+                    <h3 style="margin: 0; color: #2c3e50;">${this.currentVehicle.year || ''} ${this.currentVehicle.make} ${this.currentVehicle.model}</h3>
+                    <p style="margin: 0.25rem 0; color: #7f8c8d;">${this.currentVehicle.license_plate || 'No License Plate'}</p>
+                    <p style="margin: 0; color: #667eea; font-weight: 500;">${this.getVehiclePhotoCount(this.currentVehicle.id)} photos total</p>
+                </div>
+            </div>
+
             <div class="photo-categories">
                 ${this.renderPhotoCategories()}
             </div>
@@ -854,6 +894,7 @@ class PhotosModule {
             <div class="photo-item" data-photo-id="${photo.id}">
                 <div class="photo-image" style="background-image: url('${photo.url || photo.thumbnail_url}'); background-size: cover; background-position: center;">
                     ${!photo.url && !photo.thumbnail_url ? '📸' : ''}
+                    ${photo.is_primary ? '<div class="primary-badge" style="position: absolute; top: 8px; right: 8px; background: #27ae60; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">PRIMARY</div>' : ''}
                 </div>
                 <div class="photo-info">
                     <div class="photo-category-badge" style="background: #667eea;">
@@ -864,6 +905,42 @@ class PhotosModule {
                 </div>
             </div>
         `).join('');
+    }
+
+    getPrimaryPhoto(vehicleId) {
+        return this.photos.find(photo =>
+            photo.vehicle_id === vehicleId && photo.is_primary
+        ) || this.photos.find(photo => photo.vehicle_id === vehicleId); // Fallback to first photo
+    }
+
+    async setPrimaryPhoto(photoId) {
+        try {
+            const photo = this.photos.find(p => p.id === photoId);
+            if (!photo) return;
+
+            // Call API to set primary photo
+            const response = await fetch(`/api/vehicles/photos/${photo.id.replace('api_', '')}/primary`, {
+                method: 'PUT'
+            });
+
+            if (response.ok) {
+                // Update local photos array
+                this.photos.forEach(p => {
+                    if (p.vehicle_id === photo.vehicle_id) {
+                        p.is_primary = (p.id === photoId);
+                    }
+                });
+
+                // Refresh the interface
+                this.refreshContent();
+                this.showToast('✅ Primary photo updated!', 'success');
+            } else {
+                throw new Error('Failed to update primary photo');
+            }
+        } catch (error) {
+            console.error('Error setting primary photo:', error);
+            this.showToast('❌ Failed to set primary photo', 'error');
+        }
     }
 
     // Camera Methods
