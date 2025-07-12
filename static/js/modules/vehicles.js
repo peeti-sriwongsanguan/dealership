@@ -841,6 +841,51 @@ class VehiclesModule {
                         </div>
                     </div>
 
+                    <!-- INSURANCE INFORMATION SECTION - FIXED -->
+                    <div class="form-section">
+                        <h3 class="form-section-title">🛡️ Insurance Information</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Insurance Company</label>
+                                <input
+                                    type="text"
+                                    name="insurance_company"
+                                    class="form-input"
+                                    placeholder="e.g. วิริยะประกันภัย"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Policy Number</label>
+                                <input
+                                    type="text"
+                                    name="insurance_policy_number"
+                                    class="form-input"
+                                    placeholder="e.g. ABC123456789"
+                                >
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Insurance Class</label>
+                                <select name="insurance_class" class="form-input">
+                                    <option value="">Select Class</option>
+                                    <option value="1">Class 1 - Full Coverage</option>
+                                    <option value="2">Class 2</option>
+                                    <option value="3">Class 3 - Liability Only</option>
+                                    <option value="4">Class 4</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Expiration Date</label>
+                                <input
+                                    type="date"
+                                    name="insurance_expiration_date"
+                                    class="form-input"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Owner Information -->
                     <div class="form-section">
                         <h3 class="form-section-title">Owner Information</h3>
@@ -919,7 +964,7 @@ class VehiclesModule {
 
             const formData = new FormData(form);
 
-            // Build vehicle data object
+            // Build vehicle data object INCLUDING INSURANCE FIELDS
             const vehicleData = {
                 make: formData.get('make').trim(),
                 model: formData.get('model').trim(),
@@ -931,6 +976,11 @@ class VehiclesModule {
                 mileage: formData.get('mileage') ? parseInt(formData.get('mileage')) : null,
                 engine_size: formData.get('engine_size').trim(),
                 customer_id: parseInt(formData.get('customer_id')),
+                // ADD INSURANCE FIELDS HERE
+                insurance_company: formData.get('insurance_company') ? formData.get('insurance_company').trim() : '',
+                insurance_policy_number: formData.get('insurance_policy_number') ? formData.get('insurance_policy_number').trim() : '',
+                insurance_class: formData.get('insurance_class') ? parseInt(formData.get('insurance_class')) : null,
+                insurance_expiration_date: formData.get('insurance_expiration_date') || '',
                 notes: formData.get('notes').trim()
             };
 
@@ -1384,6 +1434,46 @@ class VehiclesModule {
                         </div>
                     </div>
 
+                    <!-- INSURANCE INFORMATION SECTION -->
+                    <div class="detail-section">
+                        <h3 class="section-title">🛡️ Insurance Information</h3>
+                        <div class="detail-rows">
+                            <div class="detail-row">
+                                <span class="detail-label">Insurance Company:</span>
+                                <span class="detail-value">${vehicle.insurance_company || 'Not specified'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Policy Number:</span>
+                                <span class="detail-value">${vehicle.insurance_policy_number || 'Not provided'}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Insurance Class:</span>
+                                <span class="detail-value">
+                                    ${vehicle.insurance_class ? `
+                                        Class ${vehicle.insurance_class} ${
+                                            vehicle.insurance_class == 1 ? '- Full Coverage' :
+                                            vehicle.insurance_class == 2 ? '' :
+                                            vehicle.insurance_class == 3 ? '- Liability Only' : ''
+                                        }
+                                    ` : 'Not specified'}
+                                </span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Expiration Date:</span>
+                                <span class="detail-value">
+                                    ${vehicle.insurance_expiration_date ? `
+                                        <strong style="color: ${new Date(vehicle.insurance_expiration_date) < new Date() ? '#dc3545' :
+                                            new Date(vehicle.insurance_expiration_date) < new Date(Date.now() + 30*24*60*60*1000) ? '#ffc107' : '#28a745'}">
+                                            ${new Date(vehicle.insurance_expiration_date).toLocaleDateString()}
+                                            ${new Date(vehicle.insurance_expiration_date) < new Date() ? ' (EXPIRED)' :
+                                              new Date(vehicle.insurance_expiration_date) < new Date(Date.now() + 30*24*60*60*1000) ? ' (Expires Soon)' : ''}
+                                        </strong>
+                                    ` : 'Not provided'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Owner Information -->
                     <div class="detail-section">
                         <h3 class="section-title">👤 Owner Information</h3>
@@ -1601,6 +1691,19 @@ class VehiclesModule {
     Fuel Type: ${vehicle.fuel_type || 'Not specified'}
 
     ═══════════════════════════════════════════════════════════════════════════════
+    INSURANCE INFORMATION
+    ═══════════════════════════════════════════════════════════════════════════════
+
+    Insurance Company: ${vehicle.insurance_company || 'Not specified'}
+    Policy Number: ${vehicle.insurance_policy_number || 'Not provided'}
+    Insurance Class: ${vehicle.insurance_class ? `Class ${vehicle.insurance_class}` : 'Not specified'}
+    Expiration Date: ${vehicle.insurance_expiration_date ? new Date(vehicle.insurance_expiration_date).toLocaleDateString() : 'Not provided'}
+    Status: ${vehicle.insurance_expiration_date ?
+        (new Date(vehicle.insurance_expiration_date) < new Date() ? 'EXPIRED' :
+         new Date(vehicle.insurance_expiration_date) < new Date(Date.now() + 30*24*60*60*1000) ? 'Expires Soon' : 'Active')
+        : 'Unknown'}
+
+    ═══════════════════════════════════════════════════════════════════════════════
     OWNER INFORMATION
     ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1677,6 +1780,8 @@ class VehiclesModule {
     /**
      * Edit vehicle - show edit modal with pre-filled data
      */
+
+
     async editVehicle(vehicleId) {
         console.log('✏️ Editing vehicle:', vehicleId);
 
@@ -1710,7 +1815,7 @@ class VehiclesModule {
         // Generate current year for validation
         const currentYear = new Date().getFullYear();
 
-        // Create edit form with pre-filled data
+        // Create edit form with pre-filled data INCLUDING INSURANCE SECTION
         modalContainer.innerHTML = `
             <div class="modal-header">
                 <h2>✏️ Edit Vehicle #${vehicleId}</h2>
@@ -1861,6 +1966,54 @@ class VehiclesModule {
                         </div>
                     </div>
 
+                    <!-- INSURANCE INFORMATION SECTION - ADD THIS -->
+                    <div class="form-section">
+                        <h3 class="form-section-title">🛡️ Insurance Information</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Insurance Company</label>
+                                <input
+                                    type="text"
+                                    name="insurance_company"
+                                    class="form-input"
+                                    placeholder="e.g. วิริยะประกันภัย"
+                                    value="${vehicle.insurance_company || ''}"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Policy Number</label>
+                                <input
+                                    type="text"
+                                    name="insurance_policy_number"
+                                    class="form-input"
+                                    placeholder="e.g. ABC123456789"
+                                    value="${vehicle.insurance_policy_number || ''}"
+                                >
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Insurance Class</label>
+                                <select name="insurance_class" class="form-input">
+                                    <option value="">Select Class</option>
+                                    <option value="1" ${vehicle.insurance_class == 1 ? 'selected' : ''}>Class 1 - Full Coverage</option>
+                                    <option value="2" ${vehicle.insurance_class == 2 ? 'selected' : ''}>Class 2</option>
+                                    <option value="3" ${vehicle.insurance_class == 3 ? 'selected' : ''}>Class 3 - Liability Only</option>
+                                    <option value="4" ${vehicle.insurance_class == 4 ? 'selected' : ''}>Class 4</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Expiration Date</label>
+                                <input
+                                    type="date"
+                                    name="insurance_expiration_date"
+                                    class="form-input"
+                                    value="${vehicle.insurance_expiration_date || ''}"
+                                >
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Owner Information -->
                     <div class="form-section">
                         <h3 class="form-section-title">Owner Information</h3>
@@ -1961,6 +2114,11 @@ class VehiclesModule {
                 mileage: formData.get('mileage') ? parseInt(formData.get('mileage')) : null,
                 engine_size: formData.get('engine_size').trim(),
                 customer_id: parseInt(formData.get('customer_id')),
+                // ADD INSURANCE FIELDS HERE TOO
+                insurance_company: formData.get('insurance_company').trim(),
+                insurance_policy_number: formData.get('insurance_policy_number').trim(),
+                insurance_class: formData.get('insurance_class') ? parseInt(formData.get('insurance_class')) : null,
+                insurance_expiration_date: formData.get('insurance_expiration_date'),
                 notes: formData.get('notes').trim()
             };
 
@@ -2508,6 +2666,10 @@ class VehiclesModule {
             'Customer Name',
             'Customer Phone',
             'Customer Email',
+            'Insurance Company',
+            'Insurance Policy Number',
+            'Insurance Class',
+            'Insurance Expiration Date',
             'Registration Date'
         ];
 
@@ -2525,6 +2687,10 @@ class VehiclesModule {
             vehicle.customer_name || 'Unknown Owner',
             vehicle.customer_phone || '',
             vehicle.customer_email || '',
+            vehicle.insurance_company || '',
+            vehicle.insurance_policy_number || '',
+            vehicle.insurance_class || '',
+            vehicle.insurance_expiration_date || '',
             vehicle.registration_date ? new Date(vehicle.registration_date).toLocaleDateString() : ''
         ]);
 
