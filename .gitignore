@@ -41,7 +41,7 @@ assets/van sketch gpt.png
 .DS_Store
 
 # Application specific files
-data/
+
 data/*.db
 */data/*.db
 *.db

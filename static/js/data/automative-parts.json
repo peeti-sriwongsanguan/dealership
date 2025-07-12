@@ -1,0 +1,624 @@
+{
+  "automotive_parts": [
+    {
+      "thai": "ขากระจก",
+      "english": "Mirror Bracket",
+      "code": "MIR1",
+      "category": "exterior",
+      "price": 850,
+      "unit": "ชิ้น",
+      "supplier": "Thai Auto Parts",
+      "in_stock": 25,
+      "min_stock": 5,
+      "location": "A1-001"
+    },
+    {
+      "thai": "ไฟหน้า",
+      "english": "Headlight",
+      "code": "HEA1",
+      "category": "lighting",
+      "price": 2500,
+      "unit": "ชิ้น",
+      "supplier": "Lighting Solutions",
+      "in_stock": 15,
+      "min_stock": 3,
+      "location": "B2-005"
+    },
+    {
+      "thai": "ประตู",
+      "english": "Door",
+      "code": "DOO1",
+      "category": "body",
+      "price": 15000,
+      "unit": "ชิ้น",
+      "supplier": "Body Parts Co.",
+      "in_stock": 8,
+      "min_stock": 2,
+      "location": "C1-010"
+    },
+    {
+      "thai": "กระจก",
+      "english": "Window/Glass",
+      "code": "WIN1",
+      "category": "glass",
+      "price": 3200,
+      "unit": "แผ่น",
+      "supplier": "Glass World",
+      "in_stock": 12,
+      "min_stock": 3,
+      "location": "D1-003"
+    },
+    {
+      "thai": "ไฟท้าย",
+      "english": "Tail Light",
+      "code": "TAI1",
+      "category": "lighting",
+      "price": 1200,
+      "unit": "ชิ้น",
+      "supplier": "Lighting Solutions",
+      "in_stock": 20,
+      "min_stock": 5,
+      "location": "B2-008"
+    },
+    {
+      "thai": "กระจังหน้า",
+      "english": "Front Grille",
+      "code": "FRO1",
+      "category": "exterior",
+      "price": 4500,
+      "unit": "ชิ้น",
+      "supplier": "Front Parts Ltd.",
+      "in_stock": 10,
+      "min_stock": 2,
+      "location": "A2-015"
+    },
+    {
+      "thai": "กันชนหน้า",
+      "english": "Front Bumper",
+      "code": "FRO2",
+      "category": "body",
+      "price": 8500,
+      "unit": "ชิ้น",
+      "supplier": "Body Parts Co.",
+      "in_stock": 6,
+      "min_stock": 1,
+      "location": "C1-020"
+    },
+    {
+      "thai": "ไฟเลี้ยว",
+      "english": "Turn Signal",
+      "code": "TUR1",
+      "category": "lighting",
+      "price": 650,
+      "unit": "ชิ้น",
+      "supplier": "Lighting Solutions",
+      "in_stock": 30,
+      "min_stock": 8,
+      "location": "B2-012"
+    },
+    {
+      "thai": "เบ้ามือโด",
+      "english": "Door Handle Housing",
+      "code": "DOO2",
+      "category": "hardware",
+      "price": 750,
+      "unit": "ชิ้น",
+      "supplier": "Hardware Plus",
+      "in_stock": 18,
+      "min_stock": 5,
+      "location": "E1-007"
+    },
+    {
+      "thai": "ที่ปัดน้ำฝน",
+      "english": "Windshield Wiper",
+      "code": "WIN2",
+      "category": "accessories",
+      "price": 450,
+      "unit": "คู่",
+      "supplier": "Accessory World",
+      "in_stock": 35,
+      "min_stock": 10,
+      "location": "F1-001"
+    },
+    {
+      "thai": "กันโคลนหน้า",
+      "english": "Front Fender",
+      "code": "FEN1",
+      "category": "body",
+      "price": 6500,
+      "unit": "ชิ้น",
+      "supplier": "Body Parts Co.",
+      "in_stock": 12,
+      "min_stock": 3,
+      "location": "C1-025"
+    },
+    {
+      "thai": "หม้อน้ำ",
+      "english": "Radiator",
+      "code": "RAD1",
+      "category": "cooling",
+      "price": 12500,
+      "unit": "ชิ้น",
+      "supplier": "Cooling Systems",
+      "in_stock": 8,
+      "min_stock": 2,
+      "location": "G1-010"
+    },
+    {
+      "thai": "เครื่องยนต์",
+      "english": "Engine",
+      "code": "ENG1",
+      "category": "engine",
+      "price": 85000,
+      "unit": "ชิ้น",
+      "supplier": "Engine Masters",
+      "in_stock": 3,
+      "min_stock": 1,
+      "location": "H1-001"
+    },
+    {
+      "thai": "เกียร์",
+      "english": "Transmission",
+      "code": "TRA1",
+      "category": "transmission",
+      "price": 45000,
+      "unit": "ชิ้น",
+      "supplier": "Transmission Pro",
+      "in_stock": 5,
+      "min_stock": 1,
+      "location": "H1-005"
+    },
+    {
+      "thai": "ห้ามล้อ",
+      "english": "Brake System",
+      "code": "BRA1",
+      "category": "brakes",
+      "price": 3500,
+      "unit": "ชุด",
+      "supplier": "Brake Solutions",
+      "in_stock": 15,
+      "min_stock": 4,
+      "location": "I1-010"
+    },
+    {
+      "thai": "ยางรถ",
+      "english": "Tire",
+      "code": "TIR1",
+      "category": "wheels",
+      "price": 2800,
+      "unit": "เส้น",
+      "supplier": "Tire World",
+      "in_stock": 40,
+      "min_stock": 12,
+      "location": "J1-001"
+    },
+    {
+      "thai": "แบตเตอรี่",
+      "english": "Battery",
+      "code": "BAT1",
+      "category": "electrical",
+      "price": 3200,
+      "unit": "ก้อน",
+      "supplier": "Power Systems",
+      "in_stock": 20,
+      "min_stock": 5,
+      "location": "K1-005"
+    },
+    {
+      "thai": "ไดนาโม",
+      "english": "Alternator",
+      "code": "ALT1",
+      "category": "electrical",
+      "price": 4500,
+      "unit": "ชิ้น",
+      "supplier": "Electrical Parts",
+      "in_stock": 12,
+      "min_stock": 3,
+      "location": "K1-010"
+    },
+    {
+      "thai": "มอเตอร์สตาร์ท",
+      "english": "Starter Motor",
+      "code": "STA1",
+      "category": "electrical",
+      "price": 5500,
+      "unit": "ชิ้น",
+      "supplier": "Electrical Parts",
+      "in_stock": 8,
+      "min_stock": 2,
+      "location": "K1-015"
+    },
+    {
+      "thai": "ครัช",
+      "english": "Clutch",
+      "code": "CLU1",
+      "category": "transmission",
+      "price": 8500,
+      "unit": "ชุด",
+      "supplier": "Transmission Pro",
+      "in_stock": 10,
+      "min_stock": 2,
+      "location": "H1-020"
+    },
+    {
+      "thai": "น้ำมันเครื่อง",
+      "english": "Engine Oil",
+      "code": "OIL1",
+      "category": "fluids",
+      "price": 350,
+      "unit": "ลิตร",
+      "supplier": "Oil Solutions",
+      "in_stock": 100,
+      "min_stock": 25,
+      "location": "L1-001"
+    },
+    {
+      "thai": "น้ำมันเกียร์",
+      "english": "Transmission Fluid",
+      "code": "OIL2",
+      "category": "fluids",
+      "price": 280,
+      "unit": "ลิตร",
+      "supplier": "Oil Solutions",
+      "in_stock": 80,
+      "min_stock": 20,
+      "location": "L1-005"
+    },
+    {
+      "thai": "น้ำมันเบรค",
+      "english": "Brake Fluid",
+      "code": "OIL3",
+      "category": "fluids",
+      "price": 180,
+      "unit": "ลิตร",
+      "supplier": "Oil Solutions",
+      "in_stock": 60,
+      "min_stock": 15,
+      "location": "L1-010"
+    },
+    {
+      "thai": "ไส้กรองอากาศ",
+      "english": "Air Filter",
+      "code": "FIL1",
+      "category": "filters",
+      "price": 450,
+      "unit": "ชิ้น",
+      "supplier": "Filter Pro",
+      "in_stock": 25,
+      "min_stock": 8,
+      "location": "M1-001"
+    },
+    {
+      "thai": "ไส้กรองน้ำมัน",
+      "english": "Oil Filter",
+      "code": "FIL2",
+      "category": "filters",
+      "price": 320,
+      "unit": "ชิ้น",
+      "supplier": "Filter Pro",
+      "in_stock": 30,
+      "min_stock": 10,
+      "location": "M1-005"
+    },
+    {
+      "thai": "ไส้กรองน้ำมันเชื้อเพลิง",
+      "english": "Fuel Filter",
+      "code": "FIL3",
+      "category": "filters",
+      "price": 380,
+      "unit": "ชิ้น",
+      "supplier": "Filter Pro",
+      "in_stock": 20,
+      "min_stock": 6,
+      "location": "M1-010"
+    },
+    {
+      "thai": "หูช้าง",
+      "english": "Engine Mount",
+      "code": "MOU1",
+      "category": "engine",
+      "price": 1200,
+      "unit": "ชิ้น",
+      "supplier": "Engine Masters",
+      "in_stock": 15,
+      "min_stock": 4,
+      "location": "H1-030"
+    },
+    {
+      "thai": "โซ่ไทม์มิ่ง",
+      "english": "Timing Chain",
+      "code": "TIM1",
+      "category": "engine",
+      "price": 2800,
+      "unit": "ชิ้น",
+      "supplier": "Engine Masters",
+      "in_stock": 12,
+      "min_stock": 3,
+      "location": "H1-035"
+    },
+    {
+      "thai": "ปั๊มน้ำ",
+      "english": "Water Pump",
+      "code": "PUM1",
+      "category": "cooling",
+      "price": 3500,
+      "unit": "ชิ้น",
+      "supplier": "Cooling Systems",
+      "in_stock": 10,
+      "min_stock": 2,
+      "location": "G1-015"
+    },
+    {
+      "thai": "เทอร์โมสตัท",
+      "english": "Thermostat",
+      "code": "THE1",
+      "category": "cooling",
+      "price": 650,
+      "unit": "ชิ้น",
+      "supplier": "Cooling Systems",
+      "in_stock": 18,
+      "min_stock": 5,
+      "location": "G1-020"
+    }
+  ],
+  "categories": [
+    {
+      "id": "exterior",
+      "name_thai": "ชิ้นส่วนภายนอก",
+      "name_english": "Exterior Parts",
+      "color": "#3498db"
+    },
+    {
+      "id": "lighting",
+      "name_thai": "ระบบไฟ",
+      "name_english": "Lighting System",
+      "color": "#f39c12"
+    },
+    {
+      "id": "body",
+      "name_thai": "โครงสร้างตัวถัง",
+      "name_english": "Body Structure",
+      "color": "#e74c3c"
+    },
+    {
+      "id": "glass",
+      "name_thai": "กระจก",
+      "name_english": "Glass & Windows",
+      "color": "#9b59b6"
+    },
+    {
+      "id": "hardware",
+      "name_thai": "อุปกรณ์ฮาร์ดแวร์",
+      "name_english": "Hardware Components",
+      "color": "#34495e"
+    },
+    {
+      "id": "accessories",
+      "name_thai": "อุปกรณ์เสริม",
+      "name_english": "Accessories",
+      "color": "#16a085"
+    },
+    {
+      "id": "cooling",
+      "name_thai": "ระบบหล่อเย็น",
+      "name_english": "Cooling System",
+      "color": "#2980b9"
+    },
+    {
+      "id": "engine",
+      "name_thai": "เครื่องยนต์",
+      "name_english": "Engine Components",
+      "color": "#27ae60"
+    },
+    {
+      "id": "transmission",
+      "name_thai": "ระบบส่งกำลัง",
+      "name_english": "Transmission System",
+      "color": "#8e44ad"
+    },
+    {
+      "id": "brakes",
+      "name_thai": "ระบบเบรค",
+      "name_english": "Brake System",
+      "color": "#c0392b"
+    },
+    {
+      "id": "wheels",
+      "name_thai": "ล้อและยาง",
+      "name_english": "Wheels & Tires",
+      "color": "#d35400"
+    },
+    {
+      "id": "electrical",
+      "name_thai": "ระบบไฟฟ้า",
+      "name_english": "Electrical System",
+      "color": "#f1c40f"
+    },
+    {
+      "id": "fluids",
+      "name_thai": "น้ำมันและของเหลว",
+      "name_english": "Fluids & Lubricants",
+      "color": "#1abc9c"
+    },
+    {
+      "id": "filters",
+      "name_thai": "ไส้กรอง",
+      "name_english": "Filters",
+      "color": "#95a5a6"
+    }
+  ],
+  "suppliers": [
+    {
+      "id": "thai_auto_parts",
+      "name": "Thai Auto Parts",
+      "contact": "02-123-4567",
+      "email": "info@thaiautoparts.com",
+      "address": "123 สุขุมวิท กรุงเทพฯ"
+    },
+    {
+      "id": "lighting_solutions",
+      "name": "Lighting Solutions",
+      "contact": "02-234-5678",
+      "email": "sales@lightingsolutions.com",
+      "address": "456 รัชดาภิเษก กรุงเทพฯ"
+    },
+    {
+      "id": "body_parts_co",
+      "name": "Body Parts Co.",
+      "contact": "02-345-6789",
+      "email": "orders@bodyparts.co.th",
+      "address": "789 พระราม 4 กรุงเทพฯ"
+    },
+    {
+      "id": "glass_world",
+      "name": "Glass World",
+      "contact": "02-456-7890",
+      "email": "info@glassworld.co.th",
+      "address": "321 ลาดพร้าว กรุงเทพฯ"
+    },
+    {
+      "id": "hardware_plus",
+      "name": "Hardware Plus",
+      "contact": "02-567-8901",
+      "email": "sales@hardwareplus.com",
+      "address": "654 บางนา กรุงเทพฯ"
+    },
+    {
+      "id": "accessory_world",
+      "name": "Accessory World",
+      "contact": "02-678-9012",
+      "email": "info@accessoryworld.co.th",
+      "address": "987 สาทร กรุงเทพฯ"
+    },
+    {
+      "id": "cooling_systems",
+      "name": "Cooling Systems",
+      "contact": "02-789-0123",
+      "email": "sales@coolingsystems.com",
+      "address": "147 วิภาวดี กรุงเทพฯ"
+    },
+    {
+      "id": "engine_masters",
+      "name": "Engine Masters",
+      "contact": "02-890-1234",
+      "email": "parts@enginemasters.co.th",
+      "address": "258 รามอินทรา กรุงเทพฯ"
+    },
+    {
+      "id": "transmission_pro",
+      "name": "Transmission Pro",
+      "contact": "02-901-2345",
+      "email": "info@transmissionpro.com",
+      "address": "369 เพชรบุรี กรุงเทพฯ"
+    },
+    {
+      "id": "brake_solutions",
+      "name": "Brake Solutions",
+      "contact": "02-012-3456",
+      "email": "sales@brakesolutions.co.th",
+      "address": "741 อโศก กรุงเทพฯ"
+    },
+    {
+      "id": "tire_world",
+      "name": "Tire World",
+      "contact": "02-123-4567",
+      "email": "info@tireworld.com",
+      "address": "852 หัวหมาก กรุงเทพฯ"
+    },
+    {
+      "id": "power_systems",
+      "name": "Power Systems",
+      "contact": "02-234-5678",
+      "email": "sales@powersystems.co.th",
+      "address": "963 ปิ่นเกล้า กรุงเทพฯ"
+    },
+    {
+      "id": "electrical_parts",
+      "name": "Electrical Parts",
+      "contact": "02-345-6789",
+      "email": "orders@electricalparts.com",
+      "address": "159 รัตนาธิเบศร์ กรุงเทพฯ"
+    },
+    {
+      "id": "oil_solutions",
+      "name": "Oil Solutions",
+      "contact": "02-456-7890",
+      "email": "info@oilsolutions.co.th",
+      "address": "753 งามวงศ์วาน กรุงเทพฯ"
+    },
+    {
+      "id": "filter_pro",
+      "name": "Filter Pro",
+      "contact": "02-567-8901",
+      "email": "sales@filterpro.com",
+      "address": "486 แจ้งวัฒนะ กรุงเทพฯ"
+    }
+  ],
+  "warehouse_locations": [
+    {
+      "zone": "A",
+      "description": "Exterior Parts Zone",
+      "sections": ["A1", "A2"]
+    },
+    {
+      "zone": "B",
+      "description": "Lighting Systems Zone",
+      "sections": ["B1", "B2"]
+    },
+    {
+      "zone": "C",
+      "description": "Body Parts Zone",
+      "sections": ["C1", "C2"]
+    },
+    {
+      "zone": "D",
+      "description": "Glass & Windows Zone",
+      "sections": ["D1"]
+    },
+    {
+      "zone": "E",
+      "description": "Hardware Zone",
+      "sections": ["E1"]
+    },
+    {
+      "zone": "F",
+      "description": "Accessories Zone",
+      "sections": ["F1"]
+    },
+    {
+      "zone": "G",
+      "description": "Cooling Systems Zone",
+      "sections": ["G1"]
+    },
+    {
+      "zone": "H",
+      "description": "Engine & Transmission Zone",
+      "sections": ["H1"]
+    },
+    {
+      "zone": "I",
+      "description": "Brake Systems Zone",
+      "sections": ["I1"]
+    },
+    {
+      "zone": "J",
+      "description": "Wheels & Tires Zone",
+      "sections": ["J1"]
+    },
+    {
+      "zone": "K",
+      "description": "Electrical Systems Zone",
+      "sections": ["K1"]
+    },
+    {
+      "zone": "L",
+      "description": "Fluids & Lubricants Zone",
+      "sections": ["L1"]
+    },
+    {
+      "zone": "M",
+      "description": "Filters Zone",
+      "sections": ["M1"]
+    }
+  ]
+}
