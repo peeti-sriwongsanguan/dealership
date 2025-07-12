@@ -838,6 +838,37 @@ class VehiclesModule {
                                     placeholder="e.g. 2.0L, V6"
                                 >
                             </div>
+
+                            <div class="form-section">
+                                <h3 class="form-section-title">🛡️ Insurance Information</h3>
+                                <div class="form-row">
+                                     <div class="form-group">
+                                        <label class="form-label">Insurance Company</label>
+                                        <input type="text" name="insurance_company" class="form-input" placeholder="e.g. Progressive">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Policy Number</label>
+                                        <input type="text" name="insurance_policy_number" class="form-input" placeholder="e.g. ABC123456789">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label">Insurance Class</label>
+                                        <select name="insurance_class" class="form-input">
+                                            <option value="">Select Class</option>
+                                            <option value="1">Class 1 - Full Coverage</option>
+                                            <option value="2">Class 2</option>
+                                            <option value="3">Class 3 - Liability Only</option>
+                                            <option value="4">Class 4</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Expiration Date</label>
+                                        <input type="date" name="insurance_expiration_date" class="form-input">
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
 
@@ -931,6 +962,10 @@ class VehiclesModule {
                 mileage: formData.get('mileage') ? parseInt(formData.get('mileage')) : null,
                 engine_size: formData.get('engine_size').trim(),
                 customer_id: parseInt(formData.get('customer_id')),
+                insurance_company: formData.get('insurance_company'),
+                insurance_policy_number: formData.get('insurance_policy_number'),
+                insurance_class: formData.get('insurance_class'),
+                insurance_expiration_date: formData.get('insurance_expiration_date'),
                 notes: formData.get('notes').trim()
             };
 
