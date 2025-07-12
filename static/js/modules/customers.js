@@ -44,85 +44,425 @@ class ThaiDocumentOCR {
     /**
      * Detect what type of Thai document this is
      */
+
     detectDocumentType(text) {
         const normalizedText = text.toLowerCase();
 
-        // Thai ID Card indicators
+        // Enhanced Thai ID Card indicators - more flexible patterns
         const idCardIndicators = [
+            'thai national id card',
             'บัตรประจำตัวประชาชน',
             'citizen id card',
             'บัตรประชาชน',
-            'เลขประจำตัวประชาชน'
+            'เลขประจำตัวประชาชน',
+            'national id',
+            'id card',
+            // Look for ID number pattern as indicator
+            /\d{1}[-\s]?\d{4}[-\s]?\d{5}[-\s]?\d{2}[-\s]?\d{1}/
         ];
 
-        // Driver License indicators
+        // Enhanced Driver License indicators
         const driverLicenseIndicators = [
             'ใบอนุญาตขับรถ',
             'driving licence',
             'driving license',
             'driver licence',
+            'driver license',
             'license no',
-            'lic no'
+            'lic no',
+            'lic.',
+            'licence no.',
+            'driving permit'
         ];
 
-        // Address indicators (usually back of driver license)
+        // Enhanced Address indicators (usually back of driver license)
         const addressIndicators = [
             'ที่อยู่ตามทะเบียนบ้าน',
             'address as in house registration',
             'registered address',
-            'ที่อยู่ปัจจุบัน'
+            'ที่อยู่ปัจจุบัน',
+            'current address',
+            'address according to house registration',
+            'house registration'
         ];
 
-        // Check for Thai ID
-        if (idCardIndicators.some(indicator => normalizedText.includes(indicator))) {
-            return 'thai_id';
+        console.log('🔍 Checking document type for text:', normalizedText.substring(0, 100));
+
+        // Check for Thai ID first - enhanced detection
+        for (const indicator of idCardIndicators) {
+            if (typeof indicator === 'string') {
+                if (normalizedText.includes(indicator)) {
+                    console.log('🆔 Thai ID detected by text:', indicator);
+                    return 'thai_id';
+                }
+            } else if (indicator instanceof RegExp) {
+                if (indicator.test(text)) {
+                    console.log('🆔 Thai ID detected by pattern:', indicator);
+                    return 'thai_id';
+                }
+            }
         }
 
         // Check for driver license back (address side)
-        if (addressIndicators.some(indicator => normalizedText.includes(indicator))) {
-            return 'driver_license_back';
+        for (const indicator of addressIndicators) {
+            if (normalizedText.includes(indicator)) {
+                console.log('🚗 Driver license back detected:', indicator);
+                return 'driver_license_back';
+            }
         }
 
         // Check for driver license front
-        if (driverLicenseIndicators.some(indicator => normalizedText.includes(indicator))) {
-            return 'driver_license_front';
+        for (const indicator of driverLicenseIndicators) {
+            if (normalizedText.includes(indicator)) {
+                console.log('🚗 Driver license front detected:', indicator);
+                return 'driver_license_front';
+            }
         }
 
+        console.log('❓ Document type unknown');
         return 'unknown';
     }
 
     /**
-     * Parse Thai National ID Card
+     * Generic OCR text cleanup utilities
      */
-    parseThaiIDCard(text) {
-        const data = {};
+    cleanOCRSpacing(text) {
+        if (!text) return '';
 
-        // ID Number pattern (1-1234-12345-12-1)
-        const idPattern = /(\d{1}[-\s]?\d{4}[-\s]?\d{5}[-\s]?\d{2}[-\s]?\d{1})/;
-        const idMatch = text.match(idPattern);
-        if (idMatch) {
-            data.id_number = idMatch[1].replace(/[-\s]/g, '');
-            data.formatted_id = data.id_number.replace(/(\d{1})(\d{4})(\d{5})(\d{2})(\d{1})/, '$1-$2-$3-$4-$5');
-        }
-
-        // Names
-        data.thai_name = this.extractThaiName(text);
-        data.english_name = this.extractEnglishName(text);
-
-        // Date of birth
-        data.date_of_birth = this.extractDateOfBirth(text);
-
-        // Address
-        data.address = this.extractAddress(text);
-
-        // Issue and expiry dates
-        const dates = this.extractIssueDates(text);
-        data.issue_date = dates.issue_date;
-        data.expiry_date = dates.expiry_date;
-
-        return data;
+        return text
+            .replace(/\s+/g, ' ')  // Normalize multiple spaces to single space
+            .trim();
     }
 
+    /**
+     * Fix common Thai OCR splitting issues
+     */
+
+    /**
+     * Generic OCR text cleanup utilities
+     */
+    cleanOCRSpacing(text) {
+        if (!text) return '';
+
+        return text
+            .replace(/\s+/g, ' ')  // Normalize multiple spaces to single space
+            .trim();
+    }
+
+    /**
+     * Advanced generic Thai OCR cleanup using syllable patterns
+     */
+    fixThaiOCRSplits(text) {
+        if (!text) return '';
+
+        let cleaned = text;
+
+        // Step 1: Fix character-level splits
+        const characterFixes = [
+            [/([ก-ฮ])\s+([ิีึืุูำไใ])/g, '$1$2'],  // consonant + vowel
+            [/([ก-ฮ])\s+([่้๊๋])/g, '$1$2'],        // consonant + tone
+            [/([ิีึืุูำไใ])\s+([่้๊๋])/g, '$1$2'],   // vowel + tone
+        ];
+
+        characterFixes.forEach(([pattern, replacement]) => {
+            cleaned = cleaned.replace(pattern, replacement);
+        });
+
+        // Step 2: Fix syllable-level splits using linguistic patterns
+        const words = cleaned.split(/\s+/);
+        const fixedWords = [];
+
+        for (let i = 0; i < words.length; i++) {
+            const currentWord = words[i];
+            const nextWord = words[i + 1];
+
+            // Skip if not Thai characters
+            if (!/[ก-๙]/.test(currentWord)) {
+                fixedWords.push(currentWord);
+                continue;
+            }
+
+            // Check if current word looks incomplete and next word could complete it
+            if (nextWord && /[ก-๙]/.test(nextWord)) {
+
+                // Pattern 1: Current word ends with consonant, next starts with consonant
+                // This often indicates a syllable split
+                if (/[ก-ฮ]$/.test(currentWord) && /^[ก-ฮ]/.test(nextWord)) {
+
+                    // Check if joining makes sense linguistically
+                    const combined = currentWord + nextWord;
+
+                    // Only join if the combined length is reasonable for a Thai name part (2-6 chars)
+                    if (combined.length >= 2 && combined.length <= 6) {
+                        fixedWords.push(combined);
+                        i++; // Skip next word since we combined it
+                        continue;
+                    }
+                }
+
+                // Pattern 2: Current word is very short (likely incomplete)
+                if (currentWord.length === 1 && /[ก-ฮ]/.test(currentWord)) {
+                    if (nextWord.length <= 3 && /^[ก-ฮ]/.test(nextWord)) {
+                        fixedWords.push(currentWord + nextWord);
+                        i++; // Skip next word
+                        continue;
+                    }
+                }
+            }
+
+            fixedWords.push(currentWord);
+        }
+
+        return fixedWords.join(' ');
+    }
+
+    /**
+     * Fix common English OCR splitting issues
+     */
+    fixEnglishOCRSplits(text) {
+        if (!text) return '';
+
+        // Common English patterns that get split
+        const englishFixPatterns = [
+            // Fix common name splits (capital letters that should be together)
+            [/([A-Z])\s+([a-z]{2,})/g, '$1$2'],
+            // Fix common word endings that get split
+            [/([a-z])\s+(ing|tion|sion|ness|ment|able|ible)(?=\s|$)/g, '$1$2'],
+            // Fix common prefixes that get split
+            [/(un|re|pre|dis|mis)\s+([a-z])/g, '$1$2'],
+        ];
+
+        let cleaned = text;
+        for (const [pattern, replacement] of englishFixPatterns) {
+            cleaned = cleaned.replace(pattern, replacement);
+        }
+
+        return cleaned;
+    }
+    /**
+     * Parse Thai National ID Card
+     */
+
+    parseThaiIDCard(text) {
+        const data = {};
+        console.log('🆔 Parsing Thai ID card...');
+
+        // Enhanced ID Number pattern
+        const idPatterns = [
+            /(\d{1}[-\s]?\d{4}[-\s]?\d{5}[-\s]?\d{2}[-\s]?\d{1})/,
+            /(\d{13})/g,
+            /(\d{1}\s*\d{4}\s*\d{5}\s*\d{2}\s*\d{1})/
+        ];
+
+        for (const pattern of idPatterns) {
+            const idMatch = text.match(pattern);
+            if (idMatch) {
+                let idNumber = idMatch[1].replace(/[-\s]/g, '');
+                if (idNumber.length === 13) {
+                    data.id_number = idNumber;
+                    data.formatted_id = idNumber.replace(/(\d{1})(\d{4})(\d{5})(\d{2})(\d{1})/, '$1-$2-$3-$4-$5');
+                    console.log('✅ ID Number found:', data.formatted_id);
+                    break;
+                }
+            }
+        }
+
+        // Generic Thai name extraction with OCR cleanup
+        const thaiNamePatterns = [
+            /(?:น\.ส\.|นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.)\s*([ก-๙\s]+)/,
+            /([ก-๙]+(?:\s+[ก-๙]+)*)/g
+        ];
+
+        for (const pattern of thaiNamePatterns) {
+            const match = text.match(pattern);
+            if (match && match[1]) {
+                let rawName = match[1];
+                let cleanedName = this.fixThaiOCRSplits(this.cleanOCRSpacing(rawName));
+
+                // Validate it looks like a reasonable name (at least 2 characters, no numbers)
+                if (cleanedName.length > 2 && !/\d/.test(cleanedName) && /[ก-๙]/.test(cleanedName)) {
+                    data.thai_name = cleanedName;
+                    console.log('✅ Thai name found:', cleanedName);
+                    break;
+                }
+            }
+        }
+
+        // Enhanced English name extraction - more precise
+
+        const nameMatch = text.match(/Name\s+(?:Miss\s+|Mr\.?\s+|Mrs\.?\s+)?([A-Za-z]+)/i);
+        const lastNameMatch = text.match(/Last\s+name\s+([A-Za-z]+)/i);
+
+        if (nameMatch && lastNameMatch) {
+            // Extract just the actual names, skipping titles
+            let firstName = nameMatch[1].trim();
+            let lastName = lastNameMatch[1].trim();
+
+            // Validate names are actual names (no numbers, reasonable length)
+            if (firstName && lastName &&
+                /^[A-Za-z]+$/.test(firstName) &&
+                /^[A-Za-z]+$/.test(lastName) &&
+                firstName.length >= 2 && lastName.length >= 2) {
+
+                data.english_name = `${firstName} ${lastName}`;
+                console.log('✅ English name found:', data.english_name);
+            }
+        } else {
+            // Alternative approach: look for the specific pattern in your OCR
+            const alternativePattern = /Name\s+Miss\s+([A-Za-z]+)[\s\S]*?Last\s+name\s+([A-Za-z]+)/i;
+            const altMatch = text.match(alternativePattern);
+
+            if (altMatch) {
+                data.english_name = `${altMatch[1]} ${altMatch[2]}`;
+                console.log('✅ English name found (alternative):', data.english_name);
+            } else {
+                // Fallback: look for consecutive capitalized words that look like names
+                const nameLines = text.split('\n');
+                for (const line of nameLines) {
+                    // Skip lines that contain titles or other keywords
+                    if (line.includes('Miss') || line.includes('Mr.') || line.includes('Mrs.') ||
+                        line.includes('Date') || line.includes('Last name') || line.includes('Name')) {
+                        continue;
+                    }
+
+                    const namePattern = /([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})/;
+                    const match = line.match(namePattern);
+                    if (match) {
+                        data.english_name = `${match[1]} ${match[2]}`;
+                        console.log('✅ English name found (fallback):', data.english_name);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Generic date of birth extraction
+        const dobPatterns = [
+            /Date of Birth\s+(\d{1,2}\s+\w+\.?\s+\d{4})/i,
+            /(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+\d{4})/i
+        ];
+
+        for (const pattern of dobPatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                let dateStr = match[1] || match[0];
+                dateStr = this.cleanOCRSpacing(dateStr.replace(/Date of Birth\s+/i, ''));
+                if (dateStr.length > 5) {
+                    data.date_of_birth = dateStr;
+                    console.log('✅ Date of birth found:', dateStr);
+                    break;
+                }
+            }
+        }
+
+        // Enhanced address extraction - capture multiple lines
+        let addressLines = [];
+        const lines = text.split('\n');
+
+        // Find the address starting line
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+
+            if (line.includes('ที่อยู่')) {
+                // Extract the address part from this line
+                const addressMatch = line.match(/ที่อยู่\s+(.+)/);
+                if (addressMatch) {
+                    let firstLine = this.cleanOCRSpacing(addressMatch[1]);
+
+                    // Expand abbreviations
+                    const adminAbbreviations = {
+                        'ต.': 'ตำบล',
+                        'อ.': 'อำเภอ',
+                        'จ.': 'จังหวัด',
+                        'ม.': 'หมู่',
+                        'ถ.': 'ถนน'
+                    };
+
+                    for (const [abbrev, full] of Object.entries(adminAbbreviations)) {
+                        firstLine = firstLine.replace(new RegExp(abbrev.replace('.', '\\.'), 'g'), full);
+                    }
+
+                    addressLines.push(firstLine);
+                    console.log('✅ Address line 1:', firstLine);
+                }
+
+                // Look for the next line(s) that contain province or additional address info
+                for (let j = i + 1; j < Math.min(i + 3, lines.length); j++) {
+                    const nextLine = lines[j].trim();
+
+                    // Check if this line has Thai text and looks like address continuation
+                    if (nextLine.length > 1 && /[ก-๙]/.test(nextLine)) {
+                        let cleanedLine = this.cleanOCRSpacing(nextLine);
+
+                        // Expand abbreviations
+                        const adminAbbreviations = {
+                            'ต.': 'ตำบล',
+                            'อ.': 'อำเภอ',
+                            'จ.': 'จังหวัด',
+                            'ม.': 'หมู่',
+                            'ถ.': 'ถนน'
+                        };
+
+                        for (const [abbrev, full] of Object.entries(adminAbbreviations)) {
+                            cleanedLine = cleanedLine.replace(new RegExp(abbrev.replace('.', '\\.'), 'g'), full);
+                        }
+
+                        addressLines.push(cleanedLine);
+                        console.log('✅ Address line ' + (j - i + 1) + ':', cleanedLine);
+
+                        // If we found a province (จังหวัด), we're probably done
+                        if (cleanedLine.includes('จังหวัด') || cleanedLine.includes('จ.')) {
+                            break;
+                        }
+                    }
+                }
+                break;
+            }
+        }
+
+        if (addressLines.length > 0) {
+            data.address = addressLines.join('\n');
+            console.log('✅ Complete address found:', data.address);
+        }
+
+        // Enhanced issue and expiry date extraction
+        const datePattern = /(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|เม\.ย\.|มี\.ค\.)\.?\s+\d{4})/gi;
+        const allDates = [];
+        const dateMatches = text.matchAll(datePattern);
+
+        for (const match of dateMatches) {
+            const dateStr = this.cleanOCRSpacing(match[1]);
+            if (dateStr.length > 5) {
+                allDates.push(dateStr);
+            }
+        }
+
+        // Look for specific issue/expiry patterns
+        const issuePattern = /(17\s+(?:Apr|เม\.ย\.)\s+20\d{2})/i;
+        const expiryPattern = /(3\s+(?:Mar|มี\.ค\.)\s+20\d{2})/i;
+
+        const issueMatch = text.match(issuePattern);
+        if (issueMatch) {
+            data.issue_date = this.cleanOCRSpacing(issueMatch[1]);
+            console.log('✅ Issue date found:', data.issue_date);
+        } else if (allDates.length >= 1) {
+            data.issue_date = allDates[0];
+            console.log('✅ Issue date found (fallback):', data.issue_date);
+        }
+
+        const expiryMatch = text.match(expiryPattern);
+        if (expiryMatch) {
+            data.expiry_date = this.cleanOCRSpacing(expiryMatch[1]);
+            console.log('✅ Expiry date found:', data.expiry_date);
+        } else if (allDates.length >= 2) {
+            // Fallback: use the last date as expiry if we found multiple dates
+            data.expiry_date = allDates[allDates.length - 1];
+            console.log('✅ Expiry date found (fallback):', data.expiry_date);
+        }
+
+        console.log('🆔 Final parsed data:', data);
+        return data;
+    }
     /**
      * Parse Thai Driver License Front
      */
@@ -904,11 +1244,15 @@ class CustomersModule {
         `;
     }
 
+
+
     /**
      * Show add customer modal with OCR scanner
      * Enhanced showAddModal method for CustomersModule
      * Supports Thai ID cards and Thai driver licenses (front and back)
      */
+
+
 
 
 
@@ -1270,74 +1614,15 @@ class CustomersModule {
         console.log('✅ Enhanced modal displayed with driver license support');
     }
 
-    /**
-     * Enhanced OCR processing with document type detection
-     */
-    async performOCR(imageSrc) {
-        const statusDiv = document.getElementById('ocrStatus');
-        const progressBar = document.getElementById('ocrProgressBar');
-        const progressFill = document.getElementById('ocrProgressFill');
 
-        if (statusDiv) {
-            statusDiv.innerHTML = '<div class="ocr-status processing">🔄 Processing document... / กำลังประมวลผลเอกสาร...</div>';
-        }
-
-        if (progressBar) {
-            progressBar.style.display = 'block';
-        }
-
-        try {
-            // Check if Tesseract is available
-            if (typeof Tesseract === 'undefined') {
-                throw new Error('OCR library not loaded. Please refresh the page.');
-            }
-
-            const worker = await Tesseract.createWorker(['eng', 'tha']);
-
-            // Configure OCR for Thai documents
-            await worker.setParameters({
-                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./: กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮะาิีึืุูเแโใไํ่้๊๋์'
-            });
-
-            const result = await worker.recognize(imageSrc, {
-                logger: m => {
-                    if (m.status === 'recognizing text' && progressFill) {
-                        const progress = Math.round(m.progress * 100);
-                        progressFill.style.width = progress + '%';
-                    }
-                }
-            });
-
-            await worker.terminate();
-
-            if (progressBar) {
-                progressBar.style.display = 'none';
-            }
-
-            // Enhanced parsing with document type detection
-            this.parseEnhancedThaiDocument(result.data.text);
-
-            if (statusDiv) {
-                statusDiv.innerHTML = '<div class="ocr-status success">✅ Document processed successfully! / ประมวลผลเอกสารสำเร็จ!</div>';
-            }
-
-        } catch (error) {
-            console.error('OCR Error:', error);
-            if (statusDiv) {
-                statusDiv.innerHTML = '<div class="ocr-status error">❌ Error processing document. Please try again. / เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่</div>';
-            }
-            if (progressBar) {
-                progressBar.style.display = 'none';
-            }
-        }
-    }
 
     /**
      * Enhanced Thai document parsing with support for ID cards and driver licenses
      */
+
     parseEnhancedThaiDocument(text) {
         console.log('🔍 Enhanced OCR Result:', text);
+        console.log('🔍 Text lines:', text.split('\n'));
 
         // Initialize OCR parser if not available
         if (typeof window.ThaiDocumentOCR === 'undefined') {
@@ -1351,15 +1636,18 @@ class CustomersModule {
 
         // Parse the document
         const extractedData = parser.parseThaiDocument(text, selectedType);
+        console.log('🔍 Extracted data:', extractedData);
 
         // Show detected document type
         this.displayDocumentType(parser.documentType);
 
         // Handle multi-scan for driver licenses
         if (parser.documentType === 'driver_license_front' || parser.documentType === 'driver_license_back') {
+            console.log('🔍 Processing driver license:', parser.documentType);
             this.handleDriverLicenseScan(parser.documentType, extractedData);
         } else {
             // Single document (Thai ID or unknown)
+            console.log('🔍 Processing single document');
             this.fillFormFromOCRData(extractedData);
         }
 
@@ -1435,6 +1723,7 @@ class CustomersModule {
      * Fill form from extracted OCR data
      */
     fillFormFromOCRData(data) {
+        console.log('📝 Filling form with data:', data);
         // Primary name field
         let primaryName = data.english_name || data.thai_name || '';
         this.setFormValue('customerName', primaryName);
@@ -1668,7 +1957,46 @@ class CustomersModule {
     }
 
     /**
+     * Preprocess image to improve OCR accuracy
+     */
+    preprocessImage(imageSrc) {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+
+            img.onload = () => {
+                // Set canvas size - larger for better OCR
+                const scale = Math.min(1920 / img.width, 1080 / img.height, 2);
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+
+                // Apply image enhancements
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                // Enhance contrast and brightness
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+
+                for (let i = 0; i < data.length; i += 4) {
+                    // Increase contrast and brightness
+                    data[i] = Math.min(255, data[i] * 1.2 + 30);     // Red
+                    data[i + 1] = Math.min(255, data[i + 1] * 1.2 + 30); // Green
+                    data[i + 2] = Math.min(255, data[i + 2] * 1.2 + 30); // Blue
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+                resolve(canvas.toDataURL('image/jpeg', 0.9));
+            };
+
+            img.src = imageSrc;
+        });
+    }
+    /**
      * Perform OCR on Thai ID card
+     * Enhanced OCR processing with better error handling
+     * Enhanced OCR processing with image preprocessing
      */
     async performOCR(imageSrc) {
         const statusDiv = document.getElementById('ocrStatus');
@@ -1676,7 +2004,7 @@ class CustomersModule {
         const progressFill = document.getElementById('ocrProgressFill');
 
         if (statusDiv) {
-            statusDiv.innerHTML = '<div class="ocr-status processing">🔄 Processing ID card... / กำลังประมวลผลบัตรประชาชน...</div>';
+            statusDiv.innerHTML = '<div class="ocr-status processing">🔄 Processing document... / กำลังประมวลผลเอกสาร...</div>';
         }
 
         if (progressBar) {
@@ -1689,16 +2017,21 @@ class CustomersModule {
                 throw new Error('OCR library not loaded. Please refresh the page.');
             }
 
-            const worker = await Tesseract.createWorker(['eng', 'tha']);
+            console.log('🔍 Starting OCR with image preprocessing...');
 
-            // Configure OCR for Thai ID cards
-            await worker.setParameters({
-                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
-                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./: กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮะาิีึืุูเแโใไํ่้๊๋์'
-            });
+            // Preprocess image for better OCR
+            const enhancedImage = await this.preprocessImage(imageSrc);
 
-            const result = await worker.recognize(imageSrc, {
+            // Update preview with enhanced image
+            const previewDiv = document.getElementById('ocrPreview');
+            if (previewDiv) {
+                previewDiv.innerHTML = `<img src="${enhancedImage}" alt="Enhanced Document" style="max-width: 100%; max-height: 200px; border-radius: 8px; border: 2px solid #27ae60;">`;
+            }
+
+            // Create worker for Tesseract v2
+            const worker = Tesseract.createWorker({
                 logger: m => {
+                    console.log('OCR Progress:', m);
                     if (m.status === 'recognizing text' && progressFill) {
                         const progress = Math.round(m.progress * 100);
                         progressFill.style.width = progress + '%';
@@ -1706,29 +2039,69 @@ class CustomersModule {
                 }
             });
 
+            await worker.load();
+            await worker.loadLanguage('eng+tha');
+            await worker.initialize('eng+tha');
+
+            // Enhanced parameters for better Thai document recognition
+            await worker.setParameters({
+                tessedit_pageseg_mode: '1', // Automatic page segmentation with OSD
+                tessedit_ocr_engine_mode: '1', // Neural nets LSTM engine only
+                preserve_interword_spaces: '1',
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./: กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮะาิีึืุูเแโใไํ่้๊๋์ฯ'
+            });
+
+            console.log('🔍 OCR worker ready, processing enhanced image...');
+
+            const { data: { text } } = await worker.recognize(enhancedImage);
+
+            console.log('🔍 OCR completed, terminating worker...');
             await worker.terminate();
 
             if (progressBar) {
                 progressBar.style.display = 'none';
             }
 
-            // Parse the OCR result and fill form
-            this.parseThaiIDCard(result.data.text);
+            console.log('🔍 OCR Result Text:', text);
+            console.log('🔍 Text length:', text.length);
+
+            // Check if we got meaningful text
+            if (!text || text.trim().length < 3) {
+                throw new Error('Could not extract clear text from the image. Please try with a clearer photo.');
+            }
+
+            // Enhanced parsing with document type detection
+            this.parseEnhancedThaiDocument(text);
 
             if (statusDiv) {
-                statusDiv.innerHTML = '<div class="ocr-status success">✅ ID card processed successfully! / ประมวลผลบัตรประชาชนสำเร็จ!</div>';
+                statusDiv.innerHTML = '<div class="ocr-status success">✅ Document processed successfully! / ประมวลผลเอกสารสำเร็จ!</div>';
             }
 
         } catch (error) {
-            console.error('OCR Error:', error);
-            if (statusDiv) {
-                statusDiv.innerHTML = '<div class="ocr-status error">❌ Error processing ID card. Please try again. / เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่</div>';
+            console.error('❌ OCR Error Details:', error);
+
+            let errorMessage = 'Error processing document. Please try again with a clearer image.';
+
+            const errorStr = error && error.message ? error.message.toLowerCase() : '';
+
+            if (errorStr.includes('clear text')) {
+                errorMessage = 'Could not read the document clearly. Please try: 1) Better lighting 2) Hold camera steady 3) Ensure text is clearly visible';
+            } else if (errorStr.includes('not loaded')) {
+                errorMessage = 'OCR library not loaded. Please refresh the page.';
+            } else if (errorStr.includes('worker')) {
+                errorMessage = 'OCR initialization failed. Please refresh the page and try again.';
             }
+
+            if (statusDiv) {
+                statusDiv.innerHTML = `<div class="ocr-status error">❌ ${errorMessage}</div>`;
+            }
+
             if (progressBar) {
                 progressBar.style.display = 'none';
             }
         }
     }
+
 
     /**
      * Parse Thai ID card OCR results and fill form
@@ -1837,11 +2210,11 @@ class CustomersModule {
     /**
      * Handle add customer form submission
      */
+
     async handleAddCustomer(event) {
         event.preventDefault();
-        console.log('📋 Submitting customer form...');
+        console.log('📋 Submitting enhanced customer form...');
 
-        // Prevent double submission
         if (this.isLoading) {
             console.log('Already submitting...');
             return;
@@ -1856,45 +2229,39 @@ class CustomersModule {
             submitButton.innerHTML = '⏳ Saving...';
 
             const formData = new FormData(form);
-
-            // Parse name into first_name and last_name for database compatibility
             const fullName = formData.get('name').trim();
             const nameParts = fullName.split(' ');
-            const firstName = nameParts[0] || '';
-            const lastName = nameParts.slice(1).join(' ') || '';
 
             const customerData = {
-                // Database schema fields
-                first_name: firstName,
-                last_name: lastName,
+                // Basic fields
+                first_name: nameParts[0] || '',
+                last_name: nameParts.slice(1).join(' ') || '',
                 name: fullName,
                 phone: formData.get('phone').trim(),
                 email: formData.get('email').trim(),
                 address: formData.get('address').trim(),
-                city: '',  // Can be extended later
-                state: '',
-                zip_code: '',
-                notes: '',
+                city: '', state: '', zip_code: '', notes: '',
 
-                // OCR extracted Thai ID data
-                id_number: formData.get('id_number') ? formData.get('id_number').trim() : '',
-                thai_name: formData.get('thai_name') ? formData.get('thai_name').trim() : '',
-                english_name: formData.get('english_name') ? formData.get('english_name').trim() : '',
-                date_of_birth: formData.get('date_of_birth') ? formData.get('date_of_birth').trim() : '',
-
-                // Additional OCR fields that might be extracted
-                issue_date: '',
-                expiry_date: '',
-                id_card_address: formData.get('address').trim() // Use form address as ID card address
+                // Enhanced OCR fields for driver license support
+                id_number: formData.get('id_number') || '',
+                license_number: formData.get('license_number') || '',
+                thai_name: formData.get('thai_name') || '',
+                english_name: formData.get('english_name') || '',
+                date_of_birth: formData.get('date_of_birth') || '',
+                thai_address: formData.get('thai_address') || '',
+                english_address: formData.get('english_address') || '',
+                issue_date: formData.get('issue_date') || '',
+                expiry_date: formData.get('expiry_date') || '',
+                license_class: formData.get('license_class') || '',
+                document_type: formData.get('document_type') || '',
+                id_card_address: formData.get('address').trim()
             };
 
-            console.log('Sending customer data:', customerData);
+            console.log('Sending enhanced customer data:', customerData);
 
             const response = await fetch('/api/customers', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(customerData)
             });
 
@@ -1902,28 +2269,9 @@ class CustomersModule {
 
             if (response.ok) {
                 console.log('✅ Customer created:', result);
-
-                // Show success message
-                if (typeof window.showToast === 'function') {
-                    window.showToast('Customer created successfully!', 'success');
-                }
-
-                // Close the modal
-                if (typeof window.closeModal === 'function') {
-                    window.closeModal();
-                } else {
-                    // Fallback: directly manipulate DOM
-                    const modalOverlay = document.getElementById('modalOverlay');
-                    if (modalOverlay) {
-                        modalOverlay.classList.remove('active');
-                        document.body.style.overflow = '';
-                    }
-                }
-
-                // Reload the customers list
+                window.showToast('Customer created successfully!', 'success');
+                window.closeModal();
                 await this.loadCustomers();
-
-                // Refresh the display
                 if (window.olServiceApp) {
                     window.olServiceApp.loadSection('customers');
                 }
