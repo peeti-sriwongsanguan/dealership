@@ -618,3 +618,157 @@
         --border-color-focus: #60a5fa;
     }
 }
+
+/* Toast Notifications */
+#toast-notification {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    max-width: 300px;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f4f6;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.status-approved {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.status-rejected {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.status-completed {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+/* Stock Status */
+.stock-status {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.stock-in-stock {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.stock-low-stock {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.stock-out-of-stock {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+/* Table Improvements */
+.truck-table tr:hover {
+    background-color: #f8fafc;
+}
+
+.truck-table th {
+    position: sticky;
+    top: 0;
+    background-color: white;
+    z-index: 10;
+}
+
+/* Form Enhancements */
+.truck-form-input:focus,
+.truck-table-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.required::after {
+    content: ' *';
+    color: #ef4444;
+}
+
+/* Responsive Improvements */
+@media (max-width: 768px) {
+    .truck-form-header {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .truck-form-row {
+        flex-direction: column;
+    }
+
+    .truck-nav-tabs {
+        flex-wrap: wrap;
+    }
+
+    .truck-tab-button {
+        flex: 1;
+        min-width: 120px;
+    }
+}
+
+/* Action Buttons */
+.truck-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.truck-btn:active {
+    transform: translateY(0);
+}
+
+/* Modal Improvements */
+.modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* Print Styles */
+@media print {
+    .truck-nav-container,
+    .truck-btn,
+    .modal-actions {
+        display: none !important;
+    }
+
+    .truck-repair-container {
+        box-shadow: none;
+        padding: 0;
+    }
+}

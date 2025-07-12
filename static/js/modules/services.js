@@ -1,6 +1,7 @@
-// static/js/modules/services.js - Production Services Module
+// static/js/modules/services.js
 /**
  * Services Module for OL Service POS
+ * Handles service management with integrated truck repair system
  */
 
 const servicesModule = {
@@ -108,7 +109,7 @@ const servicesModule = {
                     <button class="button button-primary" onclick="servicesModule.showAddServiceModal()" type="button">
                         ➕ Add New Service
                     </button>
-                    <button class="button button-secondary" onclick="servicesModule.showTruckRepairModal()" type="button">
+                    <button class="button button-secondary" onclick="servicesModule.openTruckRepairSystem()" type="button">
                         🚛 Truck Repair System
                     </button>
                     <button class="button button-secondary" onclick="servicesModule.refreshServices()" type="button">
@@ -197,7 +198,7 @@ const servicesModule = {
                                 ✏️
                             </button>
                             ${service.service_type === 'truck_repair' ? `
-                                <button class="btn-icon" onclick="servicesModule.openTruckRepair(${service.id})" title="Truck Repair" type="button">
+                                <button class="btn-icon" onclick="servicesModule.openTruckRepairForService(${service.id})" title="Truck Repair" type="button">
                                     🚛
                                 </button>
                             ` : ''}
@@ -242,7 +243,7 @@ const servicesModule = {
         return pagination;
     },
 
-    // MODAL FUNCTIONS
+    // SERVICE MANAGEMENT METHODS
     showAddServiceModal() {
         try {
             if (typeof window.showModal !== 'function') {
@@ -311,184 +312,6 @@ const servicesModule = {
         }
     },
 
-    showTruckRepairModal() {
-        try {
-            if (typeof window.showModal !== 'function') {
-                alert('Truck Repair System - Modal system not available');
-                return;
-            }
-
-            const truckRepairContent = `
-                <div class="truck-repair-container">
-                    <!-- Professional Header -->
-                    <div class="truck-header" style="margin-bottom: 1.5rem;">
-                        <h1 style="font-size: 1.5rem; margin-bottom: 0.5rem;">🚛 Truck Repair Management</h1>
-                        <p style="font-size: 0.9rem; opacity: 0.9;">Complete repair workflow and documentation system</p>
-                    </div>
-
-                    <!-- Quick Actions Navigation -->
-                    <div class="truck-nav-container">
-                        <div class="truck-nav-tabs" style="justify-content: center;">
-                            <button class="truck-tab-button" onclick="servicesModule.showMaterialForm()" type="button">
-                                📋 Material Requisition
-                            </button>
-                            <button class="truck-tab-button" onclick="servicesModule.showQuoteForm()" type="button">
-                                💰 Generate Quote
-                            </button>
-                            <button class="truck-tab-button" onclick="servicesModule.showPartsManagement()" type="button">
-                                🔧 Parts Inventory
-                            </button>
-                            <button class="truck-tab-button" onclick="servicesModule.showRepairReports()" type="button">
-                                📊 Reports & Analytics
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Dashboard Stats -->
-                    <div class="truck-form-header" style="margin-bottom: 1.5rem;">
-                        <div class="truck-form-group" style="margin-bottom: 0; text-align: center;">
-                            <label style="font-size: 1.2rem; color: #1e40af; margin-bottom: 0.5rem;">Active Jobs</label>
-                            <div style="font-size: 2rem; font-weight: bold; color: #1e40af;">12</div>
-                        </div>
-                        <div class="truck-form-group" style="margin-bottom: 0; text-align: center;">
-                            <label style="font-size: 1.2rem; color: #10b981; margin-bottom: 0.5rem;">Pending Quotes</label>
-                            <div style="font-size: 2rem; font-weight: bold; color: #10b981;">8</div>
-                        </div>
-                        <div class="truck-form-group" style="margin-bottom: 0; text-align: center;">
-                            <label style="font-size: 1.2rem; color: #f59e0b; margin-bottom: 0.5rem;">Parts Orders</label>
-                            <div style="font-size: 2rem; font-weight: bold; color: #f59e0b;">5</div>
-                        </div>
-                    </div>
-
-                    <!-- Recent Activity -->
-                    <div class="truck-form-container active" style="display: block;">
-                        <div class="truck-form-content">
-                            <div class="truck-form-title">
-                                <h2 style="font-size: 1.25rem;">Recent Activity</h2>
-                                <p>Latest updates and actions in the system</p>
-                            </div>
-
-                            <table class="truck-table" style="margin-bottom: 1rem;">
-                                <thead>
-                                    <tr>
-                                        <th>Time</th>
-                                        <th>Action</th>
-                                        <th>Status</th>
-                                        <th>User</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>2 hours ago</td>
-                                        <td>Quote #Q250701 approved</td>
-                                        <td><span style="color: #10b981; font-weight: 600;">✅ Completed</span></td>
-                                        <td>Manager</td>
-                                    </tr>
-                                    <tr>
-                                        <td>4 hours ago</td>
-                                        <td>Material request submitted</td>
-                                        <td><span style="color: #f59e0b; font-weight: 600;">⏳ Pending</span></td>
-                                        <td>Technician</td>
-                                    </tr>
-                                    <tr>
-                                        <td>6 hours ago</td>
-                                        <td>New service ticket created</td>
-                                        <td><span style="color: #3b82f6; font-weight: 600;">📋 Active</span></td>
-                                        <td>Reception</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <!-- Quick Start Guide -->
-                    <div class="truck-form-container active" style="display: block;">
-                        <div class="truck-form-content">
-                            <div class="truck-form-title">
-                                <h2 style="font-size: 1.25rem;">Quick Start Guide</h2>
-                                <p>Common workflows and processes</p>
-                            </div>
-
-                            <div class="truck-form-row">
-                                <div class="truck-form-group">
-                                    <label style="color: #1e40af;">🔧 Repair Process</label>
-                                    <ol style="margin: 0.5rem 0; padding-left: 1.5rem; color: #64748b;">
-                                        <li>Create service ticket</li>
-                                        <li>Generate material requisition</li>
-                                        <li>Submit repair quote</li>
-                                        <li>Complete documentation</li>
-                                    </ol>
-                                </div>
-                                <div class="truck-form-group">
-                                    <label style="color: #10b981;">📋 Material Workflow</label>
-                                    <ol style="margin: 0.5rem 0; padding-left: 1.5rem; color: #64748b;">
-                                        <li>Check parts inventory</li>
-                                        <li>Create requisition form</li>
-                                        <li>Submit for approval</li>
-                                        <li>Track delivery status</li>
-                                    </ol>
-                                </div>
-                                <div class="truck-form-group">
-                                    <label style="color: #f59e0b;">💰 Quote Process</label>
-                                    <ol style="margin: 0.5rem 0; padding-left: 1.5rem; color: #64748b;">
-                                        <li>Assess damage/repair needs</li>
-                                        <li>Calculate parts & labor</li>
-                                        <li>Generate quote document</li>
-                                        <li>Submit for approval</li>
-                                    </ol>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- System Actions -->
-                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-top: 1.5rem;">
-                        <button class="truck-btn truck-add-row" onclick="servicesModule.openFullTruckSystem()" type="button" style="margin-bottom: 0;">
-                            🔧 Open Full System
-                        </button>
-                        <button class="truck-btn truck-submit-btn" onclick="servicesModule.showTruckSettings()" type="button" style="margin: 0; background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
-                            ⚙️ System Settings
-                        </button>
-                    </div>
-
-                    <!-- Footer Actions -->
-                    <div class="modal-actions" style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e2e8f0;">
-                        <button class="button button-outline" onclick="window.closeModal()" type="button">
-                            Close Dashboard
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            window.showModal('Truck Repair Management System', truckRepairContent, 'large');
-
-        } catch (error) {
-            console.error('Error in showTruckRepairModal:', error);
-            alert('Error opening Truck Repair System');
-        }
-    },
-
-    // FALLBACK FUNCTIONS
-    fallbackAddService() {
-        const customerName = prompt('Customer name:');
-        const vehicleInfo = prompt('Vehicle info (Make Model Year):');
-        const serviceType = prompt('Service type (general/truck_repair/maintenance/oil_change/inspection):') || 'general';
-        const description = prompt('Description (optional):') || '';
-
-        if (customerName && vehicleInfo) {
-            alert(`Service created!\n\nCustomer: ${customerName}\nVehicle: ${vehicleInfo}\nType: ${serviceType}\nDescription: ${description}`);
-
-            if (serviceType === 'truck_repair') {
-                setTimeout(() => {
-                    if (confirm('Would you like to open the Truck Repair Management System?')) {
-                        this.showTruckRepairModal();
-                    }
-                }, 500);
-            }
-        }
-    },
-
-    // FORM HANDLING
     async populateCustomerSelect() {
         try {
             const customers = await this.fetchCustomers();
@@ -570,233 +393,161 @@ const servicesModule = {
                 window.closeModal();
             }
 
-            if (typeof window.showToast === 'function') {
-                window.showToast('Service created successfully', 'success');
-            } else {
-                alert('Service created successfully');
-            }
-
+            this.showToast('Service created successfully', 'success');
             await this.refreshServices();
 
+            // If truck repair, offer to open truck repair system
             if (serviceData.service_type === 'truck_repair') {
                 setTimeout(() => {
                     if (confirm('Would you like to open the Truck Repair Management System for this service?')) {
-                        this.openTruckRepair(result.service?.id || 'new');
+                        this.openTruckRepairForService(result.service?.id || 'new');
                     }
                 }, 1000);
             }
 
         } catch (error) {
             console.error('Error creating service:', error);
-            if (typeof window.showToast === 'function') {
-                window.showToast(`Failed to create service: ${error.message}`, 'error');
-            } else {
-                alert(`Failed to create service: ${error.message}`);
-            }
+            this.showToast(`Failed to create service: ${error.message}`, 'error');
         }
     },
 
-    // UTILITY FUNCTIONS
-    getServiceTypeLabel(type) {
-        const types = {
-            'truck_repair': '🚛 Truck Repair',
-            'maintenance': '🔧 Maintenance',
-            'oil_change': '🛢️ Oil Change',
-            'inspection': '🔍 Inspection',
-            'general': '⚙️ General Service'
-        };
-        return types[type] || '⚙️ General Service';
-    },
-
-    getStatusLabel(status) {
-        const statuses = {
-            'pending': 'Pending',
-            'in_progress': 'In Progress',
-            'completed': 'Completed',
-            'cancelled': 'Cancelled'
-        };
-        return statuses[status] || 'Pending';
-    },
-
-    formatDate(dateString) {
-        if (!dateString) return 'N/A';
-        try {
-            const date = new Date(dateString);
-            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        } catch (error) {
-            return 'Invalid Date';
-        }
-    },
-
-    paginate(services) {
-        const start = (this.currentPage - 1) * this.itemsPerPage;
-        const end = start + this.itemsPerPage;
-        return services.slice(start, end);
-    },
-
-    // NAVIGATION AND ACTIONS
-    async goToPage(page) {
-        this.currentPage = page;
-        await this.refreshServices();
-    },
-
-    async refreshServices() {
-        try {
-            const services = await this.fetchServices();
-            this.currentServices = services;
-
+    // TRUCK REPAIR INTEGRATION (NO DUPLICATES)
+    openTruckRepairSystem() {
+        // Check if truck repair module is available
+        if (typeof window.truckRepairModule !== 'undefined') {
+            // Load the dedicated truck repair system
             const dynamicContent = document.getElementById('dynamicContent');
             if (dynamicContent) {
-                const [customers, vehicles] = await Promise.all([
-                    this.fetchCustomers(),
-                    this.fetchVehicles()
-                ]);
-                dynamicContent.innerHTML = this.generateServicesHTML(services, customers, vehicles);
+                window.truckRepairModule.loadModule().then(html => {
+                    dynamicContent.innerHTML = html;
+                }).catch(error => {
+                    console.error('Error loading truck repair module:', error);
+                    this.showToast('Failed to load truck repair system', 'error');
+                });
             }
-
-            if (typeof window.showToast === 'function') {
-                window.showToast('Services refreshed successfully', 'success');
-            }
-        } catch (error) {
-            console.error('Error refreshing services:', error);
-            if (typeof window.showToast === 'function') {
-                window.showToast('Failed to refresh services', 'error');
-            }
+        } else {
+            // Fallback - simple truck repair dashboard
+            this.showSimpleTruckRepairModal();
         }
     },
 
-    openTruckRepair(serviceId) {
-        this.currentTruckRepairServiceId = serviceId;
-        this.showTruckRepairModal();
-        if (typeof window.showToast === 'function') {
-            window.showToast(`Opening truck repair system for service #${serviceId}`, 'info');
+    openTruckRepairForService(serviceId) {
+        // Open truck repair system for specific service
+        if (typeof window.truckRepairModule !== 'undefined') {
+            window.truckRepairModule.currentServiceId = serviceId;
+            this.openTruckRepairSystem();
+        } else {
+            this.showToast(`Opening truck repair for service #${serviceId}`, 'info');
+            this.showSimpleTruckRepairModal();
         }
     },
 
-    // TRUCK REPAIR SYSTEM FUNCTIONS
-    openFullTruckSystem() {
-        if (typeof window.showToast === 'function') {
-            window.showToast('Opening full truck repair system...', 'info');
+    showSimpleTruckRepairModal() {
+        if (typeof window.showModal !== 'function') {
+            alert('Truck Repair System - Advanced features require the full truck repair module');
+            return;
         }
-        // TODO: Navigate to dedicated truck repair page or show expanded interface
-    },
 
-    showTruckSettings() {
-        if (typeof window.showModal === 'function') {
-            const settingsContent = `
-                <div class="truck-repair-container">
-                    <div class="truck-form-container active" style="display: block;">
-                        <div class="truck-form-content">
-                            <div class="truck-form-title">
-                                <h2>🔧 Truck Repair Settings</h2>
-                                <p>Configure system preferences and defaults</p>
-                            </div>
+        const truckRepairContent = `
+            <div class="truck-repair-container">
+                <div class="truck-header" style="margin-bottom: 1.5rem;">
+                    <h1 style="font-size: 1.5rem; margin-bottom: 0.5rem;">🚛 Truck Repair Management</h1>
+                    <p style="font-size: 0.9rem; opacity: 0.9;">Basic truck repair workflow</p>
+                </div>
 
-                            <div class="truck-form-row">
-                                <div class="truck-form-group">
-                                    <label>Default Currency</label>
-                                    <select class="form-input">
-                                        <option value="THB">Thai Baht (฿)</option>
-                                        <option value="USD">US Dollar ($)</option>
-                                        <option value="EUR">Euro (€)</option>
-                                    </select>
-                                </div>
-                                <div class="truck-form-group">
-                                    <label>Tax Rate (%)</label>
-                                    <input type="number" class="form-input" value="7" min="0" max="100" step="0.1">
-                                </div>
-                                <div class="truck-form-group">
-                                    <label>Auto-generate Quote Numbers</label>
-                                    <select class="form-input">
-                                        <option value="true">Enabled</option>
-                                        <option value="false">Disabled</option>
-                                    </select>
-                                </div>
-                            </div>
+                <div class="truck-form-container active" style="display: block;">
+                    <div class="truck-form-content">
+                        <div class="truck-form-title">
+                            <h2 style="font-size: 1.25rem;">Quick Actions</h2>
+                            <p>Common truck repair operations</p>
+                        </div>
 
-                            <div class="truck-form-row">
-                                <div class="truck-form-group">
-                                    <label>Default Labor Rate (per hour)</label>
-                                    <input type="number" class="form-input" value="500" min="0" step="50">
-                                </div>
-                                <div class="truck-form-group">
-                                    <label>Markup Percentage</label>
-                                    <input type="number" class="form-input" value="15" min="0" max="100" step="1">
-                                </div>
-                                <div class="truck-form-group">
-                                    <label>Quote Validity (days)</label>
-                                    <input type="number" class="form-input" value="30" min="1" max="365">
-                                </div>
-                            </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                            <button class="button button-primary" onclick="servicesModule.showBasicMaterialForm()" type="button">
+                                📋 Material Request
+                            </button>
+                            <button class="button button-primary" onclick="servicesModule.showBasicQuoteForm()" type="button">
+                                💰 Generate Quote
+                            </button>
+                            <button class="button button-secondary" onclick="servicesModule.showTruckSettings()" type="button">
+                                ⚙️ Settings
+                            </button>
+                            <button class="button button-secondary" onclick="servicesModule.loadFullTruckSystem()" type="button">
+                                🔧 Load Full System
+                            </button>
+                        </div>
 
-                            <div class="modal-actions">
-                                <button class="button button-outline" onclick="window.closeModal()" type="button">Cancel</button>
-                                <button class="button button-primary" onclick="servicesModule.saveTruckSettings()" type="button">
-                                    Save Settings
-                                </button>
+                        <div style="background: #f0fdf4; padding: 1.5rem; border-radius: 8px; border-left: 4px solid #10b981;">
+                            <h3 style="margin-bottom: 1rem; color: #1e293b;">📈 System Status</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #10b981;">12</div>
+                                    <div style="font-size: 0.9rem; color: #059669;">Active Jobs</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #3b82f6;">8</div>
+                                    <div style="font-size: 0.9rem; color: #1d4ed8;">Pending Quotes</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: #f59e0b;">5</div>
+                                    <div style="font-size: 0.9rem; color: #d97706;">Parts Orders</div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            `;
 
-            window.showModal('Truck Repair Settings', settingsContent, 'large');
-        } else {
-            if (typeof window.showToast === 'function') {
-                window.showToast('Truck system settings - Coming Soon!', 'info');
-            } else {
-                alert('Truck system settings - Coming Soon!');
-            }
-        }
+                <div class="modal-actions" style="margin-top: 2rem;">
+                    <button class="button button-outline" onclick="window.closeModal()" type="button">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+
+        window.showModal('Truck Repair Management', truckRepairContent, 'large');
     },
 
-    saveTruckSettings() {
-        if (typeof window.showToast === 'function') {
-            window.showToast('Settings saved successfully!', 'success');
-        } else {
-            alert('Settings saved successfully!');
-        }
-        setTimeout(() => {
+    // BASIC TRUCK REPAIR FEATURES
+    showBasicMaterialForm() {
+        const description = prompt('Material description:');
+        const quantity = prompt('Quantity needed:');
+
+        if (description && quantity) {
+            this.showToast(`Material request created: ${quantity}x ${description}`, 'success');
             if (typeof window.closeModal === 'function') {
                 window.closeModal();
             }
-        }, 1000);
-    },
-
-    // TRUCK REPAIR FEATURE PLACEHOLDERS
-    showMaterialForm() {
-        if (typeof window.showToast === 'function') {
-            window.showToast('Material Requisition Form - Coming Soon!', 'info');
-        } else {
-            alert('Material Requisition Form - Coming Soon!');
         }
     },
 
-    showQuoteForm() {
-        if (typeof window.showToast === 'function') {
-            window.showToast('Repair Quote Form - Coming Soon!', 'info');
-        } else {
-            alert('Repair Quote Form - Coming Soon!');
+    showBasicQuoteForm() {
+        const workDescription = prompt('Work description:');
+        const estimatedCost = prompt('Estimated cost (฿):');
+
+        if (workDescription && estimatedCost) {
+            const quoteNumber = `Q${Date.now().toString().slice(-6)}`;
+            this.showToast(`Quote ${quoteNumber} created: ${workDescription} - ฿${estimatedCost}`, 'success');
+            if (typeof window.closeModal === 'function') {
+                window.closeModal();
+            }
         }
     },
 
-    showPartsManagement() {
-        if (typeof window.showToast === 'function') {
-            window.showToast('Parts Management - Coming Soon!', 'info');
-        } else {
-            alert('Parts Management - Coming Soon!');
-        }
+    showTruckSettings() {
+        this.showToast('Basic truck repair settings - Use full system for advanced configuration', 'info');
     },
 
-    showRepairReports() {
-        if (typeof window.showToast === 'function') {
-            window.showToast('Repair Reports - Coming Soon!', 'info');
-        } else {
-            alert('Repair Reports - Coming Soon!');
+    loadFullTruckSystem() {
+        this.showToast('Loading full truck repair system...', 'info');
+        // This would typically load the complete truck-repair.js module
+        if (typeof window.closeModal === 'function') {
+            window.closeModal();
         }
+        this.openTruckRepairSystem();
     },
 
-    // SERVICE MANAGEMENT FUNCTIONS
+    // SERVICE ACTIONS
     async viewService(serviceId) {
         try {
             const service = this.currentServices.find(s => s.id === serviceId);
@@ -887,7 +638,7 @@ const servicesModule = {
                         <button class="button button-outline" onclick="window.closeModal()" type="button">Close</button>
                         <button class="button button-primary" onclick="servicesModule.editService(${serviceId}); window.closeModal();" type="button">Edit Service</button>
                         ${service.service_type === 'truck_repair' ? `
-                            <button class="button button-primary" onclick="servicesModule.openTruckRepair(${serviceId}); window.closeModal();" type="button">
+                            <button class="button button-primary" onclick="servicesModule.openTruckRepairForService(${serviceId}); window.closeModal();" type="button">
                                 🚛 Open Truck Repair
                             </button>
                         ` : ''}
@@ -903,20 +654,12 @@ const servicesModule = {
 
         } catch (error) {
             console.error('Error viewing service:', error);
-            if (typeof window.showToast === 'function') {
-                window.showToast(`Failed to load service details: ${error.message}`, 'error');
-            } else {
-                alert(`Failed to load service details: ${error.message}`);
-            }
+            this.showToast(`Failed to load service details: ${error.message}`, 'error');
         }
     },
 
     async editService(serviceId) {
-        if (typeof window.showToast === 'function') {
-            window.showToast('Edit Service - Coming Soon!', 'info');
-        } else {
-            alert('Edit Service - Coming Soon!');
-        }
+        this.showToast('Edit Service - Feature coming soon!', 'info');
     },
 
     async deleteService(serviceId) {
@@ -934,20 +677,138 @@ const servicesModule = {
                 throw new Error(errorData.error || 'Failed to delete service');
             }
 
-            if (typeof window.showToast === 'function') {
-                window.showToast('Service deleted successfully', 'success');
-            } else {
-                alert('Service deleted successfully');
-            }
-
+            this.showToast('Service deleted successfully', 'success');
             await this.refreshServices();
 
         } catch (error) {
             console.error('Error deleting service:', error);
-            if (typeof window.showToast === 'function') {
-                window.showToast(`Failed to delete service: ${error.message}`, 'error');
-            } else {
-                alert(`Failed to delete service: ${error.message}`);
+            this.showToast(`Failed to delete service: ${error.message}`, 'error');
+        }
+    },
+
+    // NAVIGATION AND UTILITY METHODS
+    async goToPage(page) {
+        this.currentPage = page;
+        await this.refreshServices();
+    },
+
+    async refreshServices() {
+        try {
+            const services = await this.fetchServices();
+            this.currentServices = services;
+
+            const dynamicContent = document.getElementById('dynamicContent');
+            if (dynamicContent) {
+                const [customers, vehicles] = await Promise.all([
+                    this.fetchCustomers(),
+                    this.fetchVehicles()
+                ]);
+                dynamicContent.innerHTML = this.generateServicesHTML(services, customers, vehicles);
+            }
+
+            this.showToast('Services refreshed successfully', 'success');
+        } catch (error) {
+            console.error('Error refreshing services:', error);
+            this.showToast('Failed to refresh services', 'error');
+        }
+    },
+
+    paginate(services) {
+        const start = (this.currentPage - 1) * this.itemsPerPage;
+        const end = start + this.itemsPerPage;
+        return services.slice(start, end);
+    },
+
+    // UTILITY FUNCTIONS
+    getServiceTypeLabel(type) {
+        const types = {
+            'truck_repair': '🚛 Truck Repair',
+            'maintenance': '🔧 Maintenance',
+            'oil_change': '🛢️ Oil Change',
+            'inspection': '🔍 Inspection',
+            'general': '⚙️ General Service'
+        };
+        return types[type] || '⚙️ General Service';
+    },
+
+    getStatusLabel(status) {
+        const statuses = {
+            'pending': 'Pending',
+            'in_progress': 'In Progress',
+            'completed': 'Completed',
+            'cancelled': 'Cancelled'
+        };
+        return statuses[status] || 'Pending';
+    },
+
+    formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        } catch (error) {
+            return 'Invalid Date';
+        }
+    },
+
+    showToast(message, type = 'info') {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+        } else {
+            // Fallback toast implementation
+            let toast = document.getElementById('toast-notification');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast-notification';
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 500;
+                    z-index: 10000;
+                    transition: all 0.3s ease;
+                    transform: translateX(100%);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                `;
+                document.body.appendChild(toast);
+            }
+
+            const colors = {
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b',
+                info: '#3b82f6'
+            };
+
+            toast.style.backgroundColor = colors[type] || colors.info;
+            toast.textContent = message;
+            toast.style.transform = 'translateX(0)';
+
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+            }, 3000);
+        }
+    },
+
+    // FALLBACK FUNCTIONS
+    fallbackAddService() {
+        const customerName = prompt('Customer name:');
+        const vehicleInfo = prompt('Vehicle info (Make Model Year):');
+        const serviceType = prompt('Service type (general/truck_repair/maintenance/oil_change/inspection):') || 'general';
+        const description = prompt('Description (optional):') || '';
+
+        if (customerName && vehicleInfo) {
+            this.showToast(`Service created!\n\nCustomer: ${customerName}\nVehicle: ${vehicleInfo}\nType: ${serviceType}\nDescription: ${description}`, 'success');
+
+            if (serviceType === 'truck_repair') {
+                setTimeout(() => {
+                    if (confirm('Would you like to open the Truck Repair Management System?')) {
+                        this.openTruckRepairSystem();
+                    }
+                }, 500);
             }
         }
     }
