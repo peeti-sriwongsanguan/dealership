@@ -887,24 +887,31 @@ class VehiclesModule {
                     </div>
 
                     <!-- Owner Information -->
-                    <div class="form-section">
-                        <h3 class="form-section-title">Owner Information</h3>
-
-                        <div class="form-group">
-                            <label class="form-label required">Vehicle Owner</label>
-                            <select name="customer_id" class="form-input" required>
-                                <option value="">Select customer</option>
-                                ${this.customers
-                                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-                                    .map(customer =>
-                                        `<option value="${customer.id}">${customer.name || 'Unnamed Customer'} (ID: ${customer.id})</option>`
-                                    ).join('')}
-                            </select>
-                            <small class="form-help">
-                                Don't see the customer?
-                                <a href="#" onclick="window.Vehicles.openCustomerModal(); return false;">Add new customer</a>
-                            </small>
+                    <div class="form-group">
+                        <label class="form-label required">Vehicle Owner</label>
+                        <div class="customer-search-container">
+                            <input
+                                type="text"
+                                id="customerSearch"
+                                class="form-input customer-search-input"
+                                placeholder="Start typing customer name or ID..."
+                                autocomplete="off"
+                                required
+                            >
+                            <input type="hidden" name="customer_id" id="selectedCustomerId" required>
+                            <div class="customer-search-results" id="customerSearchResults" style="display: none;"></div>
+                            <div class="selected-customer" id="selectedCustomer" style="display: none;">
+                                <div class="selected-customer-info">
+                                    <div class="selected-customer-name"></div>
+                                    <div class="selected-customer-details"></div>
+                                </div>
+                                <button type="button" class="clear-selection" onclick="window.Vehicles.clearCustomerSelection()">×</button>
+                            </div>
                         </div>
+                        <small class="form-help">
+                            Don't see the customer?
+                            <a href="#" onclick="window.Vehicles.openCustomerModal(); return false;">Add new customer</a>
+                        </small>
                     </div>
 
                     <!-- Additional Notes -->
@@ -937,6 +944,10 @@ class VehiclesModule {
         // Show modal
         modalOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
+
+        setTimeout(() => {
+            this.initializeCustomerSearch();
+        }, 100);
 
         console.log('✅ Add vehicle modal displayed');
     }
@@ -1197,6 +1208,144 @@ class VehiclesModule {
         });
     }
 
+    /**
+     * Initialize customer search functionality
+     */
+    initializeCustomerSearch(suffix = '') {
+        const searchInput = document.getElementById(`customerSearch${suffix}`);
+        const resultsContainer = document.getElementById(`customerSearchResults${suffix}`);
+
+        if (!searchInput || !resultsContainer) return;
+
+        let searchTimeout;
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                this.performCustomerSearch(query, suffix);
+            }, 300); // Debounce search
+        });
+
+        searchInput.addEventListener('focus', (e) => {
+            if (e.target.value.trim()) {
+                this.performCustomerSearch(e.target.value.trim(), suffix);
+            }
+        });
+
+        // Hide results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.customer-search-container')) {
+                resultsContainer.style.display = 'none';
+            }
+        });
+    }
+
+    /**
+     * Perform customer search
+     */
+    performCustomerSearch(query, suffix = '') {
+        const resultsContainer = document.getElementById(`customerSearchResults${suffix}`);
+
+        if (!query || query.length < 2) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+
+        // Filter customers based on query
+        const filteredCustomers = this.customers.filter(customer => {
+            const name = (customer.name || '').toLowerCase();
+            const id = customer.id.toString();
+            const phone = (customer.phone || '').toLowerCase();
+            const email = (customer.email || '').toLowerCase();
+            const searchTerm = query.toLowerCase();
+
+            return name.includes(searchTerm) ||
+                   id.includes(searchTerm) ||
+                   phone.includes(searchTerm) ||
+                   email.includes(searchTerm);
+        }).slice(0, 10); // Limit to 10 results
+
+        if (filteredCustomers.length === 0) {
+            resultsContainer.innerHTML = `
+                <div class="search-result-item no-results">
+                    <div class="no-results-text">No customers found</div>
+                    <div class="no-results-action">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="window.Vehicles.openCustomerModal()">
+                            ➕ Add New Customer
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            resultsContainer.innerHTML = filteredCustomers
+                .map(customer => `
+                    <div class="search-result-item" onclick="window.Vehicles.selectCustomer(${customer.id}, '${suffix}')">
+                        <div class="customer-result-info">
+                            <div class="customer-result-name">${customer.name || 'Unnamed Customer'}</div>
+                            <div class="customer-result-details">
+                                ID: ${customer.id}
+                                ${customer.phone ? ` • 📞 ${customer.phone}` : ''}
+                                ${customer.email ? ` • 📧 ${customer.email}` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        resultsContainer.style.display = 'block';
+    }
+
+    /**
+     * Select a customer from search results
+     */
+    selectCustomer(customerId, suffix = '') {
+        const customer = this.customers.find(c => c.id === customerId);
+        if (!customer) return;
+
+        const searchInput = document.getElementById(`customerSearch${suffix}`);
+        const hiddenInput = document.getElementById(`selectedCustomerId${suffix}`);
+        const resultsContainer = document.getElementById(`customerSearchResults${suffix}`);
+        const selectedContainer = document.getElementById(`selectedCustomer${suffix}`);
+
+        // Update input values
+        searchInput.value = `${customer.name || 'Unnamed Customer'} (ID: ${customer.id})`;
+        hiddenInput.value = customer.id;
+
+        // Show selected customer info
+        if (selectedContainer) {
+            selectedContainer.querySelector('.selected-customer-name').textContent = customer.name || 'Unnamed Customer';
+            selectedContainer.querySelector('.selected-customer-details').innerHTML = `
+                ID: ${customer.id}
+                ${customer.phone ? ` • 📞 ${customer.phone}` : ''}
+                ${customer.email ? ` • 📧 ${customer.email}` : ''}
+            `;
+            selectedContainer.style.display = 'block';
+        }
+
+        // Hide search results
+        resultsContainer.style.display = 'none';
+
+        // Mark input as valid
+        searchInput.style.borderColor = '#28a745';
+    }
+
+    /**
+     * Clear customer selection
+     */
+    clearCustomerSelection(suffix = '') {
+        const searchInput = document.getElementById(`customerSearch${suffix}`);
+        const hiddenInput = document.getElementById(`selectedCustomerId${suffix}`);
+        const selectedContainer = document.getElementById(`selectedCustomer${suffix}`);
+
+        searchInput.value = '';
+        hiddenInput.value = '';
+        selectedContainer.style.display = 'none';
+        searchInput.style.borderColor = '';
+
+        searchInput.focus();
+    }
 
 
     /**
@@ -2020,18 +2169,27 @@ class VehiclesModule {
 
                         <div class="form-group">
                             <label class="form-label required">Vehicle Owner</label>
-                            <select name="customer_id" class="form-input" required>
-                                <option value="">Select customer</option>
-                                ${this.customers
-                                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-                                    .map(customer =>
-                                        `<option value="${customer.id}" ${customer.id === vehicle.customer_id ? 'selected' : ''}>
-                                            ${customer.name || 'Unnamed Customer'} (ID: ${customer.id})
-                                        </option>`
-                                    ).join('')}
-                            </select>
+                            <div class="customer-search-container">
+                                <input
+                                    type="text"
+                                    id="customerSearchEdit"
+                                    class="form-input customer-search-input"
+                                    placeholder="Start typing customer name or ID..."
+                                    autocomplete="off"
+                                    value="${vehicle.customer_name ? `${vehicle.customer_name} (ID: ${vehicle.customer_id})` : ''}"
+                                    required
+                                >
+                                <input type="hidden" name="customer_id" id="selectedCustomerIdEdit" value="${vehicle.customer_id || ''}" required>
+                                <div class="customer-search-results" id="customerSearchResultsEdit" style="display: none;"></div>
+                                <div class="selected-customer" id="selectedCustomerEdit" style="${vehicle.customer_id ? 'display: block;' : 'display: none;'}">
+                                    <div class="selected-customer-info">
+                                        <div class="selected-customer-name">${vehicle.customer_name || ''}</div>
+                                        <div class="selected-customer-details">ID: ${vehicle.customer_id || ''}</div>
+                                    </div>
+                                    <button type="button" class="clear-selection" onclick="window.Vehicles.clearCustomerSelection('Edit')">×</button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
                     <!-- Additional Notes -->
                     <div class="form-section">
@@ -2070,6 +2228,10 @@ class VehiclesModule {
         modalOverlay.style.opacity = '1';
         modalOverlay.style.visibility = 'visible';
         document.body.style.overflow = 'hidden';
+
+        setTimeout(() => {
+            this.initializeCustomerSearch('Edit');
+        }, 100);
 
         console.log('✅ Edit vehicle modal displayed for vehicle:', vehicleId);
     }
