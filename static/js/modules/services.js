@@ -1,4 +1,4 @@
-// static/js/modules/services.js
+// static/js/module/service.js
 /**
  * Services Module for OL Service POS
  * Handles service management with integrated truck repair system
