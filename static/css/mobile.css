@@ -343,3 +343,347 @@
 
     .stats-grid {
         gap: 0.5rem;
+
+/* ADD THIS TO THE END OF YOUR EXISTING mobile.css FILE */
+
+/* =============================================================================
+   SECTION ACTIONS MOBILE FIXES (for Samsung Note and mobile devices)
+   ============================================================================= */
+
+.section-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    margin: 1.5rem 0;
+}
+
+/* Mobile-specific section-actions fixes */
+@media (max-width: 768px) {
+    .section-actions {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: stretch;
+        width: 100%;
+        margin: 1rem 0;
+    }
+
+    .section-actions .button {
+        width: 100% !important;
+        min-height: 48px !important; /* Touch-friendly height */
+        padding: 14px 16px !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        white-space: nowrap !important;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .section-actions .button:active {
+        transform: scale(0.98) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    /* Enhanced button styles for mobile */
+    .section-actions .button-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border: none !important;
+    }
+
+    .section-actions .button-secondary {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+        color: white !important;
+        border: none !important;
+    }
+
+    .section-actions .button-outline {
+        background: white !important;
+        color: #667eea !important;
+        border: 2px solid #667eea !important;
+    }
+
+    .section-actions .button:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+    }
+}
+
+/* Small mobile adjustments (Samsung Note, iPhone, etc.) */
+@media (max-width: 480px) {
+    .section-actions {
+        padding: 0 5px;
+        margin: 1rem 0;
+    }
+
+    .section-actions .button {
+        min-height: 52px !important; /* Even more touch-friendly */
+        font-size: 15px !important;
+        padding: 16px 20px !important;
+        letter-spacing: 0.025em !important;
+    }
+
+    /* Better icon spacing on small screens */
+    .section-actions .button {
+        gap: 10px !important;
+    }
+}
+
+/* Landscape orientation fix for mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    .section-actions {
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        gap: 0.5rem !important;
+        flex-wrap: wrap !important;
+    }
+
+    .section-actions .button {
+        flex: 1 !important;
+        min-width: 0 !important;
+        width: auto !important;
+        padding: 10px 12px !important;
+        font-size: 13px !important;
+        min-height: 44px !important;
+    }
+}
+
+/* =============================================================================
+   ENHANCED MOBILE TABLE ACTIONS
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    .action-buttons {
+        display: flex !important;
+        gap: 6px !important;
+        justify-content: center !important;
+        flex-wrap: wrap !important;
+    }
+
+    .action-buttons .btn-icon {
+        min-width: 40px !important;
+        min-height: 40px !important;
+        font-size: 16px !important;
+        padding: 8px !important;
+        border-radius: 6px !important;
+        border: 1px solid #e5e7eb !important;
+        background: white !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .action-buttons .btn-icon:active {
+        transform: scale(0.95) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .action-buttons .btn-icon.danger {
+        border-color: #fca5a5 !important;
+        background: #fef2f2 !important;
+        color: #dc2626 !important;
+    }
+}
+
+/* =============================================================================
+   IMPROVED DATA TABLE MOBILE STYLES
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    .table-container {
+        margin: 1rem 0;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .data-table {
+        font-size: 13px;
+    }
+
+    .data-table th {
+        padding: 12px 8px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .data-table td {
+        padding: 12px 8px;
+        vertical-align: middle;
+    }
+
+    .customer-cell,
+    .vehicle-cell {
+        min-width: 120px;
+    }
+
+    .customer-name,
+    .vehicle-info {
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .vehicle-license {
+        font-size: 11px;
+        color: #6b7280;
+        display: block;
+        margin-top: 2px;
+    }
+
+    .service-id {
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .date-text {
+        font-size: 11px;
+        color: #6b7280;
+    }
+}
+
+/* =============================================================================
+   MODAL IMPROVEMENTS FOR MOBILE
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    .modal-container {
+        width: 95% !important;
+        max-width: none !important;
+        margin: 20px !important;
+        max-height: calc(100vh - 40px) !important;
+    }
+
+    .modal-actions {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+
+    .modal-actions .button {
+        width: 100% !important;
+        min-height: 48px !important;
+        justify-content: center !important;
+    }
+
+    /* Form improvements in modals */
+    .form-grid {
+        gap: 16px !important;
+    }
+
+    .form-input,
+    .form-textarea {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+        padding: 14px 12px !important;
+        border-radius: 8px !important;
+    }
+
+    .form-label {
+        font-size: 14px !important;
+        font-weight: 700 !important;
+        margin-bottom: 6px !important;
+    }
+}
+
+/* =============================================================================
+   TOAST NOTIFICATIONS MOBILE ENHANCEMENT
+   ============================================================================= */
+
+@media (max-width: 768px) {
+    .toast-container {
+        position: fixed !important;
+        top: 20px !important;
+        left: 10px !important;
+        right: 10px !important;
+        z-index: 10000 !important;
+    }
+
+    .toast {
+        width: 100% !important;
+        min-width: auto !important;
+        margin-bottom: 10px !important;
+        border-radius: 10px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    }
+}
+
+/* =============================================================================
+   VERY SMALL MOBILE ADDITIONS (320px and below)
+   ============================================================================= */
+
+@media (max-width: 320px) {
+    .section-actions .button {
+        font-size: 13px !important;
+        padding: 12px 16px !important;
+        min-height: 48px !important;
+    }
+
+    .stats-grid {
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-card {
+        padding: 0.75rem;
+        min-height: 70px;
+    }
+
+    .customers-section {
+        padding: 0.75rem;
+        margin: 0.25rem;
+        border-radius: 12px;
+    }
+}
+
+/* =============================================================================
+   ACCESSIBILITY IMPROVEMENTS FOR MOBILE
+   ============================================================================= */
+
+/* Enhanced focus states for mobile */
+@media (max-width: 768px) {
+    .button:focus-visible {
+        outline: 3px solid #667eea !important;
+        outline-offset: 2px !important;
+    }
+
+    .btn-icon:focus-visible {
+        outline: 2px solid #667eea !important;
+        outline-offset: 1px !important;
+    }
+}
+
+/* High contrast mode support for mobile */
+@media (prefers-contrast: high) and (max-width: 768px) {
+    .section-actions .button {
+        border: 2px solid currentColor !important;
+    }
+
+    .action-buttons .btn-icon {
+        border: 2px solid currentColor !important;
+    }
+}
+
+/* Reduced motion for mobile users */
+@media (prefers-reduced-motion: reduce) and (max-width: 768px) {
+    .section-actions .button,
+    .action-buttons .btn-icon {
+        transition: none !important;
+    }
+
+    .section-actions .button:hover,
+    .section-actions .button:active,
+    .action-buttons .btn-icon:active {
+        transform: none !important;
+    }
+}
