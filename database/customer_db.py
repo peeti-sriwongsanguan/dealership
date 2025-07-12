@@ -33,6 +33,12 @@ class Customer:
     issue_date: str = ""
     expiry_date: str = ""
 
+    # Driver License specific fields
+    driver_license_number: str = ""
+    license_class: str = ""
+    english_address: str = ""
+    document_type: str = ""  # 'thai_id', 'driver_license', or ''
+
     # Metadata
     registration_date: Optional[str] = None
     created_at: Optional[str] = None
@@ -59,6 +65,10 @@ class Customer:
             'id_card_address': self.id_card_address,
             'issue_date': self.issue_date,
             'expiry_date': self.expiry_date,
+            'driver_license_number': self.driver_license_number,
+            'license_class': self.license_class,
+            'english_address': self.english_address,
+            'document_type': self.document_type,
             'created_at': self.created_at,
             'updated_at': self.updated_at
         }
@@ -89,7 +99,16 @@ class Customer:
                 if hasattr(customer, key) and value:
                     setattr(customer, key, value)
 
-        # Apply OCR data
+        # Determine document type
+        if ocr_data.get('license_number') or ocr_data.get('driver_license_number'):
+            customer.document_type = 'driver_license'
+            customer.driver_license_number = ocr_data.get('license_number') or ocr_data.get('driver_license_number', '')
+            customer.license_class = ocr_data.get('license_class', '')
+        elif ocr_data.get('id_number'):
+            customer.document_type = 'thai_id'
+            customer.thai_id_number = ocr_data.get('id_number', '')
+
+        # Handle names
         if ocr_data.get('thai_name'):
             customer.thai_name = ocr_data['thai_name']
             # Use Thai name as primary if no manual name provided
@@ -101,18 +120,27 @@ class Customer:
 
         if ocr_data.get('english_name'):
             customer.english_name = ocr_data['english_name']
-            # Use English name if no Thai name
+            # Use English name if no Thai name and no manual name
             if not customer.name and not customer.thai_name:
                 name_parts = ocr_data['english_name'].split(' ', 1)
                 customer.first_name = name_parts[0] if name_parts else ''
                 customer.last_name = name_parts[1] if len(name_parts) > 1 else ''
                 customer.name = ocr_data['english_name']
 
+        # Handle addresses
+        if ocr_data.get('english_address'):
+            customer.english_address = ocr_data['english_address']
+            # Prefer English address for primary address
+            if not customer.address:
+                customer.address = ocr_data['english_address']
+
+        if ocr_data.get('thai_address') and not customer.address:
+            customer.address = ocr_data['thai_address']
+
         # Map other OCR fields
         field_mapping = {
-            'id_number': 'thai_id_number',
             'date_of_birth': 'date_of_birth',
-            'address': 'id_card_address',
+            'address': 'id_card_address',  # General address goes to id_card_address
             'issue_date': 'issue_date',
             'expiry_date': 'expiry_date',
             'phone': 'phone',
@@ -122,10 +150,6 @@ class Customer:
         for ocr_key, customer_key in field_mapping.items():
             if ocr_data.get(ocr_key) and not getattr(customer, customer_key):
                 setattr(customer, customer_key, ocr_data[ocr_key])
-
-        # Use ID card address as primary address if no manual address
-        if customer.id_card_address and not customer.address:
-            customer.address = customer.id_card_address
 
         return customer
 
@@ -138,27 +162,31 @@ class CustomerRepository:
         self._ensure_thai_id_fields()
 
     def _ensure_thai_id_fields(self):
-        """Add Thai ID fields to customers table if they don't exist"""
+        """Add Thai ID and driver license fields to customers table if they don't exist"""
         try:
             with db_manager.get_connection() as conn:
                 cursor = conn.cursor()
 
-                # Check if Thai ID fields exist
+                # Check existing columns
                 cursor.execute("PRAGMA table_info(customers)")
                 columns = [col[1] for col in cursor.fetchall()]
 
-                # Add missing Thai ID fields
-                thai_fields = [
+                # All new fields (Thai ID + Driver License)
+                new_fields = [
                     ('thai_id_number', 'TEXT'),
                     ('thai_name', 'TEXT'),
                     ('english_name', 'TEXT'),
                     ('date_of_birth', 'TEXT'),
                     ('id_card_address', 'TEXT'),
                     ('issue_date', 'TEXT'),
-                    ('expiry_date', 'TEXT')
+                    ('expiry_date', 'TEXT'),
+                    ('driver_license_number', 'TEXT'),
+                    ('license_class', 'TEXT'),
+                    ('english_address', 'TEXT'),
+                    ('document_type', 'TEXT')
                 ]
 
-                for field_name, field_type in thai_fields:
+                for field_name, field_type in new_fields:
                     if field_name not in columns:
                         try:
                             cursor.execute(f"ALTER TABLE customers ADD COLUMN {field_name} {field_type}")
@@ -169,7 +197,38 @@ class CustomerRepository:
                 conn.commit()
 
         except Exception as e:
-            logger.error(f"Error ensuring Thai ID fields: {e}")
+            logger.error(f"Error ensuring database fields: {e}")
+
+    def _ensure_driver_license_fields(self):
+        """Add driver license fields to customers table if they don't exist"""
+        try:
+            with db_manager.get_connection() as conn:
+                cursor = conn.cursor()
+
+                # Check if driver license fields exist
+                cursor.execute("PRAGMA table_info(customers)")
+                columns = [col[1] for col in cursor.fetchall()]
+
+                # Add missing driver license fields
+                driver_license_fields = [
+                    ('driver_license_number', 'TEXT'),
+                    ('license_class', 'TEXT'),
+                    ('english_address', 'TEXT'),
+                    ('document_type', 'TEXT')  # 'thai_id' or 'driver_license'
+                ]
+
+                for field_name, field_type in driver_license_fields:
+                    if field_name not in columns:
+                        try:
+                            cursor.execute(f"ALTER TABLE customers ADD COLUMN {field_name} {field_type}")
+                            logger.info(f"Added column {field_name} to customers table")
+                        except Exception as e:
+                            logger.warning(f"Could not add column {field_name}: {e}")
+
+                conn.commit()
+
+        except Exception as e:
+            logger.error(f"Error ensuring driver license fields: {e}")
 
     def get_all(self, limit: int = None, offset: int = 0) -> List[Customer]:
         """Get all customers with pagination support"""
@@ -178,7 +237,8 @@ class CustomerRepository:
             id, first_name, last_name, name, email, phone, address, city, state, zip_code,
             notes, created_at, updated_at,
             thai_id_number, thai_name, english_name, date_of_birth, 
-            id_card_address, issue_date, expiry_date
+            id_card_address, issue_date, expiry_date,
+            driver_license_number, license_class, english_address, document_type
         FROM customers 
         ORDER BY name, first_name, last_name
         """
@@ -189,8 +249,9 @@ class CustomerRepository:
         results = db_manager.execute_query(query, fetch_all=True)
         return [Customer.from_dict(row) for row in results] if results else []
 
+
     def search(self, search_term: str) -> List[Customer]:
-        """Search customers by name, phone, email, or Thai ID"""
+        """Enhanced search including driver license fields"""
         if not search_term.strip():
             return self.get_all()
 
@@ -199,17 +260,19 @@ class CustomerRepository:
             id, first_name, last_name, name, email, phone, address, city, state, zip_code,
             notes, created_at, updated_at,
             thai_id_number, thai_name, english_name, date_of_birth, 
-            id_card_address, issue_date, expiry_date
+            id_card_address, issue_date, expiry_date,
+            driver_license_number, license_class, english_address, document_type
         FROM customers
         WHERE 
             name LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR 
             phone LIKE ? OR email LIKE ? OR 
-            thai_name LIKE ? OR english_name LIKE ? OR thai_id_number LIKE ?
+            thai_name LIKE ? OR english_name LIKE ? OR thai_id_number LIKE ? OR
+            driver_license_number LIKE ? OR english_address LIKE ?
         ORDER BY name, first_name, last_name
         """
 
         search_pattern = f'%{search_term}%'
-        params = tuple([search_pattern] * 8)  # 8 search fields
+        params = tuple([search_pattern] * 10)  # 10 search fields now
         results = db_manager.execute_query(query, params, fetch_all=True)
 
         return [Customer.from_dict(row) for row in results] if results else []
@@ -221,7 +284,8 @@ class CustomerRepository:
             id, first_name, last_name, name, email, phone, address, city, state, zip_code,
             notes, created_at, updated_at,
             thai_id_number, thai_name, english_name, date_of_birth, 
-            id_card_address, issue_date, expiry_date
+            id_card_address, issue_date, expiry_date,
+            driver_license_number, license_class, english_address, document_type
         FROM customers
         WHERE id = ?
         """
@@ -239,7 +303,8 @@ class CustomerRepository:
             id, first_name, last_name, name, email, phone, address, city, state, zip_code,
             notes, created_at, updated_at,
             thai_id_number, thai_name, english_name, date_of_birth, 
-            id_card_address, issue_date, expiry_date
+            id_card_address, issue_date, expiry_date,
+            driver_license_number, license_class, english_address, document_type
         FROM customers
         WHERE thai_id_number = ?
         """
@@ -247,8 +312,9 @@ class CustomerRepository:
         result = db_manager.execute_query(query, (thai_id_number,), fetch_one=True)
         return Customer.from_dict(result) if result else None
 
+
     def create(self, customer: Customer) -> Optional[int]:
-        """Create a new customer with Thai ID support"""
+        """Enhanced create method with driver license support"""
         # Validation
         if not customer.name and not customer.first_name and not customer.thai_name:
             raise ValueError("Customer name (Thai or English) is required")
@@ -256,6 +322,10 @@ class CustomerRepository:
         # Check for duplicate Thai ID if provided
         if customer.thai_id_number and self.get_by_thai_id(customer.thai_id_number):
             raise ValueError("Customer with this Thai ID already exists")
+
+        # Check for duplicate driver license if provided
+        if customer.driver_license_number and self.get_by_license_number(customer.driver_license_number):
+            raise ValueError("Customer with this driver license number already exists")
 
         # Check for duplicate email if provided
         if customer.email and self._email_exists(customer.email):
@@ -277,8 +347,10 @@ class CustomerRepository:
         INSERT INTO customers (
             first_name, last_name, email, phone, address, city, state, zip_code, notes,
             thai_id_number, thai_name, english_name, date_of_birth, 
-            id_card_address, issue_date, expiry_date, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            id_card_address, issue_date, expiry_date,
+            driver_license_number, license_class, english_address, document_type,
+            created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
 
         customer_id = db_manager.execute_query(
@@ -288,12 +360,14 @@ class CustomerRepository:
                 customer.address, customer.city, customer.state, customer.zip_code, customer.notes,
                 customer.thai_id_number, customer.thai_name, customer.english_name,
                 customer.date_of_birth, customer.id_card_address, customer.issue_date,
-                customer.expiry_date, customer.created_at, customer.updated_at
+                customer.expiry_date, customer.driver_license_number, customer.license_class,
+                customer.english_address, customer.document_type,
+                customer.created_at, customer.updated_at
             )
         )
 
         if customer_id:
-            logger.info(f"Created customer: {customer.name} (ID: {customer_id})")
+            logger.info(f"Created customer: {customer.name} (ID: {customer_id}, Type: {customer.document_type})")
 
         return customer_id
 
@@ -320,17 +394,46 @@ class CustomerRepository:
             logger.error(f"Error creating customer from OCR: {e}")
             raise
 
+    def get_by_license_number(self, license_number: str) -> Optional[Customer]:
+        """Get customer by driver license number"""
+        if not license_number:
+            return None
+
+        query = """
+        SELECT 
+            id, first_name, last_name, name, email, phone, address, city, state, zip_code,
+            notes, created_at, updated_at,
+            thai_id_number, thai_name, english_name, date_of_birth, 
+            id_card_address, issue_date, expiry_date,
+            driver_license_number, license_class, english_address, document_type
+        FROM customers
+        WHERE driver_license_number = ?
+        """
+
+        result = db_manager.execute_query(query, (license_number,), fetch_one=True)
+        return Customer.from_dict(result) if result else None
+
     def update(self, customer_id: int, customer: Customer) -> bool:
-        """Update an existing customer"""
+        """Enhanced update method with driver license support"""
         if not customer.name and not customer.first_name and not customer.thai_name:
             raise ValueError("Customer name is required")
 
-        # Check for duplicate Thai ID if provided and different from current
+        # Get existing customer for validation
         existing = self.get_by_id(customer_id)
-        if existing and customer.thai_id_number:
+        if not existing:
+            raise ValueError("Customer not found")
+
+        # Check for duplicate Thai ID if provided and different from current
+        if customer.thai_id_number:
             if existing.thai_id_number != customer.thai_id_number:
                 if self.get_by_thai_id(customer.thai_id_number):
                     raise ValueError("Thai ID already exists for another customer")
+
+        # Check for duplicate driver license if provided and different from current
+        if customer.driver_license_number:
+            if existing.driver_license_number != customer.driver_license_number:
+                if self.get_by_license_number(customer.driver_license_number):
+                    raise ValueError("Driver license number already exists for another customer")
 
         # Check for duplicate email if provided and different from current
         if customer.email and existing:
@@ -344,7 +447,9 @@ class CustomerRepository:
         SET first_name = ?, last_name = ?, email = ?, phone = ?, address = ?, 
             city = ?, state = ?, zip_code = ?, notes = ?,
             thai_id_number = ?, thai_name = ?, english_name = ?, date_of_birth = ?,
-            id_card_address = ?, issue_date = ?, expiry_date = ?, updated_at = ?
+            id_card_address = ?, issue_date = ?, expiry_date = ?,
+            driver_license_number = ?, license_class = ?, english_address = ?, 
+            document_type = ?, updated_at = ?
         WHERE id = ?
         """
 
@@ -355,7 +460,9 @@ class CustomerRepository:
                 customer.address, customer.city, customer.state, customer.zip_code, customer.notes,
                 customer.thai_id_number, customer.thai_name, customer.english_name,
                 customer.date_of_birth, customer.id_card_address, customer.issue_date,
-                customer.expiry_date, customer.updated_at, customer_id
+                customer.expiry_date, customer.driver_license_number, customer.license_class,
+                customer.english_address, customer.document_type, customer.updated_at,
+                customer_id
             )
         )
 
@@ -389,7 +496,7 @@ class CustomerRepository:
             # Delete vehicles
             queries.append(("DELETE FROM vehicles WHERE customer_id = ?", (customer_id,)))
 
-            # Delete customer
+            # Delete customer (with all new fields)
             queries.append(("DELETE FROM customers WHERE id = ?", (customer_id,)))
 
             # Execute transaction
@@ -406,13 +513,17 @@ class CustomerRepository:
             logger.error(f"Error deleting customer {customer_id}: {e}")
             return False
 
+
     def get_statistics(self) -> Dict[str, Any]:
-        """Get customer statistics including Thai ID usage"""
+        """Enhanced statistics including driver license data"""
         queries = {
             'total_customers': "SELECT COUNT(*) as count FROM customers",
             'with_thai_id': "SELECT COUNT(*) as count FROM customers WHERE thai_id_number IS NOT NULL AND thai_id_number != ''",
+            'with_driver_license': "SELECT COUNT(*) as count FROM customers WHERE driver_license_number IS NOT NULL AND driver_license_number != ''",
             'with_phone': "SELECT COUNT(*) as count FROM customers WHERE phone IS NOT NULL AND phone != ''",
             'with_email': "SELECT COUNT(*) as count FROM customers WHERE email IS NOT NULL AND email != ''",
+            'thai_id_only': "SELECT COUNT(*) as count FROM customers WHERE document_type = 'thai_id'",
+            'driver_license_only': "SELECT COUNT(*) as count FROM customers WHERE document_type = 'driver_license'",
             'new_last_30_days': """
                 SELECT COUNT(*) as count FROM customers 
                 WHERE created_at >= date('now', '-30 days')
@@ -428,13 +539,17 @@ class CustomerRepository:
             result = db_manager.execute_query(query, fetch_one=True)
             stats[key] = result['count'] if result else 0
 
-        # Calculate Thai ID usage percentage
+        # Calculate percentages
         if stats['total_customers'] > 0:
             stats['thai_id_percentage'] = round(
                 (stats['with_thai_id'] / stats['total_customers']) * 100, 1
             )
+            stats['driver_license_percentage'] = round(
+                (stats['with_driver_license'] / stats['total_customers']) * 100, 1
+            )
         else:
             stats['thai_id_percentage'] = 0
+            stats['driver_license_percentage'] = 0
 
         return stats
 

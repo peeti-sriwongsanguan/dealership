@@ -4,6 +4,473 @@
  * Enhanced with Thai ID Card OCR Scanner
  */
 
+
+
+/**
+ * Enhanced OCR parsing for Thai ID cards and Thai driver licenses (front and back)
+ * Supports both Thai National ID and Thai Driving License recognition
+ */
+
+class ThaiDocumentOCR {
+    constructor() {
+        this.documentType = null;
+        this.extractedData = {};
+        this.frontSideData = {};
+        this.backSideData = {};
+    }
+
+    /**
+     * Main method to parse Thai documents
+     */
+    parseThaiDocument(text, imageType = 'auto') {
+        console.log('🔍 Parsing Thai document:', text);
+
+        // Determine document type
+        this.documentType = this.detectDocumentType(text);
+        console.log('📄 Document type detected:', this.documentType);
+
+        switch (this.documentType) {
+            case 'thai_id':
+                return this.parseThaiIDCard(text);
+            case 'driver_license_front':
+                return this.parseDriverLicenseFront(text);
+            case 'driver_license_back':
+                return this.parseDriverLicenseBack(text);
+            default:
+                return this.parseGenericDocument(text);
+        }
+    }
+
+    /**
+     * Detect what type of Thai document this is
+     */
+    detectDocumentType(text) {
+        const normalizedText = text.toLowerCase();
+
+        // Thai ID Card indicators
+        const idCardIndicators = [
+            'บัตรประจำตัวประชาชน',
+            'citizen id card',
+            'บัตรประชาชน',
+            'เลขประจำตัวประชาชน'
+        ];
+
+        // Driver License indicators
+        const driverLicenseIndicators = [
+            'ใบอนุญาตขับรถ',
+            'driving licence',
+            'driving license',
+            'driver licence',
+            'license no',
+            'lic no'
+        ];
+
+        // Address indicators (usually back of driver license)
+        const addressIndicators = [
+            'ที่อยู่ตามทะเบียนบ้าน',
+            'address as in house registration',
+            'registered address',
+            'ที่อยู่ปัจจุบัน'
+        ];
+
+        // Check for Thai ID
+        if (idCardIndicators.some(indicator => normalizedText.includes(indicator))) {
+            return 'thai_id';
+        }
+
+        // Check for driver license back (address side)
+        if (addressIndicators.some(indicator => normalizedText.includes(indicator))) {
+            return 'driver_license_back';
+        }
+
+        // Check for driver license front
+        if (driverLicenseIndicators.some(indicator => normalizedText.includes(indicator))) {
+            return 'driver_license_front';
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Parse Thai National ID Card
+     */
+    parseThaiIDCard(text) {
+        const data = {};
+
+        // ID Number pattern (1-1234-12345-12-1)
+        const idPattern = /(\d{1}[-\s]?\d{4}[-\s]?\d{5}[-\s]?\d{2}[-\s]?\d{1})/;
+        const idMatch = text.match(idPattern);
+        if (idMatch) {
+            data.id_number = idMatch[1].replace(/[-\s]/g, '');
+            data.formatted_id = data.id_number.replace(/(\d{1})(\d{4})(\d{5})(\d{2})(\d{1})/, '$1-$2-$3-$4-$5');
+        }
+
+        // Names
+        data.thai_name = this.extractThaiName(text);
+        data.english_name = this.extractEnglishName(text);
+
+        // Date of birth
+        data.date_of_birth = this.extractDateOfBirth(text);
+
+        // Address
+        data.address = this.extractAddress(text);
+
+        // Issue and expiry dates
+        const dates = this.extractIssueDates(text);
+        data.issue_date = dates.issue_date;
+        data.expiry_date = dates.expiry_date;
+
+        return data;
+    }
+
+    /**
+     * Parse Thai Driver License Front
+     */
+    parseDriverLicenseFront(text) {
+        const data = {};
+
+        // License number patterns
+        const licensePatterns = [
+            /(?:license no\.?\s*|lic\.?\s*no\.?\s*|เลขที่\s*)([a-z0-9\-\s]{8,15})/i,
+            /([0-9]{8,10})/g // Fallback numeric pattern
+        ];
+
+        for (const pattern of licensePatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                data.license_number = match[1] ? match[1].trim() : match[0].trim();
+                break;
+            }
+        }
+
+        // Names
+        data.thai_name = this.extractThaiName(text);
+        data.english_name = this.extractEnglishName(text);
+
+        // Date of birth
+        data.date_of_birth = this.extractDateOfBirth(text);
+
+        // Issue and expiry dates
+        const dates = this.extractIssueDates(text);
+        data.issue_date = dates.issue_date;
+        data.expiry_date = dates.expiry_date;
+
+        // License class/type
+        data.license_class = this.extractLicenseClass(text);
+
+        return data;
+    }
+
+    /**
+     * Parse Thai Driver License Back (Address side)
+     */
+    parseDriverLicenseBack(text) {
+        const data = {};
+
+        // Extract address (both Thai and English)
+        data.thai_address = this.extractThaiAddress(text);
+        data.english_address = this.extractEnglishAddress(text);
+
+        // Use the most complete address
+        data.address = data.english_address || data.thai_address;
+
+        // Sometimes ID number is also on the back
+        const idPattern = /(\d{1}[-\s]?\d{4}[-\s]?\d{5}[-\s]?\d{2}[-\s]?\d{1})/;
+        const idMatch = text.match(idPattern);
+        if (idMatch) {
+            data.id_number = idMatch[1].replace(/[-\s]/g, '');
+        }
+
+        return data;
+    }
+
+    /**
+     * Generic document parsing fallback
+     */
+    parseGenericDocument(text) {
+        const data = {};
+
+        // Try to extract any useful information
+        data.thai_name = this.extractThaiName(text);
+        data.english_name = this.extractEnglishName(text);
+        data.date_of_birth = this.extractDateOfBirth(text);
+        data.address = this.extractAddress(text);
+
+        // Try to find any ID-like numbers
+        const numbers = text.match(/\d{8,}/g);
+        if (numbers && numbers.length > 0) {
+            data.document_number = numbers[0];
+        }
+
+        return data;
+    }
+
+    /**
+     * Extract Thai name
+     */
+    extractThaiName(text) {
+        const thaiNamePatterns = [
+            /(?:นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.)\s*([ก-๙\s]+)/,
+            /([ก-๙]+\s+[ก-๙]+)/,
+            /ชื่อ\s*([ก-๙\s]+)/
+        ];
+
+        for (const pattern of thaiNamePatterns) {
+            const match = text.match(pattern);
+            if (match && match[1]) {
+                const name = match[1].trim();
+                // Validate it's not too short or contains only spaces
+                if (name.length > 2 && name.replace(/\s/g, '').length > 1) {
+                    return name;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract English name
+     */
+    extractEnglishName(text) {
+        const englishNamePatterns = [
+            /(Mr\.|Mrs\.|Miss|MS\.)\s*([A-Za-z\s]+)/i,
+            /Name\s*([A-Za-z\s]+)/i,
+            /([A-Z][a-z]+\s+[A-Z][a-z]+)/g
+        ];
+
+        for (const pattern of englishNamePatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                const name = match[2] ? match[2].trim() : match[1].trim();
+                // Validate English name
+                if (name.length > 3 && /^[A-Za-z\s]+$/.test(name)) {
+                    return name;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract date of birth
+     */
+    extractDateOfBirth(text) {
+        const datePatterns = [
+            /(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4})/g,
+            /(\d{1,2}\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4})/gi,
+            /เกิด\s*(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4})/,
+            /Date of Birth\s*(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4})/i
+        ];
+
+        for (const pattern of datePatterns) {
+            const matches = text.match(pattern);
+            if (matches) {
+                // Return the first reasonable date
+                for (const match of matches) {
+                    const dateStr = match.replace(/เกิด\s*|Date of Birth\s*/i, '');
+                    if (this.isValidDate(dateStr)) {
+                        return dateStr;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract address (general)
+     */
+    extractAddress(text) {
+        return this.extractThaiAddress(text) || this.extractEnglishAddress(text);
+    }
+
+    /**
+     * Extract Thai address
+     */
+    extractThaiAddress(text) {
+        const lines = text.split('\n');
+        const addressKeywords = ['ที่อยู่', 'อำเภอ', 'จังหวัด', 'ตำบล', 'หมู่'];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (addressKeywords.some(keyword => line.includes(keyword))) {
+                // Extract address from this line and possibly next few lines
+                const addressLines = lines.slice(i, Math.min(i + 4, lines.length))
+                    .join(' ')
+                    .replace(/ที่อยู่.*?:/g, '')
+                    .trim();
+
+                if (addressLines.length > 10 && /[ก-๙]/.test(addressLines)) {
+                    return addressLines;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract English address
+     */
+    extractEnglishAddress(text) {
+        const lines = text.split('\n');
+        const englishAddressKeywords = ['address', 'registered address', 'current address'];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].toLowerCase();
+            if (englishAddressKeywords.some(keyword => line.includes(keyword))) {
+                // Extract address from this line and possibly next few lines
+                const addressLines = lines.slice(i, Math.min(i + 4, lines.length))
+                    .join(' ')
+                    .replace(/address.*?:/gi, '')
+                    .trim();
+
+                if (addressLines.length > 10 && /[A-Za-z]/.test(addressLines)) {
+                    return addressLines;
+                }
+            }
+        }
+
+        // Look for patterns that might be addresses
+        const addressPattern = /(\d+.*?(?:road|rd|street|st|avenue|ave|lane|district|province|thailand).{0,100})/gi;
+        const addressMatch = text.match(addressPattern);
+        if (addressMatch && addressMatch[0].length > 15) {
+            return addressMatch[0].trim();
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract issue and expiry dates
+     */
+    extractIssueDates(text) {
+        const result = { issue_date: null, expiry_date: null };
+
+        // Look for issue date
+        const issuePatterns = [
+            /(?:issue|issued|วันออกบัตร)\s*[:\-]?\s*(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4})/i,
+            /(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4}).*?(?:issue|issued)/i
+        ];
+
+        // Look for expiry date
+        const expiryPatterns = [
+            /(?:exp|expiry|expires|วันหมดอายุ)\s*[:\-]?\s*(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4})/i,
+            /(\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4}).*?(?:exp|expiry|expires)/i
+        ];
+
+        for (const pattern of issuePatterns) {
+            const match = text.match(pattern);
+            if (match && this.isValidDate(match[1])) {
+                result.issue_date = match[1];
+                break;
+            }
+        }
+
+        for (const pattern of expiryPatterns) {
+            const match = text.match(pattern);
+            if (match && this.isValidDate(match[1])) {
+                result.expiry_date = match[1];
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Extract license class/type
+     */
+    extractLicenseClass(text) {
+        const classPatterns = [
+            /(?:class|type|ประเภท)\s*[:\-]?\s*([A-Z0-9\-]+)/i,
+            /([A-Z]\d*)\s*(?:license|licence)/i
+        ];
+
+        for (const pattern of classPatterns) {
+            const match = text.match(pattern);
+            if (match && match[1]) {
+                return match[1].trim();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Validate if a date string looks reasonable
+     */
+    isValidDate(dateStr) {
+        if (!dateStr) return false;
+
+        // Basic format check
+        const dateRegex = /^\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4}$/;
+        if (!dateRegex.test(dateStr)) return false;
+
+        // Try to parse the date
+        try {
+            const parts = dateStr.split(/[-\/\.]/);
+            const year = parseInt(parts[2]);
+            const month = parseInt(parts[1]);
+            const day = parseInt(parts[0]);
+
+            // Basic range checks
+            return year >= 1900 && year <= 2030 &&
+                   month >= 1 && month <= 12 &&
+                   day >= 1 && day <= 31;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Merge data from multiple scans (e.g., front and back of driver license)
+     */
+    mergeDocumentData(frontData, backData) {
+        const merged = { ...frontData };
+
+        // Merge address information
+        if (backData.address && !merged.address) {
+            merged.address = backData.address;
+        }
+        if (backData.thai_address) {
+            merged.thai_address = backData.thai_address;
+        }
+        if (backData.english_address) {
+            merged.english_address = backData.english_address;
+        }
+
+        // Merge ID number if not present
+        if (backData.id_number && !merged.id_number) {
+            merged.id_number = backData.id_number;
+        }
+
+        return merged;
+    }
+}
+
+// Enhanced parseThaiIDCard function for the existing customers module
+function parseThaiDocument(text) {
+    const parser = new ThaiDocumentOCR();
+    const result = parser.parseThaiDocument(text);
+
+    console.log('📋 Parsed document result:', result);
+    return result;
+}
+
+// Export for use in the customers module
+if (typeof window !== 'undefined') {
+    window.ThaiDocumentOCR = ThaiDocumentOCR;
+    window.parseThaiDocument = parseThaiDocument;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { ThaiDocumentOCR, parseThaiDocument };
+}
+
 class CustomersModule {
     constructor() {
         this.customers = [];
@@ -439,9 +906,15 @@ class CustomersModule {
 
     /**
      * Show add customer modal with OCR scanner
+     * Enhanced showAddModal method for CustomersModule
+     * Supports Thai ID cards and Thai driver licenses (front and back)
      */
+
+
+
+    // Enhanced method to replace the existing showAddModal in the customers module
     showAddModal() {
-        console.log('🔧 Opening add customer modal with OCR...');
+        console.log('🔧 Opening enhanced add customer modal with driver license support...');
 
         // Get modal elements directly
         const modalOverlay = document.getElementById('modalOverlay');
@@ -453,7 +926,7 @@ class CustomersModule {
             return;
         }
 
-        // Set modal content with OCR scanner
+        // Set modal content with enhanced OCR scanner
         modalContainer.innerHTML = `
             <div class="modal-header">
                 <h2>➕ Add New Customer</h2>
@@ -461,20 +934,35 @@ class CustomersModule {
             </div>
 
             <div class="modal-body">
-                <!-- OCR Scanner Section -->
+                <!-- Enhanced OCR Scanner Section -->
                 <div class="ocr-scanner">
-                    <h3 style="margin: 0 0 15px 0; color: #333;">🆔 Scan Thai ID Card / สแกนบัตรประชาชน</h3>
+                    <h3 style="margin: 0 0 15px 0; color: #333;">🆔 Scan Thai Documents / สแกนเอกสารไทย</h3>
                     <p style="margin: 0 0 15px 0; color: #666; font-size: 14px;">
-                        Take a photo or upload an image of the Thai ID card to auto-fill customer information
+                        Scan Thai ID Card or Driver License (front and back) to auto-fill customer information<br>
+                        <small>สแกนบัตรประชาชนหรือใบขับขี่ (หน้าและหลัง) เพื่อกรอกข้อมูลลูกค้าอัตโนมัติ</small>
                     </p>
+
+                    <div class="document-type-selector" style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Document Type / ประเภทเอกสาร:</label>
+                        <select id="documentTypeSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <option value="auto">Auto Detect / ตรวจจับอัตโนมัติ</option>
+                            <option value="thai_id">Thai ID Card / บัตรประชาชน</option>
+                            <option value="driver_license_front">Driver License Front / ใบขับขี่หน้า</option>
+                            <option value="driver_license_back">Driver License Back / ใบขับขี่หลัง</option>
+                        </select>
+                    </div>
 
                     <div class="ocr-buttons">
                         <input type="file" id="ocrFileInput" class="file-input-hidden" accept="image/*">
                         <button type="button" class="ocr-button" onclick="window.Customers.uploadIDImage()">
-                            📂 Upload ID Card
+                            📂 Upload Document / อัปโหลดเอกสาร
                         </button>
                         <button type="button" class="ocr-button camera" onclick="window.Customers.startIDCamera()">
-                            📷 Take Photo
+                            📷 Take Photo / ถ่ายรูป
+                        </button>
+                        <button type="button" class="ocr-button" onclick="window.Customers.clearOCRData()"
+                            style="background: #6c757d;">
+                            🗑️ Clear / ล้าง
                         </button>
                     </div>
 
@@ -492,10 +980,36 @@ class CustomersModule {
                         </div>
                     </div>
 
-                    <div id="ocrPreview" class="ocr-preview"></div>
+                    <div id="ocrPreviewContainer" class="ocr-preview-container">
+                        <div id="ocrPreview" class="ocr-preview"></div>
+                        <div id="documentTypeDetected" class="document-type-info" style="display: none;">
+                            <span class="detected-type-label">Detected: </span>
+                            <span class="detected-type-value"></span>
+                        </div>
+                    </div>
+
                     <div id="ocrStatus"></div>
                     <div id="ocrProgressBar" class="ocr-progress-bar" style="display: none;">
                         <div id="ocrProgressFill" class="ocr-progress-fill"></div>
+                    </div>
+
+                    <!-- Multi-scan support for driver license -->
+                    <div id="multiScanInfo" class="multi-scan-info" style="display: none;">
+                        <div class="scan-status">
+                            <div class="scan-item" id="frontScanStatus">
+                                <span class="scan-icon">📄</span>
+                                <span class="scan-label">Front Side</span>
+                                <span class="scan-status-indicator">⏳</span>
+                            </div>
+                            <div class="scan-item" id="backScanStatus">
+                                <span class="scan-icon">📄</span>
+                                <span class="scan-label">Back Side</span>
+                                <span class="scan-status-indicator">⏳</span>
+                            </div>
+                        </div>
+                        <p style="font-size: 12px; color: #666; margin: 10px 0 0 0;">
+                            For driver licenses, scan both front (with photo) and back (with address) for complete information
+                        </p>
                     </div>
                 </div>
 
@@ -511,28 +1025,30 @@ class CustomersModule {
                             placeholder="Enter customer name"
                             required
                         >
+                        <small class="form-help">Primary name for customer records</small>
                     </div>
 
-                    <div class="form-group">
-                        <label class="form-label">Phone Number</label>
-                        <input
-                            type="tel"
-                            name="phone"
-                            id="customerPhone"
-                            class="form-input"
-                            placeholder="(555) 123-4567"
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Email Address</label>
-                        <input
-                            type="email"
-                            name="email"
-                            id="customerEmail"
-                            class="form-input"
-                            placeholder="customer@example.com"
-                        >
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Phone Number</label>
+                            <input
+                                type="tel"
+                                name="phone"
+                                id="customerPhone"
+                                class="form-input"
+                                placeholder="(555) 123-4567"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <input
+                                type="email"
+                                name="email"
+                                id="customerEmail"
+                                class="form-input"
+                                placeholder="customer@example.com"
+                            >
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -546,12 +1062,47 @@ class CustomersModule {
                         ></textarea>
                     </div>
 
-                    <!-- Hidden ID-specific fields -->
+                    <!-- Expanded OCR extracted data fields -->
                     <div class="form-group" style="display: none;">
+                        <!-- Thai ID/License data -->
                         <input type="text" name="id_number" id="customerIdNumber">
+                        <input type="text" name="license_number" id="customerLicenseNumber">
                         <input type="text" name="date_of_birth" id="customerDateOfBirth">
                         <input type="text" name="thai_name" id="customerThaiName">
                         <input type="text" name="english_name" id="customerEnglishName">
+                        <input type="text" name="thai_address" id="customerThaiAddress">
+                        <input type="text" name="english_address" id="customerEnglishAddress">
+                        <input type="text" name="issue_date" id="customerIssueDate">
+                        <input type="text" name="expiry_date" id="customerExpiryDate">
+                        <input type="text" name="license_class" id="customerLicenseClass">
+                        <input type="text" name="document_type" id="customerDocumentType">
+                    </div>
+
+                    <!-- OCR Data Summary (visible) -->
+                    <div id="ocrDataSummary" class="ocr-data-summary" style="display: none;">
+                        <h4 style="margin: 15px 0 10px 0; color: #333;">📋 Extracted Information</h4>
+                        <div class="data-summary-grid">
+                            <div class="summary-item" id="summaryIdNumber" style="display: none;">
+                                <label>ID/License Number:</label>
+                                <span class="summary-value"></span>
+                            </div>
+                            <div class="summary-item" id="summaryThaiName" style="display: none;">
+                                <label>Thai Name:</label>
+                                <span class="summary-value thai-text"></span>
+                            </div>
+                            <div class="summary-item" id="summaryEnglishName" style="display: none;">
+                                <label>English Name:</label>
+                                <span class="summary-value"></span>
+                            </div>
+                            <div class="summary-item" id="summaryDateOfBirth" style="display: none;">
+                                <label>Date of Birth:</label>
+                                <span class="summary-value"></span>
+                            </div>
+                            <div class="summary-item" id="summaryAddress" style="display: none;">
+                                <label>Address:</label>
+                                <span class="summary-value"></span>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="modal-actions">
@@ -564,6 +1115,133 @@ class CustomersModule {
                     </div>
                 </form>
             </div>
+
+            <!-- Enhanced Styles -->
+            <style>
+                .document-type-selector {
+                    background: #f8f9fa;
+                    padding: 10px;
+                    border-radius: 8px;
+                    border: 1px solid #e9ecef;
+                }
+
+                .ocr-preview-container {
+                    margin: 15px 0;
+                }
+
+                .document-type-info {
+                    background: #e8f5e8;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    margin-top: 10px;
+                    font-size: 14px;
+                }
+
+                .detected-type-label {
+                    font-weight: bold;
+                    color: #27ae60;
+                }
+
+                .detected-type-value {
+                    color: #2c3e50;
+                    font-weight: 500;
+                }
+
+                .multi-scan-info {
+                    background: #fff3cd;
+                    border: 1px solid #ffeaa7;
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-top: 15px;
+                }
+
+                .scan-status {
+                    display: flex;
+                    gap: 20px;
+                    justify-content: center;
+                    margin-bottom: 10px;
+                }
+
+                .scan-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    padding: 8px 12px;
+                    background: white;
+                    border-radius: 6px;
+                    border: 1px solid #dee2e6;
+                }
+
+                .scan-status-indicator.complete {
+                    color: #27ae60;
+                }
+
+                .scan-status-indicator.pending {
+                    color: #f39c12;
+                }
+
+                .ocr-data-summary {
+                    background: #f8f9fa;
+                    border: 1px solid #e9ecef;
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin-top: 15px;
+                }
+
+                .data-summary-grid {
+                    display: grid;
+                    grid-template-columns: 1fr;
+                    gap: 8px;
+                }
+
+                .summary-item {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 6px 0;
+                    border-bottom: 1px solid #e9ecef;
+                }
+
+                .summary-item:last-child {
+                    border-bottom: none;
+                }
+
+                .summary-item label {
+                    font-weight: 500;
+                    color: #495057;
+                    min-width: 120px;
+                }
+
+                .summary-value {
+                    color: #2c3e50;
+                    font-weight: 600;
+                    flex: 1;
+                    text-align: right;
+                }
+
+                .form-row {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 15px;
+                }
+
+                .form-help {
+                    font-size: 12px;
+                    color: #6c757d;
+                    margin-top: 4px;
+                    display: block;
+                }
+
+                @media (max-width: 768px) {
+                    .form-row {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .scan-status {
+                        flex-direction: column;
+                        gap: 10px;
+                    }
+                }
+            </style>
         `;
 
         // Add event listener for file input
@@ -576,13 +1254,316 @@ class CustomersModule {
                     }
                 });
             }
+
+            // Initialize multi-scan tracking
+            this.multiScanData = {
+                frontData: null,
+                backData: null,
+                documentType: null
+            };
         }, 100);
 
         // Show modal by adding active class
         modalOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
 
-        console.log('✅ Modal displayed with OCR scanner');
+        console.log('✅ Enhanced modal displayed with driver license support');
+    }
+
+    /**
+     * Enhanced OCR processing with document type detection
+     */
+    async performOCR(imageSrc) {
+        const statusDiv = document.getElementById('ocrStatus');
+        const progressBar = document.getElementById('ocrProgressBar');
+        const progressFill = document.getElementById('ocrProgressFill');
+
+        if (statusDiv) {
+            statusDiv.innerHTML = '<div class="ocr-status processing">🔄 Processing document... / กำลังประมวลผลเอกสาร...</div>';
+        }
+
+        if (progressBar) {
+            progressBar.style.display = 'block';
+        }
+
+        try {
+            // Check if Tesseract is available
+            if (typeof Tesseract === 'undefined') {
+                throw new Error('OCR library not loaded. Please refresh the page.');
+            }
+
+            const worker = await Tesseract.createWorker(['eng', 'tha']);
+
+            // Configure OCR for Thai documents
+            await worker.setParameters({
+                tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+                tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-./: กขฃคฅฆงจฉชซฌญฎฏฐฑฒณดตถทธนบปผฝพฟภมยรลวศษสหฬอฮะาิีึืุูเแโใไํ่้๊๋์'
+            });
+
+            const result = await worker.recognize(imageSrc, {
+                logger: m => {
+                    if (m.status === 'recognizing text' && progressFill) {
+                        const progress = Math.round(m.progress * 100);
+                        progressFill.style.width = progress + '%';
+                    }
+                }
+            });
+
+            await worker.terminate();
+
+            if (progressBar) {
+                progressBar.style.display = 'none';
+            }
+
+            // Enhanced parsing with document type detection
+            this.parseEnhancedThaiDocument(result.data.text);
+
+            if (statusDiv) {
+                statusDiv.innerHTML = '<div class="ocr-status success">✅ Document processed successfully! / ประมวลผลเอกสารสำเร็จ!</div>';
+            }
+
+        } catch (error) {
+            console.error('OCR Error:', error);
+            if (statusDiv) {
+                statusDiv.innerHTML = '<div class="ocr-status error">❌ Error processing document. Please try again. / เกิดข้อผิดพลาดในการประมวลผล กรุณาลองใหม่</div>';
+            }
+            if (progressBar) {
+                progressBar.style.display = 'none';
+            }
+        }
+    }
+
+    /**
+     * Enhanced Thai document parsing with support for ID cards and driver licenses
+     */
+    parseEnhancedThaiDocument(text) {
+        console.log('🔍 Enhanced OCR Result:', text);
+
+        // Initialize OCR parser if not available
+        if (typeof window.ThaiDocumentOCR === 'undefined') {
+            console.warn('ThaiDocumentOCR not loaded, falling back to basic parsing');
+            this.parseThaiIDCard(text);
+            return;
+        }
+
+        const parser = new window.ThaiDocumentOCR();
+        const selectedType = document.getElementById('documentTypeSelect')?.value || 'auto';
+
+        // Parse the document
+        const extractedData = parser.parseThaiDocument(text, selectedType);
+
+        // Show detected document type
+        this.displayDocumentType(parser.documentType);
+
+        // Handle multi-scan for driver licenses
+        if (parser.documentType === 'driver_license_front' || parser.documentType === 'driver_license_back') {
+            this.handleDriverLicenseScan(parser.documentType, extractedData);
+        } else {
+            // Single document (Thai ID or unknown)
+            this.fillFormFromOCRData(extractedData);
+        }
+
+        // Show extracted data summary
+        this.displayOCRSummary(extractedData);
+    }
+
+    /**
+     * Display detected document type
+     */
+    displayDocumentType(documentType) {
+        const detectedDiv = document.getElementById('documentTypeDetected');
+        const valueSpan = detectedDiv?.querySelector('.detected-type-value');
+
+        const typeNames = {
+            'thai_id': 'Thai National ID Card / บัตรประชาชน',
+            'driver_license_front': 'Driver License (Front) / ใบขับขี่ (หน้า)',
+            'driver_license_back': 'Driver License (Back) / ใบขับขี่ (หลัง)',
+            'unknown': 'Unknown Document / เอกสารไม่ทราบประเภท'
+        };
+
+        if (detectedDiv && valueSpan) {
+            valueSpan.textContent = typeNames[documentType] || 'Unknown';
+            detectedDiv.style.display = 'block';
+        }
+    }
+
+    /**
+     * Handle driver license multi-scan process
+     */
+    handleDriverLicenseScan(scanType, data) {
+        const multiScanDiv = document.getElementById('multiScanInfo');
+        const frontStatus = document.getElementById('frontScanStatus')?.querySelector('.scan-status-indicator');
+        const backStatus = document.getElementById('backScanStatus')?.querySelector('.scan-status-indicator');
+
+        // Show multi-scan interface
+        if (multiScanDiv) {
+            multiScanDiv.style.display = 'block';
+        }
+
+        // Store scan data
+        if (scanType === 'driver_license_front') {
+            this.multiScanData.frontData = data;
+            if (frontStatus) {
+                frontStatus.textContent = '✅';
+                frontStatus.className = 'scan-status-indicator complete';
+            }
+        } else if (scanType === 'driver_license_back') {
+            this.multiScanData.backData = data;
+            if (backStatus) {
+                backStatus.textContent = '✅';
+                backStatus.className = 'scan-status-indicator complete';
+            }
+        }
+
+        // Merge data if we have both sides
+        let finalData = data;
+        if (this.multiScanData.frontData && this.multiScanData.backData) {
+            const parser = new window.ThaiDocumentOCR();
+            finalData = parser.mergeDocumentData(this.multiScanData.frontData, this.multiScanData.backData);
+
+            // Show completion message
+            const statusDiv = document.getElementById('ocrStatus');
+            if (statusDiv) {
+                statusDiv.innerHTML = '<div class="ocr-status success">🎉 Both sides scanned! Complete information extracted. / สแกนทั้งสองด้านแล้ว! ดึงข้อมูลครบถ้วน</div>';
+            }
+        }
+
+        this.fillFormFromOCRData(finalData);
+    }
+
+    /**
+     * Fill form from extracted OCR data
+     */
+    fillFormFromOCRData(data) {
+        // Primary name field
+        let primaryName = data.english_name || data.thai_name || '';
+        this.setFormValue('customerName', primaryName);
+
+        // Contact information
+        if (data.phone) {
+            this.setFormValue('customerPhone', data.phone);
+        }
+        if (data.email) {
+            this.setFormValue('customerEmail', data.email);
+        }
+
+        // Address - prefer English address for driver license, fallback to general address
+        let address = data.english_address || data.address || data.thai_address || '';
+        this.setFormValue('customerAddress', address);
+
+        // Hidden fields for database storage
+        this.setFormValue('customerIdNumber', data.id_number || '');
+        this.setFormValue('customerLicenseNumber', data.license_number || '');
+        this.setFormValue('customerDateOfBirth', data.date_of_birth || '');
+        this.setFormValue('customerThaiName', data.thai_name || '');
+        this.setFormValue('customerEnglishName', data.english_name || '');
+        this.setFormValue('customerThaiAddress', data.thai_address || '');
+        this.setFormValue('customerEnglishAddress', data.english_address || '');
+        this.setFormValue('customerIssueDate', data.issue_date || '');
+        this.setFormValue('customerExpiryDate', data.expiry_date || '');
+        this.setFormValue('customerLicenseClass', data.license_class || '');
+
+        // Store document type
+        const docType = data.license_number ? 'driver_license' : 'thai_id';
+        this.setFormValue('customerDocumentType', docType);
+
+        // Show success notification
+        window.showToast('Document information extracted successfully!', 'success');
+    }
+
+    /**
+     * Display OCR data summary
+     */
+    displayOCRSummary(data) {
+        const summaryDiv = document.getElementById('ocrDataSummary');
+        if (!summaryDiv) return;
+
+        // Show summary container
+        summaryDiv.style.display = 'block';
+
+        // Update summary items
+        this.updateSummaryItem('summaryIdNumber', data.id_number || data.license_number);
+        this.updateSummaryItem('summaryThaiName', data.thai_name);
+        this.updateSummaryItem('summaryEnglishName', data.english_name);
+        this.updateSummaryItem('summaryDateOfBirth', data.date_of_birth);
+        this.updateSummaryItem('summaryAddress', data.english_address || data.address || data.thai_address);
+    }
+
+    /**
+     * Update individual summary item
+     */
+    updateSummaryItem(itemId, value) {
+        const item = document.getElementById(itemId);
+        if (!item) return;
+
+        if (value && value.trim()) {
+            item.style.display = 'flex';
+            const valueSpan = item.querySelector('.summary-value');
+            if (valueSpan) {
+                valueSpan.textContent = value;
+            }
+        } else {
+            item.style.display = 'none';
+        }
+    }
+
+    /**
+     * Clear OCR data and reset form
+     */
+    clearOCRData() {
+        // Reset multi-scan data
+        this.multiScanData = {
+            frontData: null,
+            backData: null,
+            documentType: null
+        };
+
+        // Clear UI elements
+        const elementsToHide = [
+            'ocrPreview',
+            'documentTypeDetected',
+            'multiScanInfo',
+            'ocrDataSummary',
+            'ocrStatus'
+        ];
+
+        elementsToHide.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                if (id === 'ocrPreview') {
+                    element.innerHTML = '';
+                } else {
+                    element.style.display = 'none';
+                }
+            }
+        });
+
+        // Reset scan status indicators
+        const indicators = document.querySelectorAll('.scan-status-indicator');
+        indicators.forEach(indicator => {
+            indicator.textContent = '⏳';
+            indicator.className = 'scan-status-indicator pending';
+        });
+
+        // Clear form fields (except manual entries)
+        const formFields = [
+            'customerIdNumber', 'customerLicenseNumber', 'customerDateOfBirth',
+            'customerThaiName', 'customerEnglishName', 'customerThaiAddress',
+            'customerEnglishAddress', 'customerIssueDate', 'customerExpiryDate',
+            'customerLicenseClass', 'customerDocumentType'
+        ];
+
+        formFields.forEach(fieldId => {
+            this.setFormValue(fieldId, '');
+        });
+
+        // Reset document type selector
+        const typeSelect = document.getElementById('documentTypeSelect');
+        if (typeSelect) {
+            typeSelect.value = 'auto';
+        }
+
+        window.showToast('OCR data cleared', 'info');
     }
 
     /**
