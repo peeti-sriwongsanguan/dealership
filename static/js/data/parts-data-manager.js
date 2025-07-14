@@ -31,7 +31,7 @@ class PartsDataManager {
 
     async _fetchPartsData() {
         try {
-            const response = await fetch('/static/data/automotive-parts.json');
+            const response = await fetch('/static/js/data/automotive-parts.json');
             if (!response.ok) {
                 throw new Error(`Failed to load parts data: ${response.status}`);
             }

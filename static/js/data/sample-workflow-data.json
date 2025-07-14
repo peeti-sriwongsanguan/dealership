@@ -1,0 +1,363 @@
+{
+  "work_orders": [
+    {
+      "id": 1,
+      "work_order_number": "WO-2025-001",
+      "date_created": "2025-01-12T10:30:00.000Z",
+      "customer_name": "บริษัท ขนส่งใหญ่ จำกัด",
+      "customer_phone": "02-123-4567",
+      "customer_email": "contact@transport-big.com",
+      "customer_address": "123 ถนนพหลโยธิน กรุงเทพฯ 10400",
+      "vehicle_registration": "80-1234",
+      "vehicle_info": "Isuzu NPR 2023",
+      "vin_number": "JAAN4R16S00123456",
+      "mileage": 45000,
+      "payment_type": "insurance",
+      "insurance_company": "bangkok_insurance",
+      "policy_number": "POL-12345",
+      "adjuster_name": "คุณสมชาย ประเมิน",
+      "damage_description": "ชนหน้ารถ กันชนหัก ไฟหน้าแตก กระจกหน้าร้าว",
+      "estimated_cost": 45000,
+      "insurance_coverage": 45000,
+      "deductible_amount": 0,
+      "status": "insurance_pending",
+      "priority": "high",
+      "technician_assigned": "ช่างสมศักดิ์",
+      "estimated_completion_days": 5,
+      "parts_needed": [
+        {"part_code": "FRO2", "quantity": 1, "description": "กันชนหน้า"},
+        {"part_code": "HEA1", "quantity": 2, "description": "ไฟหน้า"},
+        {"part_code": "WIN1", "quantity": 1, "description": "กระจกหน้า"}
+      ],
+      "created_at": "2025-01-12T10:30:00.000Z",
+      "updated_at": "2025-01-12T14:22:00.000Z"
+    },
+    {
+      "id": 2,
+      "work_order_number": "WO-2025-002",
+      "date_created": "2025-01-11T09:15:00.000Z",
+      "customer_name": "คุณสมชาย ใจดี",
+      "customer_phone": "081-234-5678",
+      "customer_email": "somchai@email.com",
+      "customer_address": "456 ซอยลาดพร้าว กรุงเทพฯ 10230",
+      "vehicle_registration": "กข-5678",
+      "vehicle_info": "Toyota Hilux 2022",
+      "vin_number": "MTTK4R16S00567890",
+      "mileage": 28000,
+      "payment_type": "self_pay",
+      "damage_description": "เปลี่ยนน้ำมันเครื่อง และตรวจเช็คทั่วไป",
+      "estimated_cost": 3500,
+      "payment_method": "cash",
+      "payment_received": 3500,
+      "payment_date": "2025-01-11T11:30:00.000Z",
+      "payment_reference": "CASH-001-2025",
+      "status": "payment_received",
+      "priority": "normal",
+      "technician_assigned": "ช่างสมปอง",
+      "estimated_completion_days": 1,
+      "parts_needed": [
+        {"part_code": "OIL1", "quantity": 5, "description": "น้ำมันเครื่อง"}
+      ],
+      "created_at": "2025-01-11T09:15:00.000Z",
+      "updated_at": "2025-01-11T11:30:00.000Z"
+    },
+    {
+      "id": 3,
+      "work_order_number": "WO-2025-003",
+      "date_created": "2025-01-10T14:20:00.000Z",
+      "customer_name": "คุณสมหญิง รักสะอาด",
+      "customer_phone": "082-345-6789",
+      "customer_email": "somying@email.com",
+      "customer_address": "789 ถนนสุขุมวิท กรุงเทพฯ 10110",
+      "vehicle_registration": "ขค-9999",
+      "vehicle_info": "Honda Civic 2021",
+      "vin_number": "JHMF16H00ML123456",
+      "mileage": 15000,
+      "payment_type": "mixed",
+      "insurance_company": "thai_life",
+      "policy_number": "POL-67890",
+      "adjuster_name": "คุณสมหญิง ตรวจสอบ",
+      "damage_description": "อุบัติเหตุเสียหายด้านข้าง ประตูเบี้ยว กระจกแตก",
+      "estimated_cost": 25000,
+      "insurance_coverage": 20000,
+      "deductible_amount": 5000,
+      "deductible_payment_method": "credit_card",
+      "status": "insurance_deductible_pending",
+      "priority": "high",
+      "technician_assigned": "ช่างสมศรี",
+      "estimated_completion_days": 3,
+      "parts_needed": [
+        {"part_code": "DOO1", "quantity": 1, "description": "ประตู"},
+        {"part_code": "WIN1", "quantity": 1, "description": "กระจก"}
+      ],
+      "created_at": "2025-01-10T14:20:00.000Z",
+      "updated_at": "2025-01-10T16:45:00.000Z"
+    },
+    {
+      "id": 4,
+      "work_order_number": "WO-2025-004",
+      "date_created": "2025-01-09T11:00:00.000Z",
+      "customer_name": "คุณประยุทธ์ รถดี",
+      "customer_phone": "083-456-7890",
+      "customer_email": "prayuth@email.com",
+      "customer_address": "321 ถนนรัชดาภิเษก กรุงเทพฯ 10310",
+      "vehicle_registration": "กง-1111",
+      "vehicle_info": "BMW X3 2023",
+      "vin_number": "WBAXH91060L123456",
+      "mileage": 8000,
+      "payment_type": "self_pay",
+      "damage_description": "ซ่อมแอร์รถยนต์ และเปลี่ยนฟิลเตอร์",
+      "estimated_cost": 12000,
+      "payment_method": "installment_6",
+      "installment_months": 6,
+      "down_payment": 2000,
+      "monthly_payment": 1750,
+      "down_payment_received": 2000,
+      "down_payment_date": "2025-01-09T13:30:00.000Z",
+      "status": "payment_method_selected",
+      "priority": "normal",
+      "technician_assigned": "ช่างสมชาย",
+      "estimated_completion_days": 2,
+      "parts_needed": [
+        {"part_code": "FIL1", "quantity": 2, "description": "ฟิลเตอร์แอร์"}
+      ],
+      "created_at": "2025-01-09T11:00:00.000Z",
+      "updated_at": "2025-01-09T13:30:00.000Z"
+    },
+    {
+      "id": 5,
+      "work_order_number": "WO-2025-005",
+      "date_created": "2025-01-08T16:45:00.000Z",
+      "customer_name": "ห้างหุ้นส่วน ซ่อมดี",
+      "customer_phone": "02-987-6543",
+      "customer_email": "service@repair-good.com",
+      "customer_address": "999 ถนนเพชรบุรี กรุงเทพฯ 10400",
+      "vehicle_registration": "ขง-7777",
+      "vehicle_info": "Mercedes Sprinter 2022",
+      "vin_number": "WD3V51ED0LP123456",
+      "mileage": 65000,
+      "payment_type": "warranty",
+      "warranty_provider": "Mercedes-Benz Thailand",
+      "warranty_number": "WTY-MB-2022-789",
+      "damage_description": "เครื่องยนต์มีปัญหา ต้องเปลี่ยนชิ้นส่วนภายใต้การรับประกัน",
+      "estimated_cost": 0,
+      "warranty_coverage": 35000,
+      "status": "warranty_verification",
+      "priority": "urgent",
+      "technician_assigned": "ช่างผู้เชี่ยวชาญ",
+      "estimated_completion_days": 7,
+      "parts_needed": [
+        {"part_code": "ENG1", "quantity": 1, "description": "ชิ้นส่วนเครื่องยนต์"}
+      ],
+      "created_at": "2025-01-08T16:45:00.000Z",
+      "updated_at": "2025-01-08T17:30:00.000Z"
+    }
+  ],
+  "customers": [
+    {
+      "id": 1,
+      "name": "บริษัท ขนส่งใหญ่ จำกัด",
+      "type": "corporate",
+      "phone": "02-123-4567",
+      "email": "contact@transport-big.com",
+      "address": "123 ถนนพหลโยธิน กรุงเทพฯ 10400",
+      "tax_id": "0123456789012",
+      "contact_person": "คุณใหญ่ ธุรกิจดี"
+    },
+    {
+      "id": 2,
+      "name": "คุณสมชาย ใจดี",
+      "type": "individual",
+      "phone": "081-234-5678",
+      "email": "somchai@email.com",
+      "address": "456 ซอยลาดพร้าว กรุงเทพฯ 10230",
+      "id_card": "1234567890123"
+    },
+    {
+      "id": 3,
+      "name": "คุณสมหญิง รักสะอาด",
+      "type": "individual",
+      "phone": "082-345-6789",
+      "email": "somying@email.com",
+      "address": "789 ถนนสุขุมวิท กรุงเทพฯ 10110",
+      "id_card": "2345678901234"
+    },
+    {
+      "id": 4,
+      "name": "คุณประยุทธ์ รถดี",
+      "type": "individual",
+      "phone": "083-456-7890",
+      "email": "prayuth@email.com",
+      "address": "321 ถนนรัชดาภิเษก กรุงเทพฯ 10310",
+      "id_card": "3456789012345"
+    },
+    {
+      "id": 5,
+      "name": "ห้างหุ้นส่วน ซ่อมดี",
+      "type": "corporate",
+      "phone": "02-987-6543",
+      "email": "service@repair-good.com",
+      "address": "999 ถนนเพชรบุรี กรุงเทพฯ 10400",
+      "tax_id": "9876543210987",
+      "contact_person": "คุณซ่อม ดีเยี่ยม"
+    }
+  ],
+  "vehicles": [
+    {
+      "id": 1,
+      "customer_id": 1,
+      "license_plate": "80-1234",
+      "make": "Isuzu",
+      "model": "NPR",
+      "year": 2023,
+      "vin": "JAAN4R16S00123456",
+      "color": "ขาว",
+      "engine_size": "3.0L",
+      "fuel_type": "ดีเซล"
+    },
+    {
+      "id": 2,
+      "customer_id": 2,
+      "license_plate": "กข-5678",
+      "make": "Toyota",
+      "model": "Hilux",
+      "year": 2022,
+      "vin": "MTTK4R16S00567890",
+      "color": "เงิน",
+      "engine_size": "2.4L",
+      "fuel_type": "ดีเซล"
+    },
+    {
+      "id": 3,
+      "customer_id": 3,
+      "license_plate": "ขค-9999",
+      "make": "Honda",
+      "model": "Civic",
+      "year": 2021,
+      "vin": "JHMF16H00ML123456",
+      "color": "ดำ",
+      "engine_size": "1.5L",
+      "fuel_type": "เบนซิน"
+    },
+    {
+      "id": 4,
+      "customer_id": 4,
+      "license_plate": "กง-1111",
+      "make": "BMW",
+      "model": "X3",
+      "year": 2023,
+      "vin": "WBAXH91060L123456",
+      "color": "น้ำเงิน",
+      "engine_size": "2.0L",
+      "fuel_type": "เบนซิน"
+    },
+    {
+      "id": 5,
+      "customer_id": 5,
+      "license_plate": "ขง-7777",
+      "make": "Mercedes",
+      "model": "Sprinter",
+      "year": 2022,
+      "vin": "WD3V51ED0LP123456",
+      "color": "ขาว",
+      "engine_size": "2.1L",
+      "fuel_type": "ดีเซล"
+    }
+  ],
+  "payments": [
+    {
+      "id": 1,
+      "work_order_id": 2,
+      "payment_type": "full_payment",
+      "payment_method": "cash",
+      "amount": 3500,
+      "fees": 0,
+      "total_amount": 3500,
+      "payment_date": "2025-01-11T11:30:00.000Z",
+      "reference_number": "CASH-001-2025",
+      "status": "completed",
+      "notes": "เงินสดชำระเต็มจำนวน"
+    },
+    {
+      "id": 2,
+      "work_order_id": 4,
+      "payment_type": "down_payment",
+      "payment_method": "credit_card",
+      "amount": 2000,
+      "fees": 50,
+      "total_amount": 2050,
+      "payment_date": "2025-01-09T13:30:00.000Z",
+      "reference_number": "CC-002-2025",
+      "status": "completed",
+      "notes": "เงินดาวน์แผนผ่อน 6 เดือน"
+    }
+  ],
+  "technicians": [
+    {
+      "id": 1,
+      "name": "ช่างสมศักดิ์",
+      "specialization": "งานซ่อมภายนอก",
+      "phone": "081-111-2222",
+      "experience_years": 8,
+      "certification": "รับรองจากบริษัท Isuzu"
+    },
+    {
+      "id": 2,
+      "name": "ช่างสมปอง",
+      "specialization": "งานบำรุงรักษา",
+      "phone": "081-333-4444",
+      "experience_years": 5,
+      "certification": "รับรองทั่วไป"
+    },
+    {
+      "id": 3,
+      "name": "ช่างสมศรี",
+      "specialization": "งานซ่อมตัวถัง",
+      "phone": "081-555-6666",
+      "experience_years": 10,
+      "certification": "รับรองจากบริษัท Honda"
+    },
+    {
+      "id": 4,
+      "name": "ช่างสมชาย",
+      "specialization": "ระบบแอร์และไฟฟ้า",
+      "phone": "081-777-8888",
+      "experience_years": 6,
+      "certification": "รับรองระบบไฟฟ้ารถยนต์"
+    },
+    {
+      "id": 5,
+      "name": "ช่างผู้เชี่ยวชาญ",
+      "specialization": "เครื่องยนต์ระดับสูง",
+      "phone": "081-999-0000",
+      "experience_years": 15,
+      "certification": "รับรองจากบริษัท Mercedes-Benz"
+    }
+  ],
+  "service_history": [
+    {
+      "id": 1,
+      "work_order_id": 2,
+      "timestamp": "2025-01-11T09:15:00.000Z",
+      "status": "estimate_requested",
+      "notes": "ลูกค้าขอใบประเมินราคา",
+      "user": "พนักงานต้อนรับ"
+    },
+    {
+      "id": 2,
+      "work_order_id": 2,
+      "timestamp": "2025-01-11T10:30:00.000Z",
+      "status": "estimate_prepared",
+      "notes": "จัดทำใบประเมินราคาเสร็จสิ้น",
+      "user": "ช่างสมปอง"
+    },
+    {
+      "id": 3,
+      "work_order_id": 2,
+      "timestamp": "2025-01-11T11:30:00.000Z",
+      "status": "payment_received",
+      "notes": "รับชำระเงินสดเต็มจำนวน 3,500 บาท",
+      "user": "พนักงานการเงิน"
+    }
+  ]
+}

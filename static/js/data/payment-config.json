@@ -1,0 +1,462 @@
+{
+  "payment_types": {
+    "insurance": {
+      "label": "Insurance Claim",
+      "icon": "🏥",
+      "color": "#3b82f6",
+      "description": "Insurance company pays for repairs",
+      "requires_insurance_info": true,
+      "requires_payment_method": false,
+      "workflow_steps": [
+        "estimate_prepared",
+        "insurance_submitted",
+        "insurance_pending",
+        "insurance_approved",
+        "parts_ordered",
+        "service_scheduled",
+        "in_progress",
+        "quality_check",
+        "completed",
+        "delivered"
+      ]
+    },
+    "self_pay": {
+      "label": "Self Payment",
+      "icon": "💳",
+      "color": "#10b981",
+      "description": "Customer pays directly",
+      "requires_insurance_info": false,
+      "requires_payment_method": true,
+      "workflow_steps": [
+        "estimate_prepared",
+        "customer_reviewing",
+        "estimate_approved",
+        "payment_method_selected",
+        "payment_processing",
+        "payment_received",
+        "parts_ordered",
+        "service_scheduled",
+        "in_progress",
+        "quality_check",
+        "completed",
+        "delivered"
+      ]
+    },
+    "mixed": {
+      "label": "Insurance + Deductible",
+      "icon": "🏥💳",
+      "color": "#f59e0b",
+      "description": "Insurance pays most, customer pays deductible",
+      "requires_insurance_info": true,
+      "requires_payment_method": true,
+      "workflow_steps": [
+        "estimate_prepared",
+        "insurance_submitted",
+        "insurance_pending",
+        "insurance_approved",
+        "insurance_deductible_pending",
+        "deductible_payment_processing",
+        "partial_payment_received",
+        "payment_complete",
+        "parts_ordered",
+        "service_scheduled",
+        "in_progress",
+        "quality_check",
+        "completed",
+        "delivered"
+      ]
+    },
+    "warranty": {
+      "label": "Warranty Repair",
+      "icon": "🛡️",
+      "color": "#8b5cf6",
+      "description": "Covered under vehicle warranty",
+      "requires_insurance_info": false,
+      "requires_payment_method": false,
+      "workflow_steps": [
+        "estimate_prepared",
+        "warranty_verification",
+        "warranty_approved",
+        "parts_ordered",
+        "service_scheduled",
+        "in_progress",
+        "quality_check",
+        "completed",
+        "delivered"
+      ]
+    }
+  },
+  "payment_methods": {
+    "cash": {
+      "label": "Cash",
+      "icon": "💵",
+      "color": "#10b981",
+      "fees_percentage": 0,
+      "processing_time": "Immediate",
+      "requires_verification": false,
+      "available_for": ["self_pay", "mixed"],
+      "max_amount": 50000,
+      "description": "Physical cash payment"
+    },
+    "credit_card": {
+      "label": "Credit Card",
+      "icon": "💳",
+      "color": "#3b82f6",
+      "fees_percentage": 2.5,
+      "processing_time": "Immediate",
+      "requires_verification": true,
+      "available_for": ["self_pay", "mixed"],
+      "max_amount": 500000,
+      "description": "Visa, MasterCard, etc."
+    },
+    "debit_card": {
+      "label": "Debit Card",
+      "icon": "💳",
+      "color": "#06b6d4",
+      "fees_percentage": 1.0,
+      "processing_time": "Immediate",
+      "requires_verification": true,
+      "available_for": ["self_pay", "mixed"],
+      "max_amount": 200000,
+      "description": "Direct bank account debit"
+    },
+    "bank_transfer": {
+      "label": "Bank Transfer",
+      "icon": "🏦",
+      "color": "#8b5cf6",
+      "fees_percentage": 0,
+      "processing_time": "1-2 business days",
+      "requires_verification": true,
+      "available_for": ["self_pay", "mixed"],
+      "max_amount": 1000000,
+      "description": "Direct bank to bank transfer"
+    },
+    "installment_3": {
+      "label": "3-Month Installment",
+      "icon": "📊",
+      "color": "#f59e0b",
+      "fees_percentage": 3.0,
+      "processing_time": "Monthly payments",
+      "requires_verification": true,
+      "available_for": ["self_pay"],
+      "max_amount": 100000,
+      "months": 3,
+      "down_payment_required": true,
+      "description": "Pay in 3 monthly installments"
+    },
+    "installment_6": {
+      "label": "6-Month Installment",
+      "icon": "📊",
+      "color": "#f59e0b",
+      "fees_percentage": 5.0,
+      "processing_time": "Monthly payments",
+      "requires_verification": true,
+      "available_for": ["self_pay"],
+      "max_amount": 200000,
+      "months": 6,
+      "down_payment_required": true,
+      "description": "Pay in 6 monthly installments"
+    },
+    "installment_12": {
+      "label": "12-Month Installment",
+      "icon": "📊",
+      "color": "#f59e0b",
+      "fees_percentage": 8.0,
+      "processing_time": "Monthly payments",
+      "requires_verification": true,
+      "available_for": ["self_pay"],
+      "max_amount": 500000,
+      "months": 12,
+      "down_payment_required": true,
+      "description": "Pay in 12 monthly installments"
+    },
+    "check": {
+      "label": "Check",
+      "icon": "📝",
+      "color": "#6b7280",
+      "fees_percentage": 0,
+      "processing_time": "3-5 business days to clear",
+      "requires_verification": true,
+      "available_for": ["self_pay", "mixed"],
+      "max_amount": 300000,
+      "description": "Personal or company check"
+    },
+    "digital_wallet": {
+      "label": "Digital Wallet",
+      "icon": "📱",
+      "color": "#10b981",
+      "fees_percentage": 1.5,
+      "processing_time": "Immediate",
+      "requires_verification": false,
+      "available_for": ["self_pay", "mixed"],
+      "max_amount": 100000,
+      "description": "TrueMoney, Rabbit LINE Pay, etc."
+    }
+  },
+  "workflow_states": {
+    "estimate_requested": {
+      "step": 1,
+      "label": "Estimate Requested",
+      "color": "#f59e0b",
+      "description": "Customer has requested a service estimate"
+    },
+    "vehicle_inspection": {
+      "step": 2,
+      "label": "Vehicle Inspection",
+      "color": "#3b82f6",
+      "description": "Technician is inspecting the vehicle"
+    },
+    "estimate_prepared": {
+      "step": 3,
+      "label": "Estimate Prepared",
+      "color": "#8b5cf6",
+      "description": "Service estimate has been prepared"
+    },
+    "customer_reviewing": {
+      "step": 4,
+      "label": "Customer Reviewing Estimate",
+      "color": "#f59e0b",
+      "description": "Customer is reviewing the estimate"
+    },
+    "insurance_submitted": {
+      "step": 5,
+      "label": "Insurance Claim Submitted",
+      "color": "#06b6d4",
+      "description": "Claim has been submitted to insurance company"
+    },
+    "insurance_pending": {
+      "step": 6,
+      "label": "Awaiting Insurance Approval",
+      "color": "#f59e0b",
+      "description": "Waiting for insurance company approval"
+    },
+    "insurance_approved": {
+      "step": 7,
+      "label": "Insurance Approved",
+      "color": "#10b981",
+      "description": "Insurance company has approved the claim"
+    },
+    "insurance_rejected": {
+      "step": 0,
+      "label": "Insurance Rejected",
+      "color": "#ef4444",
+      "description": "Insurance company has rejected the claim"
+    },
+    "estimate_approved": {
+      "step": 5,
+      "label": "Customer Approved Estimate",
+      "color": "#10b981",
+      "description": "Customer has approved the estimate"
+    },
+    "payment_method_selected": {
+      "step": 6,
+      "label": "Payment Method Selected",
+      "color": "#06b6d4",
+      "description": "Customer has chosen payment method"
+    },
+    "payment_processing": {
+      "step": 7,
+      "label": "Processing Payment",
+      "color": "#f59e0b",
+      "description": "Payment is being processed"
+    },
+    "payment_received": {
+      "step": 8,
+      "label": "Payment Received",
+      "color": "#10b981",
+      "description": "Full payment has been received"
+    },
+    "payment_failed": {
+      "step": 0,
+      "label": "Payment Failed",
+      "color": "#ef4444",
+      "description": "Payment processing failed"
+    },
+    "insurance_deductible_pending": {
+      "step": 7,
+      "label": "Insurance Approved, Deductible Due",
+      "color": "#f59e0b",
+      "description": "Insurance approved, customer deductible payment needed"
+    },
+    "deductible_payment_processing": {
+      "step": 8,
+      "label": "Processing Deductible Payment",
+      "color": "#06b6d4",
+      "description": "Customer deductible payment being processed"
+    },
+    "partial_payment_received": {
+      "step": 8,
+      "label": "Deductible Received",
+      "color": "#10b981",
+      "description": "Customer deductible has been paid"
+    },
+    "warranty_verification": {
+      "step": 4,
+      "label": "Warranty Verification",
+      "color": "#8b5cf6",
+      "description": "Verifying warranty coverage"
+    },
+    "warranty_approved": {
+      "step": 7,
+      "label": "Warranty Approved",
+      "color": "#10b981",
+      "description": "Warranty coverage confirmed"
+    },
+    "payment_complete": {
+      "step": 9,
+      "label": "Payment Complete",
+      "color": "#10b981",
+      "description": "All payments have been received"
+    },
+    "parts_ordered": {
+      "step": 10,
+      "label": "Parts Ordered",
+      "color": "#06b6d4",
+      "description": "Required parts have been ordered"
+    },
+    "parts_received": {
+      "step": 11,
+      "label": "Parts Received",
+      "color": "#10b981",
+      "description": "All parts have arrived"
+    },
+    "service_scheduled": {
+      "step": 11,
+      "label": "Service Scheduled",
+      "color": "#84cc16",
+      "description": "Service appointment has been scheduled"
+    },
+    "in_progress": {
+      "step": 12,
+      "label": "Service In Progress",
+      "color": "#f97316",
+      "description": "Vehicle is being serviced"
+    },
+    "quality_check": {
+      "step": 13,
+      "label": "Quality Check",
+      "color": "#6366f1",
+      "description": "Quality inspection in progress"
+    },
+    "completed": {
+      "step": 14,
+      "label": "Service Completed",
+      "color": "#10b981",
+      "description": "All service work is complete"
+    },
+    "final_payment_due": {
+      "step": 15,
+      "label": "Final Payment Due",
+      "color": "#f59e0b",
+      "description": "Final payment required before delivery"
+    },
+    "delivered": {
+      "step": 16,
+      "label": "Vehicle Delivered",
+      "color": "#059669",
+      "description": "Vehicle has been returned to customer"
+    }
+  },
+  "insurance_companies": [
+    {
+      "id": "bangkok_insurance",
+      "name": "กรุงเทพประกันภัย",
+      "name_en": "Bangkok Insurance",
+      "contact_phone": "02-123-4567",
+      "claim_portal": "https://bangkok-insurance.co.th/claims",
+      "typical_approval_days": 3,
+      "deductible_ranges": {
+        "min": 5000,
+        "max": 50000,
+        "common": 10000
+      }
+    },
+    {
+      "id": "thai_life",
+      "name": "ไทยประกันชีวิต",
+      "name_en": "Thai Life Insurance",
+      "contact_phone": "02-234-5678",
+      "claim_portal": "https://thailife.com/claims",
+      "typical_approval_days": 5,
+      "deductible_ranges": {
+        "min": 3000,
+        "max": 30000,
+        "common": 8000
+      }
+    },
+    {
+      "id": "krung_thai",
+      "name": "กรุงไทยพานิช",
+      "name_en": "Krung Thai Insurance",
+      "contact_phone": "02-345-6789",
+      "claim_portal": "https://krungthai-insurance.com/claims",
+      "typical_approval_days": 4,
+      "deductible_ranges": {
+        "min": 5000,
+        "max": 40000,
+        "common": 12000
+      }
+    },
+    {
+      "id": "muang_thai",
+      "name": "เมืองไทยประกันภัย",
+      "name_en": "Muang Thai Insurance",
+      "contact_phone": "02-456-7890",
+      "claim_portal": "https://muangthai-insurance.co.th/claims",
+      "typical_approval_days": 3,
+      "deductible_ranges": {
+        "min": 4000,
+        "max": 35000,
+        "common": 9000
+      }
+    },
+    {
+      "id": "ruam_thai",
+      "name": "รวมไทย",
+      "name_en": "Ruam Thai Insurance",
+      "contact_phone": "02-567-8901",
+      "claim_portal": "https://ruamthai.com/claims",
+      "typical_approval_days": 4,
+      "deductible_ranges": {
+        "min": 6000,
+        "max": 45000,
+        "common": 15000
+      }
+    }
+  ],
+  "priority_levels": {
+    "normal": {
+      "label": "Normal",
+      "color": "#10b981",
+      "description": "Standard priority",
+      "sla_days": 7
+    },
+    "high": {
+      "label": "High",
+      "color": "#f59e0b",
+      "description": "Higher priority, expedited service",
+      "sla_days": 3
+    },
+    "urgent": {
+      "label": "Urgent",
+      "color": "#ef4444",
+      "description": "Emergency repair, immediate attention",
+      "sla_days": 1
+    }
+  },
+  "settings": {
+    "default_currency": "THB",
+    "tax_rate": 0.07,
+    "default_warranty_months": 6,
+    "max_installment_amount": 500000,
+    "min_down_payment_percentage": 20,
+    "receipt_footer_text": "Thank you for choosing our auto dealership service!",
+    "business_info": {
+      "name": "OL Service Auto Dealership",
+      "address": "123 Service Road, Bangkok, Thailand",
+      "phone": "02-XXX-XXXX",
+      "email": "service@oldealer.com",
+      "tax_id": "0123456789012"
+    }
+  }
+}

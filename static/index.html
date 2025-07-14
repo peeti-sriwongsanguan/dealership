@@ -27,6 +27,7 @@
     <link rel="stylesheet" href="/static/css/photo-sessions.css">
     <link rel="stylesheet" href="/static/css/photos-module.css">
     <link rel="stylesheet" href="/static/css/ocr-scanner.css">
+    <link rel="stylesheet" href="/static/css/services.css">
     <!-- NEW: Truck Repair CSS -->
     <link rel="stylesheet" href="/static/css/truck-repair.css">
 
@@ -114,11 +115,11 @@
                     </div>
                 </button>
 
-                <button class="nav-button nav-services" data-section="services">
-                    <div class="nav-icon">🔧</div>
+                <button class="nav-button nav-photos" data-section="photos">
+                    <div class="nav-icon">📸</div>
                     <div class="nav-text">
-                        <span class="nav-title">Services</span>
-                        <span class="nav-subtitle">Manage work orders & truck repair</span>
+                        <span class="nav-title">Photos</span>
+                        <span class="nav-subtitle">Vehicle documentation</span>
                     </div>
                 </button>
 
@@ -130,13 +131,25 @@
                     </div>
                 </button>
 
-                <button class="nav-button nav-photos" data-section="photos">
-                    <div class="nav-icon">📸</div>
+                <button class="nav-button nav-services" data-section="services">
+                    <div class="nav-icon">🔧</div>
                     <div class="nav-text">
-                        <span class="nav-title">Photos</span>
-                        <span class="nav-subtitle">Vehicle documentation</span>
+                        <span class="nav-title">Services</span>
+                        <span class="nav-subtitle">Manage work orders & truck repair</span>
                     </div>
                 </button>
+
+                <button class="nav-button nav-payments" data-section="payments">
+                    <div class="nav-icon">💳</div>
+                    <div class="nav-text">
+                        <span class="nav-title">Payments</span>
+                        <span class="nav-subtitle">Process payments & billing</span>
+                    </div>
+                </button>
+
+
+
+
 
                 <button class="nav-button nav-reports" data-section="reports">
                     <div class="nav-icon">📊</div>
@@ -240,6 +253,15 @@
     <script src="/static/js/modules/reports.js"></script>
     <script src="/static/js/modules/settings.js"></script>
     <script src="/static/js/modules/photo-sessions.js"></script>
+    <script src="/static/js/modules/payments.js"></script>
+
+    <!-- ServiceModule -->
+    <script src="/static/js/data/payment-config-manager.js"></script>
+    <script src="/static/js/data/workflow-data-manager.js"></script>
+    <script src="/static/js/data/parts-data-manager.js"></script>
+    <script src="/static/js/modules/complete-dealership-workflow.js"></script>
+
+
 
     <!-- Main application script (must be last) -->
     <script src="/static/js/app.js"></script>

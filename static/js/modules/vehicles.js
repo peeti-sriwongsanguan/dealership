@@ -872,7 +872,7 @@ class VehiclesModule {
                                     <option value="1">Class 1 - Full Coverage</option>
                                     <option value="2">Class 2</option>
                                     <option value="3">Class 3 - Liability Only</option>
-                                    <option value="4">Class 4</option>
+                                    <option value="4">Self Payment</option>
                                 </select>
                             </div>
                             <div class="form-group">

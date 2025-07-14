@@ -1,7 +1,7 @@
-// static/js/app.js - Enhanced with Photo Session Integration
+// static/js/app.js - Enhanced with Photo Session Integration and Payments
 /**
  * Main Application Controller
- * Enhanced with comprehensive photo documentation system
+ * Enhanced with comprehensive photo documentation system and payments
  */
 
 class OLServiceApp {
@@ -218,9 +218,9 @@ class OLServiceApp {
             }
 
             // Ctrl/Cmd + number keys for quick navigation
-            if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '7') {
+            if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '8') {
                 e.preventDefault();
-                const sections = ['customers', 'vehicles', 'services', 'damage', 'photos', 'reports', 'settings'];
+                const sections = ['customers', 'vehicles', 'services', 'damage', 'photos', 'payments', 'reports', 'settings'];
                 const index = parseInt(e.key) - 1;
                 if (sections[index]) {
                     this.navigateToSection(sections[index]);
@@ -311,6 +311,9 @@ class OLServiceApp {
                     break;
                 case 'services':
                     content = await this.loadServicesSection();
+                    break;
+                case 'payments':
+                    content = await this.loadPaymentsSection();
                     break;
                 case 'damage':
                     content = await this.loadDamageSection();
@@ -460,6 +463,19 @@ class OLServiceApp {
                 `;
                 break;
 
+            case 'payments':
+                fabOptions = `
+                    <button class="fab-option" data-action="new-payment">
+                        <span class="fab-option-icon">💳</span>
+                        <span class="fab-option-text">New Payment</span>
+                    </button>
+                    <button class="fab-option" data-action="quick-payment">
+                        <span class="fab-option-icon">⚡</span>
+                        <span class="fab-option-text">Quick Payment</span>
+                    </button>
+                `;
+                break;
+
             case 'photos':
                 fabOptions = `
                     <button class="fab-option" data-action="quick-checkin">
@@ -556,6 +572,26 @@ class OLServiceApp {
         } catch (error) {
             console.error('❌ Error loading services module:', error);
             return this.getSimpleServicesContent();
+        }
+    }
+
+    // ADDED: Missing loadPaymentsSection method
+    async loadPaymentsSection() {
+        console.log('📄 Loading payments section...');
+        try {
+            if (typeof paymentsModule !== 'undefined' && paymentsModule.loadModule) {
+                console.log('✅ Using paymentsModule');
+                return await paymentsModule.loadModule();
+            } else if (typeof window.paymentsModule !== 'undefined' && window.paymentsModule.loadModule) {
+                console.log('✅ Using window.paymentsModule');
+                return await window.paymentsModule.loadModule();
+            } else {
+                console.log('⚠️ paymentsModule not available, using simple content');
+                return this.getSimplePaymentsContent();
+            }
+        } catch (error) {
+            console.error('❌ Error loading payments module:', error);
+            return this.getSimplePaymentsContent();
         }
     }
 
@@ -690,6 +726,54 @@ class OLServiceApp {
                     </div>
                 </div>
             </div>
+        `;
+    }
+
+    // ADDED: Missing getSimplePaymentsContent method
+    getSimplePaymentsContent() {
+        return `
+            <div class="section-content">
+                <div class="section-header">
+                    <h2>💳 Payments</h2>
+                    <p>Payment processing module</p>
+                </div>
+                <div class="simple-content">
+                    <div class="info-card">
+                        <h3>✅ Section Working</h3>
+                        <p>This is a fallback view. The full payments module will be loaded here.</p>
+                        <p><strong>API Status:</strong> ${this.apiStatus}</p>
+                        <div class="action-buttons">
+                            <button class="btn btn-primary" onclick="window.olServiceApp.testAPI('payments')">
+                                Test Payments API
+                            </button>
+                            <button class="btn btn-secondary" onclick="console.log('Payment module:', typeof paymentsModule !== 'undefined' ? 'Available' : 'Not Available')">
+                                Check Module
+                            </button>
+                        </div>
+                        <div class="module-status">
+                            <p><strong>Payments Module Status:</strong> <span id="paymentsModuleStatus">Checking...</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <script>
+                // Check payment module status
+                setTimeout(() => {
+                    const statusElement = document.getElementById('paymentsModuleStatus');
+                    if (statusElement) {
+                        if (typeof paymentsModule !== 'undefined') {
+                            statusElement.textContent = '✅ Available';
+                            statusElement.style.color = 'green';
+                        } else if (typeof window.paymentsModule !== 'undefined') {
+                            statusElement.textContent = '✅ Available (Global)';
+                            statusElement.style.color = 'green';
+                        } else {
+                            statusElement.textContent = '❌ Not Available';
+                            statusElement.style.color = 'red';
+                        }
+                    }
+                }, 100);
+            </script>
         `;
     }
 
@@ -833,6 +917,35 @@ class OLServiceApp {
         } else {
             showToast('Service management not fully loaded', 'warning');
             console.log('Service module not available');
+        }
+    }
+
+    // ADDED: New payment action handlers
+    async handleNewPayment() {
+        console.log('💳 New payment clicked');
+        this.closeFABMenu();
+
+        if (typeof paymentsModule !== 'undefined' && paymentsModule.processNewPayment) {
+            paymentsModule.processNewPayment();
+        } else if (typeof window.paymentsModule !== 'undefined' && window.paymentsModule.processNewPayment) {
+            window.paymentsModule.processNewPayment();
+        } else {
+            showToast('Payment processing not fully loaded', 'warning');
+            console.log('Payments module not available');
+        }
+    }
+
+    async handleQuickPayment() {
+        console.log('⚡ Quick payment clicked');
+        this.closeFABMenu();
+
+        if (typeof paymentsModule !== 'undefined' && paymentsModule.processQuickPayment) {
+            paymentsModule.processQuickPayment();
+        } else if (typeof window.paymentsModule !== 'undefined' && window.paymentsModule.processQuickPayment) {
+            window.paymentsModule.processQuickPayment();
+        } else {
+            showToast('Quick payment not fully loaded', 'warning');
+            console.log('Payments module not available');
         }
     }
 
@@ -1014,13 +1127,9 @@ class UIUtils {
 // Global utility functions
 window.showToast = UIUtils.showToast;
 window.showModal = UIUtils.showModal;
-
+window.closeModal = UIUtils.closeModal;
 window.formatDate = UIUtils.formatDate;
 window.formatCurrency = UIUtils.formatCurrency;
-
-//await window.customersModule.loadCustomers();
-//return await window.customersModule.loadModule();
-
 
 // Debug helpers
 window.debugApp = {
@@ -1046,6 +1155,7 @@ window.debugApp = {
             'customersModule': typeof customersModule !== 'undefined',
             'vehiclesModule': typeof vehiclesModule !== 'undefined',
             'servicesModule': typeof servicesModule !== 'undefined',
+            'paymentsModule': typeof paymentsModule !== 'undefined' || typeof window.paymentsModule !== 'undefined',
             'photosModule': typeof photosModule !== 'undefined',
             'damageModule': typeof damageModule !== 'undefined',
             'reportsModule': typeof reportsModule !== 'undefined',
@@ -1060,6 +1170,21 @@ window.debugApp = {
         } else {
             console.log('❌ App not initialized');
         }
+    },
+    testPaymentsModule: () => {
+        console.log('🧪 Testing payments module...');
+        if (typeof paymentsModule !== 'undefined') {
+            console.log('✅ paymentsModule available:', paymentsModule);
+            if (typeof paymentsModule.loadModule === 'function') {
+                console.log('✅ loadModule method available');
+            } else {
+                console.log('❌ loadModule method not found');
+            }
+        } else if (typeof window.paymentsModule !== 'undefined') {
+            console.log('✅ window.paymentsModule available:', window.paymentsModule);
+        } else {
+            console.log('❌ paymentsModule not found');
+        }
     }
 };
 
@@ -1072,6 +1197,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Make app accessible for debugging
         window.app = window.olServiceApp;
+
+        // Add FAB event handlers for payment actions
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('[data-action="new-payment"]')) {
+                window.olServiceApp.handleNewPayment();
+            }
+            if (e.target.matches('[data-action="quick-payment"]')) {
+                window.olServiceApp.handleQuickPayment();
+            }
+        });
 
     } catch (error) {
         console.error('❌ Failed to create app:', error);
@@ -1128,6 +1263,7 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
             console.log('- Current section:', window.olServiceApp?.currentSection);
             console.log('- API status:', window.olServiceApp?.apiStatus);
             console.log('- Available modules:', window.debugApp.checkModules());
+            console.log('- Payments module test:', window.debugApp.testPaymentsModule());
 
             showToast('Debug info logged to console', 'info');
         }
@@ -1149,7 +1285,9 @@ if (typeof module !== 'undefined' && module.exports) {
 
 console.log('📱 OL Service POS Application Loaded');
 console.log('🔧 Features: Customer Management, Vehicle Tracking, Service Orders');
+console.log('💳 Payment Processing: Full payment module with multiple methods');
 console.log('📸 Photo Documentation: Check-in/Check-out, Damage Inspection');
 console.log('🚀 Ready for use!');
 console.log('💡 Debug helpers available at window.debugApp');
 console.log('💡 Press Ctrl+Shift+D for debug info');
+console.log('💡 Test payments with: window.debugApp.testPaymentsModule()');

@@ -1,0 +1,443 @@
+/* static/css/services.css */
+/* Complete Auto Dealership Services Module Styles */
+
+.complete-workflow-container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.workflow-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.workflow-header h1 {
+    font-size: 2.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1rem;
+}
+
+.workflow-step-section {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.step-number {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-right: 1.5rem;
+}
+
+.step-info h2 {
+    margin-bottom: 0.5rem;
+}
+
+.step-info p {
+    color: #6b7280;
+}
+
+/* Customer & Vehicle Selection */
+.selection-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+.search-results {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+.customer-item, .vehicle-item {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.customer-item:hover, .vehicle-item:hover {
+    background: #f3f4f6;
+    border-color: #3b82f6;
+}
+
+.customer-item.selected, .vehicle-item.selected {
+    background: #dbeafe;
+    border-color: #3b82f6;
+}
+
+.customer-name, .vehicle-name {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.customer-details, .vehicle-details {
+    font-size: 0.9rem;
+    color: #6b7280;
+}
+
+.customer-id, .vehicle-color {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    margin-top: 0.25rem;
+}
+
+/* Service Type Selection */
+.service-payment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.payment-type-card {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 3px solid #e5e7eb;
+    text-align: center;
+}
+
+.payment-type-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+.payment-type-card.selected {
+    border-color: #3b82f6;
+    background: #dbeafe;
+}
+
+.payment-type-card.insurance:hover { border-color: #3b82f6; }
+.payment-type-card.self-pay:hover { border-color: #10b981; }
+.payment-type-card.mixed:hover { border-color: #f59e0b; }
+.payment-type-card.warranty:hover { border-color: #8b5cf6; }
+
+.card-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.card-description {
+    color: #6b7280;
+    margin-bottom: 1rem;
+}
+
+.card-workflow {
+    font-size: 0.9rem;
+    color: #374151;
+    font-style: italic;
+}
+
+/* Workflow Preview */
+.workflow-preview {
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+.workflow-step {
+    display: flex;
+    align-items: center;
+    margin: 1rem 0;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.workflow-step-num {
+    background: #3b82f6;
+    color: white;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-weight: bold;
+}
+
+.workflow-step-content {
+    flex: 1;
+}
+
+.workflow-step-title {
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+}
+
+.workflow-step-desc {
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+/* Active Workflow */
+.active-workflow-header {
+    margin-bottom: 2rem;
+}
+
+.workflow-info {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+    color: #6b7280;
+}
+
+.workflow-progress {
+    margin-bottom: 2rem;
+}
+
+.workflow-progress-step {
+    display: flex;
+    align-items: flex-start;
+    margin: 1.5rem 0;
+    padding: 1.5rem;
+    border-radius: 10px;
+    border-left: 4px solid #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+.workflow-progress-step.completed {
+    background: #f0fdf4;
+    border-left-color: #10b981;
+}
+
+.workflow-progress-step.current {
+    background: #eff6ff;
+    border-left-color: #3b82f6;
+    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.1);
+}
+
+.workflow-progress-step.upcoming {
+    background: #f9fafb;
+    border-left-color: #d1d5db;
+}
+
+.progress-step-indicator {
+    margin-right: 1.5rem;
+}
+
+.progress-step-number {
+    background: #e5e7eb;
+    color: #6b7280;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.workflow-progress-step.completed .progress-step-number {
+    background: #10b981;
+    color: white;
+}
+
+.workflow-progress-step.current .progress-step-number {
+    background: #3b82f6;
+    color: white;
+}
+
+.progress-step-content {
+    flex: 1;
+}
+
+.progress-step-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.progress-step-desc {
+    color: #6b7280;
+    margin-bottom: 1rem;
+}
+
+.progress-step-actions {
+    margin-top: 1rem;
+}
+
+/* Selected Info */
+.selected-info {
+    background: #f0fdf4;
+    border-radius: 10px;
+    padding: 1.5rem;
+    border: 2px solid #10b981;
+}
+
+.selected-customer, .selected-vehicle {
+    margin-bottom: 1rem;
+}
+
+.selected-customer h4, .selected-vehicle h4 {
+    color: #059669;
+    margin-bottom: 0.5rem;
+}
+
+/* Quick Actions */
+.quick-actions-panel {
+    background: #f8fafc;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-top: 2rem;
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.quick-action-btn {
+    padding: 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+}
+
+.quick-action-btn:hover {
+    border-color: #3b82f6;
+    background: #dbeafe;
+}
+
+/* Workflow Controls */
+.workflow-controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+/* Buttons */
+.btn {
+    padding: 1rem 2rem;
+    border: none;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid #3b82f6;
+    color: #3b82f6;
+}
+
+.btn-secondary {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Utility Classes */
+.no-selection {
+    text-align: center;
+    color: #6b7280;
+    padding: 2rem;
+}
+
+.error-container {
+    text-align: center;
+    padding: 3rem;
+}
+
+.error-icon {
+    font-size: 4rem;
+    margin-bottom: 2rem;
+}
+
+.error-actions {
+    margin-top: 2rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .complete-workflow-container {
+        padding: 1rem;
+    }
+
+    .selection-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .service-payment-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .workflow-info {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .workflow-controls {
+        flex-direction: column;
+    }
+
+    .quick-actions-grid {
+        grid-template-columns: 1fr;
+    }
+}

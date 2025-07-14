@@ -1,0 +1,1340 @@
+// static/js/modules/complete-dealership-workflow.js
+/**
+ * Complete Auto Dealership Workflow System
+ * All data loaded from external JSON files and data managers
+ */
+
+const completeWorkflowModule = {
+    currentView: 'dashboard',
+
+    // CORE LOADING METHODS - NO HARDCODED DATA
+    async loadModule() {
+        try {
+            await this.loadPaymentConfig();
+            await this.loadPartsData();
+            await this.loadWorkflowData();
+            return this.generateDashboardHTML();
+        } catch (error) {
+            console.error('Error loading complete dealership workflow module:', error);
+            throw error;
+        }
+    },
+
+    async loadPaymentConfig() {
+        try {
+            await window.paymentConfigManager.loadConfig();
+            console.log('✅ Payment configuration loaded successfully');
+        } catch (error) {
+            console.error('❌ Error loading payment configuration:', error);
+        }
+    },
+
+    async loadPartsData() {
+        try {
+            await window.partsDataManager.loadData();
+            window.partsDataManager.initializeDataLists();
+            console.log('✅ Parts data loaded successfully');
+        } catch (error) {
+            console.error('❌ Error loading parts data:', error);
+        }
+    },
+
+    async loadWorkflowData() {
+        try {
+            // CLEAN - Load data through the workflow data manager (NO hardcoded data)
+            await window.workflowDataManager.loadData();
+            console.log('✅ Workflow data loaded successfully');
+        } catch (error) {
+            console.error('❌ Error loading workflow data:', error);
+        }
+    },
+
+    // DATA GETTERS - ALL FROM EXTERNAL MANAGERS (NO HARDCODED DATA)
+    getWorkOrders() {
+        return window.workflowDataManager?.getWorkOrders() || [];
+    },
+
+    getCustomers() {
+        return window.workflowDataManager?.getCustomers() || [];
+    },
+
+    getVehicles() {
+        return window.workflowDataManager?.getVehicles() || [];
+    },
+
+    getPayments() {
+        return window.workflowDataManager?.getPayments() || [];
+    },
+
+    getPaymentTypes() {
+        return window.paymentConfigManager?.getPaymentTypes() || {};
+    },
+
+    getPaymentMethods() {
+        return window.paymentConfigManager?.getPaymentMethods() || {};
+    },
+
+    getWorkflowStates() {
+        return window.paymentConfigManager?.getWorkflowStates() || {};
+    },
+
+    getInsuranceCompanies() {
+        return window.paymentConfigManager?.getInsuranceCompanies() || [];
+    },
+
+    getPriorityLevels() {
+        return window.paymentConfigManager?.getPriorityLevels() || {};
+    },
+
+    // MAIN HTML GENERATION
+    generateDashboardHTML() {
+        const stats = this.calculateDashboardStats();
+
+        return `
+            <div class="complete-workflow-container">
+                <div class="workflow-header">
+                    <h1>🏪 Complete Auto Dealership Workflow</h1>
+                    <p>Insurance claims, self-payment, and all payment methods</p>
+                </div>
+
+                <div class="payment-types-overview">
+                    ${this.generatePaymentTypesOverview()}
+                </div>
+
+                <div class="truck-nav-container">
+                    <div class="truck-nav-tabs">
+                        <button class="truck-tab-button active" onclick="completeWorkflowModule.showView('dashboard')" type="button">
+                            📊 Dashboard
+                        </button>
+                        <button class="truck-tab-button" onclick="completeWorkflowModule.showView('estimates')" type="button">
+                            📋 Create Estimate
+                        </button>
+                        <button class="truck-tab-button" onclick="completeWorkflowModule.showView('work-orders')" type="button">
+                            🔧 Work Orders
+                        </button>
+                        <button class="truck-tab-button" onclick="completeWorkflowModule.showView('payments')" type="button">
+                            💳 Payment Processing
+                        </button>
+                        <button class="truck-tab-button" onclick="completeWorkflowModule.showView('reports')" type="button">
+                            📊 Reports
+                        </button>
+                    </div>
+                </div>
+
+                <div id="completeWorkflowContent">
+                    ${this.generateDashboardContent(stats)}
+                </div>
+            </div>
+        `;
+    },
+
+    generatePaymentTypesOverview() {
+        const paymentTypes = this.getPaymentTypes();
+
+        return `
+            <div class="payment-types-header">
+                <h3>💰 Payment Options Available</h3>
+                <div class="payment-types-grid">
+                    ${Object.entries(paymentTypes).map(([typeId, type]) => `
+                        <div class="payment-type-card" style="border-color: ${type.color};">
+                            <div class="payment-type-icon" style="color: ${type.color};">${type.icon}</div>
+                            <div class="payment-type-label">${type.label}</div>
+                            <div class="payment-type-description">${type.description}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    },
+
+    generateDashboardContent(stats) {
+        return `
+            <div class="workflow-stats-grid">
+                <div class="stat-card insurance">
+                    <div class="stat-icon">🏥</div>
+                    <div class="stat-content">
+                        <div class="stat-number">${stats.insuranceClaims}</div>
+                        <div class="stat-label">Insurance Claims</div>
+                    </div>
+                </div>
+                <div class="stat-card self-pay">
+                    <div class="stat-icon">💳</div>
+                    <div class="stat-content">
+                        <div class="stat-number">${stats.selfPayOrders}</div>
+                        <div class="stat-label">Self-Pay Orders</div>
+                    </div>
+                </div>
+                <div class="stat-card pending-payment">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-content">
+                        <div class="stat-number">${stats.pendingPayments}</div>
+                        <div class="stat-label">Pending Payments</div>
+                    </div>
+                </div>
+                <div class="stat-card revenue">
+                    <div class="stat-icon">💰</div>
+                    <div class="stat-content">
+                        <div class="stat-number">${this.formatCurrency(stats.totalRevenue)}</div>
+                        <div class="stat-label">Total Revenue</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="truck-form-container active" style="display: block;">
+                <div class="truck-form-content">
+                    <div class="truck-form-title">
+                        <h2>🚀 Quick Actions</h2>
+                        <p>Start new work order or process payments</p>
+                    </div>
+
+                    <div class="quick-actions-grid">
+                        <button class="action-card estimate" onclick="completeWorkflowModule.startNewEstimate()" type="button">
+                            <div class="action-icon">📋</div>
+                            <div class="action-title">New Estimate</div>
+                            <div class="action-description">Create estimate and choose payment type</div>
+                        </button>
+
+                        <button class="action-card insurance" onclick="completeWorkflowModule.startInsuranceClaim()" type="button">
+                            <div class="action-icon">🏥</div>
+                            <div class="action-title">Insurance Claim</div>
+                            <div class="action-description">Submit new insurance claim</div>
+                        </button>
+
+                        <button class="action-card self-pay" onclick="completeWorkflowModule.startSelfPayJob()" type="button">
+                            <div class="action-icon">💳</div>
+                            <div class="action-title">Self-Pay Service</div>
+                            <div class="action-description">Direct customer payment service</div>
+                        </button>
+
+                        <button class="action-card payment" onclick="completeWorkflowModule.showView('payments')" type="button">
+                            <div class="action-icon">💰</div>
+                            <div class="action-title">Process Payment</div>
+                            <div class="action-description">Handle customer payments</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="truck-form-container active" style="display: block;">
+                <div class="truck-form-content">
+                    <div class="truck-form-title">
+                        <h2>📋 Recent Work Orders</h2>
+                        <p>Latest orders across all payment types</p>
+                    </div>
+
+                    <div class="work-orders-list">
+                        ${this.generateRecentWorkOrdersList()}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    generateRecentWorkOrdersList() {
+        const workOrders = this.getWorkOrders();
+
+        if (workOrders.length === 0) {
+            return `
+                <div class="no-work-orders">
+                    <div class="no-data-icon">📋</div>
+                    <h3>No Work Orders</h3>
+                    <p>Start by creating a new estimate</p>
+                    <button class="truck-btn truck-add-row" onclick="completeWorkflowModule.startNewEstimate()" type="button">
+                        Create First Estimate
+                    </button>
+                </div>
+            `;
+        }
+
+        return workOrders.slice(0, 10).map(order => {
+            const statusInfo = this.getWorkflowStates()[order.status] || { step: 0, label: order.status, color: '#6b7280' };
+            const paymentTypeInfo = this.getPaymentTypes()[order.payment_type] || { icon: '💳', label: order.payment_type, color: '#6b7280' };
+            const priorityClass = `priority-${order.priority || 'normal'}`;
+
+            return `
+                <div class="work-order-card ${priorityClass}" onclick="completeWorkflowModule.viewWorkOrderDetails(${order.id})">
+                    <div class="work-order-header">
+                        <div class="work-order-number">
+                            <strong>${order.work_order_number}</strong>
+                            <span class="priority-badge ${priorityClass}">${(order.priority || 'normal').toUpperCase()}</span>
+                        </div>
+                        <div class="payment-type-indicator" style="background-color: ${paymentTypeInfo.color}20; color: ${paymentTypeInfo.color};">
+                            ${paymentTypeInfo.icon} ${paymentTypeInfo.label}
+                        </div>
+                    </div>
+
+                    <div class="work-order-info">
+                        <div class="work-order-customer">
+                            <strong>Customer:</strong> ${order.customer_name}
+                            ${order.customer_phone ? `<br><small>📞 ${order.customer_phone}</small>` : ''}
+                        </div>
+                        <div class="work-order-vehicle">
+                            <strong>Vehicle:</strong> ${order.vehicle_registration} - ${order.vehicle_info}
+                        </div>
+                        <div class="work-order-description">
+                            <strong>Work:</strong> ${order.damage_description}
+                        </div>
+                        ${order.insurance_company ? `
+                            <div class="work-order-insurance">
+                                <strong>Insurance:</strong> ${this.getInsuranceCompanyName(order.insurance_company)} (${order.policy_number})
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="work-order-payment-details">
+                        ${this.generatePaymentDetails(order)}
+                    </div>
+
+                    <div class="work-order-status">
+                        <span class="status-badge" style="background-color: ${statusInfo.color}20; color: ${statusInfo.color};">
+                            Step ${statusInfo.step}: ${statusInfo.label}
+                        </span>
+                    </div>
+
+                    <div class="work-order-footer">
+                        <div class="work-order-cost">
+                            <strong>Total: ${this.formatCurrency(order.estimated_cost)}</strong>
+                        </div>
+                        <div class="work-order-date">
+                            Created: ${this.formatDate(order.date_created)}
+                        </div>
+                    </div>
+
+                    <div class="work-order-actions">
+                        <button class="work-order-action-btn" onclick="event.stopPropagation(); completeWorkflowModule.nextWorkflowStep(${order.id})" type="button">
+                            Next Step →
+                        </button>
+                        ${this.generatePaymentActionButton(order)}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    generatePaymentDetails(order) {
+        const paymentMethods = this.getPaymentMethods();
+        let details = '';
+
+        if (order.payment_type === 'insurance') {
+            details = `
+                <div class="payment-breakdown">
+                    <div>Insurance Coverage: ${this.formatCurrency(order.insurance_coverage || order.estimated_cost)}</div>
+                    ${order.deductible_amount > 0 ? `<div>Deductible: ${this.formatCurrency(order.deductible_amount)}</div>` : ''}
+                </div>
+            `;
+        } else if (order.payment_type === 'self_pay') {
+            const method = paymentMethods[order.payment_method];
+            if (method && method.months) {
+                details = `
+                    <div class="payment-breakdown">
+                        <div>Payment Method: ${method.label}</div>
+                        <div>Monthly Payment: ${this.formatCurrency(order.monthly_payment || 0)} × ${method.months} months</div>
+                        ${order.down_payment ? `<div>Down Payment: ${this.formatCurrency(order.down_payment)}</div>` : ''}
+                    </div>
+                `;
+            } else {
+                details = `
+                    <div class="payment-breakdown">
+                        <div>Payment Method: ${method?.label || 'Not selected'}</div>
+                        ${order.payment_received ? `<div>✅ Paid: ${this.formatCurrency(order.payment_received)}</div>` : ''}
+                    </div>
+                `;
+            }
+        } else if (order.payment_type === 'mixed') {
+            details = `
+                <div class="payment-breakdown">
+                    <div>Insurance: ${this.formatCurrency(order.insurance_coverage || 0)}</div>
+                    <div>Deductible: ${this.formatCurrency(order.deductible_amount || 0)} ${order.deductible_payment_method ? `(${paymentMethods[order.deductible_payment_method]?.label})` : ''}</div>
+                </div>
+            `;
+        }
+
+        return details;
+    },
+
+    generatePaymentActionButton(order) {
+        if (order.status.includes('payment_pending') || order.status.includes('deductible_pending')) {
+            return `
+                <button class="work-order-action-btn payment" onclick="event.stopPropagation(); completeWorkflowModule.processPayment(${order.id})" type="button">
+                    💳 Process Payment
+                </button>
+            `;
+        } else if (order.status === 'payment_method_selected') {
+            return `
+                <button class="work-order-action-btn payment" onclick="event.stopPropagation(); completeWorkflowModule.confirmPayment(${order.id})" type="button">
+                    ✅ Confirm Payment
+                </button>
+            `;
+        }
+        return '';
+    },
+
+    // WORKFLOW METHODS
+    startNewEstimate() {
+        if (typeof window.showModal !== 'function') {
+            this.fallbackNewEstimate();
+            return;
+        }
+
+        const insuranceCompanies = this.getInsuranceCompanies();
+        const paymentTypes = this.getPaymentTypes();
+        const paymentMethods = this.getPaymentMethods();
+
+        const modalContent = `
+            <div class="estimate-form">
+                <form id="newEstimateForm" class="truck-form-content">
+                    <div class="truck-form-title">
+                        <h2>📋 New Service Estimate</h2>
+                        <p>Create estimate and select payment method</p>
+                    </div>
+
+                    <div class="estimate-form-sections">
+                        <!-- Customer Information -->
+                        <div class="form-section">
+                            <h3>👤 Customer Information</h3>
+                            <div class="truck-form-row">
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label required">Customer Name:</label>
+                                    <input type="text" name="customer_name" class="truck-form-input" required placeholder="ชื่อลูกค้า">
+                                </div>
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">Phone Number:</label>
+                                    <input type="tel" name="customer_phone" class="truck-form-input" placeholder="เบอร์โทรศัพท์">
+                                </div>
+                            </div>
+                            <div class="truck-form-row">
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">Email:</label>
+                                    <input type="email" name="customer_email" class="truck-form-input" placeholder="อีเมล">
+                                </div>
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">Address:</label>
+                                    <input type="text" name="customer_address" class="truck-form-input" placeholder="ที่อยู่">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vehicle Information -->
+                        <div class="form-section">
+                            <h3>🚛 Vehicle Information</h3>
+                            <div class="truck-form-row">
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label required">Vehicle Registration:</label>
+                                    <input type="text" name="vehicle_registration" class="truck-form-input" required placeholder="ทะเบียนรถ">
+                                </div>
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">Vehicle Info:</label>
+                                    <input type="text" name="vehicle_info" class="truck-form-input" placeholder="ยี่ห้อ รุ่น ปี">
+                                </div>
+                            </div>
+                            <div class="truck-form-row">
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">VIN Number:</label>
+                                    <input type="text" name="vin_number" class="truck-form-input" placeholder="เลขถัง">
+                                </div>
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">Mileage:</label>
+                                    <input type="number" name="mileage" class="truck-form-input" placeholder="เลขไมล์">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Type Selection -->
+                        <div class="form-section">
+                            <h3>💰 Payment Type</h3>
+                            <div class="payment-type-selection">
+                                ${Object.entries(paymentTypes).map(([typeId, type]) => `
+                                    <div class="payment-option" onclick="completeWorkflowModule.selectPaymentType('${typeId}')">
+                                        <input type="radio" name="payment_type" value="${typeId}" id="payment_${typeId}">
+                                        <label for="payment_${typeId}">
+                                            <div class="payment-option-header">
+                                                <span class="payment-icon" style="color: ${type.color};">${type.icon}</span>
+                                                <span class="payment-title">${type.label}</span>
+                                            </div>
+                                            <div class="payment-description">${type.description}</div>
+                                        </label>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Insurance Details -->
+                        <div class="form-section" id="insuranceDetails" style="display: none;">
+                            <h3>🏥 Insurance Information</h3>
+                            <div class="truck-form-row">
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label required">Insurance Company:</label>
+                                    <select name="insurance_company" class="truck-form-input" required>
+                                        <option value="">เลือกบริษัทประกัน</option>
+                                        ${insuranceCompanies.map(company =>
+                                            `<option value="${company.id}">${company.name}</option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label required">Policy Number:</label>
+                                    <input type="text" name="policy_number" class="truck-form-input" required placeholder="เลขที่กรมธรรม์">
+                                </div>
+                            </div>
+                            <div class="truck-form-row">
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">Deductible Amount:</label>
+                                    <input type="number" name="deductible_amount" class="truck-form-input" min="0" step="0.01" placeholder="จำนวนเงินที่ลูกค้าต้องจ่าย">
+                                </div>
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">Adjuster Name:</label>
+                                    <input type="text" name="adjuster_name" class="truck-form-input" placeholder="ชื่อผู้ประเมิน">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Method Selection -->
+                        <div class="form-section" id="paymentMethodDetails" style="display: none;">
+                            <h3>💳 Payment Method</h3>
+                            <div class="payment-method-grid">
+                                ${Object.entries(paymentMethods).map(([methodId, method]) => `
+                                    <div class="payment-method-option" onclick="completeWorkflowModule.selectPaymentMethod('${methodId}')">
+                                        <input type="radio" name="payment_method" value="${methodId}" id="method_${methodId}">
+                                        <label for="method_${methodId}">
+                                            <div class="method-header">
+                                                <span class="method-icon" style="color: ${method.color};">${method.icon}</span>
+                                                <span class="method-title">${method.label}</span>
+                                            </div>
+                                            <div class="method-details">
+                                                <div class="method-fees">Fee: ${method.fees_percentage}%</div>
+                                                <div class="method-processing">${method.processing_time}</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Service Details -->
+                        <div class="form-section">
+                            <h3>🔧 Service Details</h3>
+                            <div class="truck-form-group">
+                                <label class="truck-form-label required">Description of Work:</label>
+                                <textarea name="damage_description" class="truck-form-input" rows="4" required
+                                         placeholder="อธิบายงานซ่อมที่ต้องทำ..."></textarea>
+                            </div>
+                            <div class="truck-form-row">
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">Estimated Cost:</label>
+                                    <input type="number" name="estimated_cost" class="truck-form-input" min="0" step="0.01" placeholder="ค่าใช้จ่ายประมาณ">
+                                </div>
+                                <div class="truck-form-group">
+                                    <label class="truck-form-label">Priority Level:</label>
+                                    <select name="priority" class="truck-form-input">
+                                        <option value="normal">Normal</option>
+                                        <option value="high">High</option>
+                                        <option value="urgent">Urgent</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="button button-outline" onclick="window.closeModal()">Cancel</button>
+                        <button type="submit" class="button button-primary">Create Estimate</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        window.showModal('New Service Estimate', modalContent, 'large');
+
+        setTimeout(() => {
+            this.initializeNewEstimateForm();
+        }, 100);
+    },
+
+    selectPaymentType(paymentType) {
+        // Update radio button
+        const radio = document.getElementById(`payment_${paymentType}`);
+        if (radio) radio.checked = true;
+
+        // Show/hide relevant sections
+        const insuranceDetails = document.getElementById('insuranceDetails');
+        const paymentMethodDetails = document.getElementById('paymentMethodDetails');
+        const paymentTypes = this.getPaymentTypes();
+        const typeConfig = paymentTypes[paymentType];
+
+        if (typeConfig?.requires_insurance_info) {
+            if (insuranceDetails) insuranceDetails.style.display = 'block';
+        } else {
+            if (insuranceDetails) insuranceDetails.style.display = 'none';
+        }
+
+        if (typeConfig?.requires_payment_method) {
+            if (paymentMethodDetails) paymentMethodDetails.style.display = 'block';
+        } else {
+            if (paymentMethodDetails) paymentMethodDetails.style.display = 'none';
+        }
+
+        // Update form styling
+        document.querySelectorAll('.payment-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        event.currentTarget.classList.add('selected');
+    },
+
+    selectPaymentMethod(method) {
+        // Update radio button
+        const radio = document.getElementById(`method_${method}`);
+        if (radio) radio.checked = true;
+
+        // Update form styling
+        document.querySelectorAll('.payment-method-option').forEach(option => {
+            option.classList.remove('selected');
+        });
+        event.currentTarget.classList.add('selected');
+    },
+
+    initializeNewEstimateForm() {
+        const form = document.getElementById('newEstimateForm');
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.submitNewEstimate(new FormData(form));
+            });
+        }
+    },
+
+    async submitNewEstimate(formData) {
+        try {
+            const estimateData = {
+                customer_name: formData.get('customer_name'),
+                customer_phone: formData.get('customer_phone'),
+                customer_email: formData.get('customer_email'),
+                customer_address: formData.get('customer_address'),
+                vehicle_registration: formData.get('vehicle_registration'),
+                vehicle_info: formData.get('vehicle_info'),
+                vin_number: formData.get('vin_number'),
+                mileage: formData.get('mileage'),
+                payment_type: formData.get('payment_type'),
+                damage_description: formData.get('damage_description'),
+                estimated_cost: parseFloat(formData.get('estimated_cost')) || 0,
+                priority: formData.get('priority') || 'normal',
+                status: 'estimate_prepared'
+            };
+
+            // Add payment-specific data
+            if (estimateData.payment_type === 'insurance' || estimateData.payment_type === 'mixed') {
+                estimateData.insurance_company = formData.get('insurance_company');
+                estimateData.policy_number = formData.get('policy_number');
+                estimateData.deductible_amount = parseFloat(formData.get('deductible_amount')) || 0;
+                estimateData.adjuster_name = formData.get('adjuster_name');
+
+                if (confirm(nextAction)) {
+                    this.nextWorkflowStep(newOrder.id);
+                }
+            }, 1000);
+
+            await this.refreshCurrentView();
+
+        } catch (error) {
+            console.error('Error creating estimate:', error);
+            this.showToast(`Failed to create estimate: ${error.message}`, 'error');
+        }
+    },
+
+    // WORKFLOW NAVIGATION
+    nextWorkflowStep(workOrderId) {
+        const order = window.workflowDataManager.getWorkOrder(workOrderId);
+        if (!order) return;
+
+        const nextStatus = window.paymentConfigManager?.getNextWorkflowStep(order.status, order.payment_type);
+        if (nextStatus) {
+            window.workflowDataManager.updateWorkOrder(workOrderId, { status: nextStatus });
+            window.workflowDataManager.addServiceHistory(workOrderId, nextStatus, `Status updated to ${nextStatus}`, 'System');
+
+            const statusInfo = this.getWorkflowStates()[nextStatus];
+            this.showToast(`✅ ${order.work_order_number} moved to: ${statusInfo?.label || nextStatus}`, 'success');
+            this.refreshCurrentView();
+        } else {
+            this.showToast('This work order has completed the workflow', 'info');
+        }
+    },
+
+    processPayment(workOrderId) {
+        this.showToast('Opening payment processing...', 'info');
+        // Implementation would go here - call payment processing module
+    },
+
+    confirmPayment(workOrderId) {
+        this.showToast('Confirming payment...', 'info');
+        // Implementation would go here - confirm payment
+    },
+
+    viewWorkOrderDetails(workOrderId) {
+        const order = window.workflowDataManager.getWorkOrder(workOrderId);
+        if (!order) return;
+
+        const statusInfo = this.getWorkflowStates()[order.status] || { label: order.status };
+        const paymentTypeInfo = this.getPaymentTypes()[order.payment_type] || { label: order.payment_type };
+
+        alert(`Work Order Details:
+
+${order.work_order_number}
+Customer: ${order.customer_name}
+Vehicle: ${order.vehicle_registration} - ${order.vehicle_info}
+Payment: ${paymentTypeInfo.label}
+Status: ${statusInfo.label}
+Amount: ${this.formatCurrency(order.estimated_cost)}
+Priority: ${(order.priority || 'normal').toUpperCase()}
+
+Created: ${this.formatDate(order.date_created)}`);
+    },
+
+    // VIEW MANAGEMENT
+    async showView(viewName) {
+        this.currentView = viewName;
+
+        // Update active tab
+        document.querySelectorAll('.truck-tab-button').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        if (event?.target) {
+            event.target.classList.add('active');
+        }
+
+        const content = document.getElementById('completeWorkflowContent');
+        if (!content) return;
+
+        content.innerHTML = `
+            <div style="text-align: center; padding: 3rem;">
+                <div class="loading-spinner" style="margin: 0 auto 1rem;"></div>
+                <p>Loading ${viewName}...</p>
+            </div>
+        `;
+
+        try {
+            let html = '';
+
+            switch (viewName) {
+                case 'dashboard':
+                    const stats = this.calculateDashboardStats();
+                    html = this.generateDashboardContent(stats);
+                    break;
+                case 'work-orders':
+                    html = await this.generateWorkOrdersView();
+                    break;
+                case 'payments':
+                    html = await this.generatePaymentsView();
+                    break;
+                case 'reports':
+                    html = await this.generateReportsView();
+                    break;
+                default:
+                    html = '<p>View not implemented yet</p>';
+            }
+
+            content.innerHTML = html;
+
+        } catch (error) {
+            console.error(`Error loading ${viewName} view:`, error);
+            content.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #ef4444;">
+                    <h3>Error Loading ${viewName}</h3>
+                    <p>${error.message}</p>
+                    <button class="truck-btn truck-submit-btn" onclick="completeWorkflowModule.showView('dashboard')" type="button">
+                        Return to Dashboard
+                    </button>
+                </div>
+            `;
+        }
+    },
+
+    async generateWorkOrdersView() {
+        const workOrders = this.getWorkOrders();
+
+        return `
+            <div class="truck-form-container active" style="display: block;">
+                <div class="truck-form-content">
+                    <div class="truck-form-title">
+                        <h2>🔧 All Work Orders</h2>
+                        <p>Complete list of work orders and their status</p>
+                    </div>
+
+                    <div style="margin-bottom: 2rem;">
+                        <button class="truck-btn truck-add-row" onclick="completeWorkflowModule.startNewEstimate()" type="button">
+                            ➕ New Work Order
+                        </button>
+                        <button class="truck-btn truck-remove-row" onclick="window.workflowDataManager.downloadData('work_orders')" type="button" style="background: #8b5cf6;">
+                            📥 Export Data
+                        </button>
+                    </div>
+
+                    <div class="work-orders-list">
+                        ${this.generateRecentWorkOrdersList()}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    async generatePaymentsView() {
+        return `
+            <div class="truck-form-container active" style="display: block;">
+                <div class="truck-form-content">
+                    <div class="truck-form-title">
+                        <h2>💳 Payment Processing</h2>
+                        <p>Handle customer payments and track revenue</p>
+                    </div>
+
+                    <div style="text-align: center; padding: 3rem; color: #64748b;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">💳</div>
+                        <h3>Payment Processing</h3>
+                        <p>Payment processing interface coming soon!</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    async generateReportsView() {
+        const stats = window.workflowDataManager?.getDashboardStats() || {};
+
+        return `
+            <div class="truck-form-container active" style="display: block;">
+                <div class="truck-form-content">
+                    <div class="truck-form-title">
+                        <h2>📊 Reports & Analytics</h2>
+                        <p>Business insights and performance metrics</p>
+                    </div>
+
+                    <div class="workflow-stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">📋</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${stats.totalOrders || 0}</div>
+                                <div class="stat-label">Total Orders</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🏥</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${stats.insuranceClaims || 0}</div>
+                                <div class="stat-label">Insurance Claims</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💳</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${stats.selfPayOrders || 0}</div>
+                                <div class="stat-label">Self-Pay Orders</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${this.formatCurrency(stats.totalRevenue || 0)}</div>
+                                <div class="stat-label">Total Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem; text-align: center;">
+                        <button class="truck-btn truck-add-row" onclick="window.workflowDataManager.downloadData('all')" type="button">
+                            📄 Export All Data
+                        </button>
+                        <button class="truck-btn truck-remove-row" onclick="window.workflowDataManager.resetToSampleData()" type="button" style="background: #6b7280;">
+                            🔄 Reset to Sample Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    // UTILITY METHODS - ALL USE EXTERNAL MANAGERS
+    calculateDashboardStats() {
+        return window.workflowDataManager?.getDashboardStats() || {
+            insuranceClaims: 0,
+            selfPayOrders: 0,
+            pendingPayments: 0,
+            totalRevenue: 0
+        };
+    },
+
+    getInsuranceCompanyName(companyId) {
+        const company = window.paymentConfigManager?.getInsuranceCompany(companyId);
+        return company?.name || companyId;
+    },
+
+    formatCurrency(amount) {
+        return window.paymentConfigManager?.formatCurrency(amount) || `฿${(amount || 0).toLocaleString()}`;
+    },
+
+    formatDate(dateString) {
+        return window.workflowDataManager?.formatDate(dateString) || 'N/A';
+    },
+
+    async refreshCurrentView() {
+        await this.showView(this.currentView);
+    },
+
+    showToast(message, type = 'info') {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+        } else {
+            // Fallback toast implementation
+            let toast = document.getElementById('toast-notification');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast-notification';
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 500;
+                    z-index: 10000;
+                    transition: all 0.3s ease;
+                    transform: translateX(100%);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                `;
+                document.body.appendChild(toast);
+            }
+
+            const colors = {
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b',
+                info: '#3b82f6'
+            };
+
+            toast.style.backgroundColor = colors[type] || colors.info;
+            toast.textContent = message;
+            toast.style.transform = 'translateX(0)';
+
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+            }, 4000);
+        }
+    },
+
+    // QUICK ACTION METHODS
+    startInsuranceClaim() {
+        // Pre-select insurance payment type
+        this.startNewEstimate();
+        setTimeout(() => {
+            this.selectPaymentType('insurance');
+        }, 200);
+    },
+
+    startSelfPayJob() {
+        // Pre-select self-pay payment type
+        this.startNewEstimate();
+        setTimeout(() => {
+            this.selectPaymentType('self_pay');
+        }, 200);
+    },
+
+    // FALLBACK METHODS
+    fallbackNewEstimate() {
+        const customerName = prompt('Customer name:');
+        const vehicleReg = prompt('Vehicle registration:');
+        const paymentType = prompt('Payment type (1=Insurance, 2=Self-pay, 3=Mixed, 4=Warranty):');
+
+        let actualPaymentType = 'self_pay';
+        switch(paymentType) {
+            case '1': actualPaymentType = 'insurance'; break;
+            case '2': actualPaymentType = 'self_pay'; break;
+            case '3': actualPaymentType = 'mixed'; break;
+            case '4': actualPaymentType = 'warranty'; break;
+        }
+
+        if (customerName && vehicleReg) {
+            const estimateData = {
+                customer_name: customerName,
+                vehicle_registration: vehicleReg,
+                payment_type: actualPaymentType,
+                damage_description: 'Service requested',
+                estimated_cost: 0,
+                priority: 'normal',
+                status: 'estimate_prepared'
+            };
+
+            // Use the data manager to create the work order
+            const newOrder = window.workflowDataManager.createWorkOrder(estimateData);
+            this.showToast(`✅ Estimate ${newOrder.work_order_number} created!`, 'success');
+            this.refreshCurrentView();
+        }
+    }
+};
+
+// Make module globally available
+window.completeWorkflowModule = completeWorkflowModule;estimateData.payment_type === 'mixed') {
+                    estimateData.insurance_coverage = estimateData.estimated_cost - estimateData.deductible_amount;
+                } else {
+                    estimateData.insurance_coverage = estimateData.estimated_cost;
+                }
+            }
+
+            if (estimateData.payment_type === 'self_pay' || estimateData.payment_type === 'mixed') {
+                estimateData.payment_method = formData.get('payment_method');
+            }
+
+            // Validate the data
+            const validation = window.workflowDataManager.validateWorkOrder(estimateData);
+            if (!validation.valid) {
+                throw new Error(validation.errors.join(', '));
+            }
+
+            // Create the work order using the data manager
+            const newOrder = window.workflowDataManager.createWorkOrder(estimateData);
+
+            if (typeof window.closeModal === 'function') {
+                window.closeModal();
+            }
+
+            this.showToast(`✅ Estimate ${newOrder.work_order_number} created successfully!`, 'success');
+
+                if (confirm(nextAction)) {
+                    this.nextWorkflowStep(newOrder.id);
+                }
+            }, 1000);
+
+            await this.refreshCurrentView();
+
+        } catch (error) {
+            console.error('Error creating estimate:', error);
+            this.showToast(`Failed to create estimate: ${error.message}`, 'error');
+        }
+    },
+
+    // WORKFLOW NAVIGATION
+    nextWorkflowStep(workOrderId) {
+        const order = window.workflowDataManager.getWorkOrder(workOrderId);
+        if (!order) return;
+
+        const nextStatus = window.paymentConfigManager?.getNextWorkflowStep(order.status, order.payment_type);
+        if (nextStatus) {
+            window.workflowDataManager.updateWorkOrder(workOrderId, { status: nextStatus });
+            window.workflowDataManager.addServiceHistory(workOrderId, nextStatus, `Status updated to ${nextStatus}`, 'System');
+
+            const statusInfo = this.getWorkflowStates()[nextStatus];
+            this.showToast(`✅ ${order.work_order_number} moved to: ${statusInfo?.label || nextStatus}`, 'success');
+            this.refreshCurrentView();
+        } else {
+            this.showToast('This work order has completed the workflow', 'info');
+        }
+    },
+
+    processPayment(workOrderId) {
+        this.showToast('Opening payment processing...', 'info');
+        // Implementation would go here - call payment processing module
+    },
+
+    confirmPayment(workOrderId) {
+        this.showToast('Confirming payment...', 'info');
+        // Implementation would go here - confirm payment
+    },
+
+    viewWorkOrderDetails(workOrderId) {
+        const order = window.workflowDataManager.getWorkOrder(workOrderId);
+        if (!order) return;
+
+        const statusInfo = this.getWorkflowStates()[order.status] || { label: order.status };
+        const paymentTypeInfo = this.getPaymentTypes()[order.payment_type] || { label: order.payment_type };
+
+        alert(`Work Order Details:
+
+${order.work_order_number}
+Customer: ${order.customer_name}
+Vehicle: ${order.vehicle_registration} - ${order.vehicle_info}
+Payment: ${paymentTypeInfo.label}
+Status: ${statusInfo.label}
+Amount: ${this.formatCurrency(order.estimated_cost)}
+Priority: ${(order.priority || 'normal').toUpperCase()}
+
+Created: ${this.formatDate(order.date_created)}`);
+    },
+
+    // VIEW MANAGEMENT
+    async showView(viewName) {
+        this.currentView = viewName;
+
+        // Update active tab
+        document.querySelectorAll('.truck-tab-button').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        if (event?.target) {
+            event.target.classList.add('active');
+        }
+
+        const content = document.getElementById('completeWorkflowContent');
+        if (!content) return;
+
+        content.innerHTML = `
+            <div style="text-align: center; padding: 3rem;">
+                <div class="loading-spinner" style="margin: 0 auto 1rem;"></div>
+                <p>Loading ${viewName}...</p>
+            </div>
+        `;
+
+        try {
+            let html = '';
+
+            switch (viewName) {
+                case 'dashboard':
+                    const stats = this.calculateDashboardStats();
+                    html = this.generateDashboardContent(stats);
+                    break;
+                case 'work-orders':
+                    html = await this.generateWorkOrdersView();
+                    break;
+                case 'payments':
+                    html = await this.generatePaymentsView();
+                    break;
+                case 'reports':
+                    html = await this.generateReportsView();
+                    break;
+                default:
+                    html = '<p>View not implemented yet</p>';
+            }
+
+            content.innerHTML = html;
+
+        } catch (error) {
+            console.error(`Error loading ${viewName} view:`, error);
+            content.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: #ef4444;">
+                    <h3>Error Loading ${viewName}</h3>
+                    <p>${error.message}</p>
+                    <button class="truck-btn truck-submit-btn" onclick="completeWorkflowModule.showView('dashboard')" type="button">
+                        Return to Dashboard
+                    </button>
+                </div>
+            `;
+        }
+    },
+
+    async generateWorkOrdersView() {
+        const workOrders = this.getWorkOrders();
+
+        return `
+            <div class="truck-form-container active" style="display: block;">
+                <div class="truck-form-content">
+                    <div class="truck-form-title">
+                        <h2>🔧 All Work Orders</h2>
+                        <p>Complete list of work orders and their status</p>
+                    </div>
+
+                    <div style="margin-bottom: 2rem;">
+                        <button class="truck-btn truck-add-row" onclick="completeWorkflowModule.startNewEstimate()" type="button">
+                            ➕ New Work Order
+                        </button>
+                        <button class="truck-btn truck-remove-row" onclick="window.workflowDataManager.downloadData('work_orders')" type="button" style="background: #8b5cf6;">
+                            📥 Export Data
+                        </button>
+                    </div>
+
+                    <div class="work-orders-list">
+                        ${this.generateRecentWorkOrdersList()}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    async generatePaymentsView() {
+        return `
+            <div class="truck-form-container active" style="display: block;">
+                <div class="truck-form-content">
+                    <div class="truck-form-title">
+                        <h2>💳 Payment Processing</h2>
+                        <p>Handle customer payments and track revenue</p>
+                    </div>
+
+                    <div style="text-align: center; padding: 3rem; color: #64748b;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">💳</div>
+                        <h3>Payment Processing</h3>
+                        <p>Payment processing interface coming soon!</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    async generateReportsView() {
+        const stats = window.workflowDataManager?.getDashboardStats() || {};
+
+        return `
+            <div class="truck-form-container active" style="display: block;">
+                <div class="truck-form-content">
+                    <div class="truck-form-title">
+                        <h2>📊 Reports & Analytics</h2>
+                        <p>Business insights and performance metrics</p>
+                    </div>
+
+                    <div class="workflow-stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">📋</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${stats.totalOrders || 0}</div>
+                                <div class="stat-label">Total Orders</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🏥</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${stats.insuranceClaims || 0}</div>
+                                <div class="stat-label">Insurance Claims</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💳</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${stats.selfPayOrders || 0}</div>
+                                <div class="stat-label">Self-Pay Orders</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${this.formatCurrency(stats.totalRevenue || 0)}</div>
+                                <div class="stat-label">Total Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem; text-align: center;">
+                        <button class="truck-btn truck-add-row" onclick="window.workflowDataManager.downloadData('all')" type="button">
+                            📄 Export All Data
+                        </button>
+                        <button class="truck-btn truck-remove-row" onclick="window.workflowDataManager.resetToSampleData()" type="button" style="background: #6b7280;">
+                            🔄 Reset to Sample Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    // UTILITY METHODS - ALL USE EXTERNAL MANAGERS
+    calculateDashboardStats() {
+        return window.workflowDataManager?.getDashboardStats() || {
+            insuranceClaims: 0,
+            selfPayOrders: 0,
+            pendingPayments: 0,
+            totalRevenue: 0
+        };
+    },
+
+    getInsuranceCompanyName(companyId) {
+        const company = window.paymentConfigManager?.getInsuranceCompany(companyId);
+        return company?.name || companyId;
+    },
+
+    formatCurrency(amount) {
+        return window.paymentConfigManager?.formatCurrency(amount) || `฿${(amount || 0).toLocaleString()}`;
+    },
+
+    formatDate(dateString) {
+        return window.workflowDataManager?.formatDate(dateString) || 'N/A';
+    },
+
+    async refreshCurrentView() {
+        await this.showView(this.currentView);
+    },
+
+    showToast(message, type = 'info') {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type);
+        } else {
+            // Fallback toast implementation
+            let toast = document.getElementById('toast-notification');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast-notification';
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 500;
+                    z-index: 10000;
+                    transition: all 0.3s ease;
+                    transform: translateX(100%);
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                `;
+                document.body.appendChild(toast);
+            }
+
+            const colors = {
+                success: '#10b981',
+                error: '#ef4444',
+                warning: '#f59e0b',
+                info: '#3b82f6'
+            };
+
+            toast.style.backgroundColor = colors[type] || colors.info;
+            toast.textContent = message;
+            toast.style.transform = 'translateX(0)';
+
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+            }, 4000);
+        }
+    },
+
+    // QUICK ACTION METHODS
+    startInsuranceClaim() {
+        // Pre-select insurance payment type
+        this.startNewEstimate();
+        setTimeout(() => {
+            this.selectPaymentType('insurance');
+        }, 200);
+    },
+
+    startSelfPayJob() {
+        // Pre-select self-pay payment type
+        this.startNewEstimate();
+        setTimeout(() => {
+            this.selectPaymentType('self_pay');
+        }, 200);
+    },
+
+    // FALLBACK METHODS
+    fallbackNewEstimate() {
+        const customerName = prompt('Customer name:');
+        const vehicleReg = prompt('Vehicle registration:');
+        const paymentType = prompt('Payment type (1=Insurance, 2=Self-pay, 3=Mixed, 4=Warranty):');
+
+        let actualPaymentType = 'self_pay';
+        switch(paymentType) {
+            case '1': actualPaymentType = 'insurance'; break;
+            case '2': actualPaymentType = 'self_pay'; break;
+            case '3': actualPaymentType = 'mixed'; break;
+            case '4': actualPaymentType = 'warranty'; break;
+        }
+
+        if (customerName && vehicleReg) {
+            const estimateData = {
+                customer_name: customerName,
+                vehicle_registration: vehicleReg,
+                payment_type: actualPaymentType,
+                damage_description: 'Service requested',
+                estimated_cost: 0,
+                priority: 'normal',
+                status: 'estimate_prepared'
+            };
+
+            // Use the data manager to create the work order
+            const newOrder = window.workflowDataManager.createWorkOrder(estimateData);
+            this.showToast(`✅ Estimate ${newOrder.work_order_number} created!`, 'success');
+            this.refreshCurrentView();
+        }
+    }
+};
+
+// Make module globally available
+window.completeWorkflowModule = completeWorkflowModule;
