@@ -1,6 +1,6 @@
 /*
 ============================================================
-Payment Workflow Styles
+Payment Workflow Styles - Mobile Optimized
 ============================================================
 */
 
@@ -18,7 +18,6 @@ Payment Workflow Styles
     padding: 2rem;
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
-
 
 /* ========== HEADER ========== */
 .payment-header {
@@ -43,6 +42,15 @@ Payment Workflow Styles
     transition: all 0.2s ease;
     border: none;
     cursor: pointer;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px; /* Better touch targets on mobile */
+    text-decoration: none;
+    text-align: center;
 }
 
 .btn-primary {
@@ -56,14 +64,51 @@ Payment Workflow Styles
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-/* ========== FORM ELEMENTS ========== */
-.form-input, .form-textarea, select {
+.btn-outline {
+    background: transparent;
     border: 2px solid #e2e8f0;
-    border-radius: 8px;
+    color: #4a5568;
+    font-weight: 500;
     transition: all 0.2s ease;
 }
 
-.form-input:focus, .form-textarea:focus, select:focus {
+.btn-outline:hover {
+    border-color: #667eea;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.btn-secondary {
+    background: #718096;
+    color: white;
+    border: none;
+}
+
+.btn-secondary:hover {
+    background: #4a5568;
+    transform: translateY(-1px);
+}
+
+.btn-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    min-height: 36px;
+}
+
+/* ========== FORM ELEMENTS ========== */
+.form-input, .form-textarea, .form-select {
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    background: white;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 44px; /* Better touch targets */
+}
+
+.form-input:focus, .form-textarea:focus, .form-select:focus {
     border-color: #667eea;
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     outline: none;
@@ -71,28 +116,41 @@ Payment Workflow Styles
 
 /* ========== TABS ========== */
 .payment-tabs-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin-bottom: 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1rem;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
 }
+
+.payment-tabs-wrapper::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
 .payment-tabs {
     background: #ffffff;
     border-radius: 12px;
     padding: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     border: 1px solid #e2e8f0;
+    display: flex;
+    min-width: max-content; /* Prevents wrapping on mobile */
+    gap: 4px;
 }
 
 .payment-tab {
     border-radius: 8px;
     transition: all 0.2s ease;
     font-weight: 500;
-    padding: 0.75rem 1.25rem;
-    font-size: 1rem;
-    min-width: 160px;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    min-width: 140px;
     text-align: center;
-    flex: 1 1 auto;
-    justify-content: center; /* or flex-start */
+    white-space: nowrap;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #64748b;
 }
 
 .payment-tab.active {
@@ -102,6 +160,13 @@ Payment Workflow Styles
 }
 
 /* ========== STAT CARDS ========== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
 .stat-card {
     position: relative;
     overflow: hidden;
@@ -139,17 +204,20 @@ Payment Workflow Styles
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    flex-shrink: 0;
 }
 
 .stat-content {
     flex: 1;
+    min-width: 0; /* Prevents overflow */
 }
 
 .stat-number {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: bold;
     color: var(--text-primary, #1e293b);
     line-height: 1;
+    word-break: break-word;
 }
 
 .stat-label {
@@ -158,66 +226,49 @@ Payment Workflow Styles
     margin-top: 0.25rem;
 }
 
-/* ========== RESPONSIVE ========== */
-@media (max-width: 768px) {
-    .payment-header {
-        padding: 1.5rem 1rem;
-    }
-
-    .payment-header h1 {
-        font-size: 1.5rem;
-    }
-
-    .dashboard-stats,
-    .payment-tabs,
-    .payment-types-grid,
-    .workflow-stats-grid,
-    .quick-actions-grid,
-    .work-order-info,
-    .payment-breakdown,
-    .payment-type-selection,
-    .payment-method-grid,
-    .payment-methods-grid {
-        grid-template-columns: 1fr;
-        flex-direction: column;
-    }
-
-    .work-order-header,
-    .work-order-footer,
-    .summary-row {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-
-    .work-order-actions {
-        justify-content: flex-start;
-        width: 100%;
-    }
+.stat-change {
+    font-size: 0.75rem;
+    color: var(--text-tertiary, #94a3b8);
+    margin-top: 0.25rem;
 }
 
-/* ========== PRINT ========== */
-@media print {
-    .truck-nav-container,
-    .work-order-actions,
-    .quick-actions-grid,
-    .modal-actions {
-        display: none !important;
-    }
-
-    .work-order-card {
-        break-inside: avoid;
-        page-break-inside: avoid;
-    }
-
-    .payment-summary {
-        background: #f8f9fa !important;
-    }
+/* ========== ACTION BAR ========== */
+.action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
+.action-bar-title {
+    font-size: 1.5rem;
+    color: #2c3e50;
+    margin: 0;
+}
 
+.action-bar-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
 
-/* ========== ACTION CARDS ========== */
+/* ========== PAYMENT ACTIONS GRID ========== */
+.payment-actions-section h2 {
+    margin-bottom: 1.5rem;
+    color: #1a202c;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.payment-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
 .payment-action-card {
     background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border: 2px solid #e2e8f0;
@@ -228,6 +279,10 @@ Payment Workflow Styles
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .payment-action-card::before {
@@ -269,76 +324,10 @@ Payment Workflow Styles
     font-size: 0.875rem;
     color: #718096;
     line-height: 1.4;
+    margin: 0;
 }
 
-/* ========== PAYMENT METHODS ========== */
-.payment-method-detailed {
-    background: #ffffff;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 1.25rem;
-    transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 1rem;
-}
-
-.payment-method-detailed::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 4px;
-    background: linear-gradient(90deg, #667eea, #764ba2);
-    transform: scaleX(0);
-    transition: transform 0.3s ease;
-}
-
-.payment-method-detailed:hover {
-    border-color: #667eea;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
-}
-
-.payment-method-detailed:hover::before {
-    transform: scaleX(1);
-}
-
-.method-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.75rem;
-}
-
-.method-icon {
-    font-size: 1.5rem;
-}
-
-.method-info h3 {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: #1a202c;
-    margin-bottom: 0.25rem;
-}
-
-.method-fees {
-    font-size: 0.875rem;
-    color: #718096;
-}
-
-.method-details {
-    padding-left: 2.5rem;
-}
-
-.method-limits, .method-features {
-    font-size: 0.875rem;
-    color: #4a5568;
-    margin-bottom: 0.25rem;
-}
-
-/* ========== QUICK PAYMENT ========== */
+/* ========== QUICK PAYMENT SECTION ========== */
 .quick-payment-section {
     background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
     border-radius: 12px;
@@ -354,9 +343,13 @@ Payment Workflow Styles
     font-weight: 600;
 }
 
+.quick-payment-form {
+    width: 100%;
+}
+
 .quick-form-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
     margin-bottom: 1rem;
 }
@@ -364,6 +357,7 @@ Payment Workflow Styles
 .quick-form-group {
     display: flex;
     flex-direction: column;
+    width: 100%;
 }
 
 .quick-form-group label {
@@ -387,6 +381,8 @@ Payment Workflow Styles
     align-items: center;
     justify-content: center;
     min-height: 48px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .quick-form-actions {
@@ -394,104 +390,10 @@ Payment Workflow Styles
     gap: 1rem;
     justify-content: flex-end;
     margin-top: 1.5rem;
-}
-
-/* ========== ADDITIONAL BUTTONS ========== */
-.btn-outline {
-    background: transparent;
-    border: 2px solid #e2e8f0;
-    color: #4a5568;
-    padding: 0.75rem 1.5rem;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.btn-outline:hover {
-    border-color: #667eea;
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.05);
-}
-
-.btn-secondary {
-    background: #718096;
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-}
-
-.btn-secondary:hover {
-    background: #4a5568;
-    transform: translateY(-1px);
-}
-
-/* ========== DASHBOARD GRID ========== */
-.dashboard-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-.payment-navigation {
-    margin-bottom: 2rem;
-}
-
-.payment-tab-content {
-    background: #ffffff;
-    border-radius: 12px;
-    padding: 2rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border: 1px solid #e2e8f0;
-}
-
-/* ========== SPECIFIC STAT CARD COLORS ========== */
-.stat-card.revenue::before {
-    background: linear-gradient(90deg, #38b2ac, #319795);
-}
-
-.stat-card.payments::before {
-    background: linear-gradient(90deg, #667eea, #764ba2);
-}
-
-.stat-card.insurance::before {
-    background: linear-gradient(90deg, #ed8936, #dd6b20);
-}
-
-.stat-card.installments::before {
-    background: linear-gradient(90deg, #9f7aea, #805ad5);
-}
-
-
-/* ========== ACTION BAR (to match your vehicle page style) ========== */
-.action-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
     flex-wrap: wrap;
-    gap: 1rem;
 }
 
-.action-bar-title {
-    font-size: 1.5rem;
-    color: #2c3e50;
-    margin: 0;
-}
-
-.action-bar-actions {
-    display: flex;
-    gap: 0.75rem;
-}
-
-/* ========== STATS GRID (compatible with your existing stats) ========== */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-}
-
-/* ========== DATA TABLES (to match your existing table style) ========== */
+/* ========== DATA TABLES ========== */
 .data-table-container {
     background: white;
     border-radius: 12px;
@@ -520,15 +422,18 @@ Payment Workflow Styles
     display: flex;
     gap: 0.75rem;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .data-table-content {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .data-table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 600px; /* Ensures table doesn't get too cramped */
 }
 
 .data-table th {
@@ -539,6 +444,7 @@ Payment Workflow Styles
     font-weight: 600;
     color: #2c3e50;
     font-size: 0.875rem;
+    white-space: nowrap;
 }
 
 .data-table td {
@@ -559,6 +465,7 @@ Payment Workflow Styles
     font-size: 0.75rem;
     font-weight: 500;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .status-pending {
@@ -601,64 +508,21 @@ Payment Workflow Styles
     margin-bottom: 1.5rem;
 }
 
-/* ========== FORM ENHANCEMENTS ========== */
-.form-select {
-    border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 0.75rem;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
-    background: white;
-}
-
-.form-select:focus {
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    outline: none;
-}
-
-/* ========== BUTTON SIZES ========== */
-.btn-sm {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.75rem;
-}
-
 /* ========== TAB CONTENT ========== */
+.payment-tab-content {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+}
+
 .tab-content {
     display: none;
 }
 
 .tab-content.active {
     display: block;
-}
-
-/* ========== PAYMENT ACTIONS GRID ========== */
-.payment-actions-section h2 {
-    margin-bottom: 1.5rem;
-    color: #1a202c;
-    font-size: 1.25rem;
-    font-weight: 600;
-}
-
-.payment-actions-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
-}
-
-.payment-methods-section h2 {
-    margin-bottom: 1.5rem;
-    color: #1a202c;
-    font-size: 1.25rem;
-    font-weight: 600;
-}
-
-.payment-methods-detailed {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1rem;
-    margin-top: 1rem;
 }
 
 /* ========== MODAL STYLES ========== */
@@ -673,8 +537,324 @@ Payment Workflow Styles
     align-items: center;
     justify-content: center;
     z-index: 10000;
+    padding: 1rem;
+    box-sizing: border-box;
 }
 
 .modal.active {
     display: flex;
+}
+
+/* ========== SPECIFIC STAT CARD COLORS ========== */
+.stat-card.revenue::before {
+    background: linear-gradient(90deg, #38b2ac, #319795);
+}
+
+.stat-card.payments::before {
+    background: linear-gradient(90deg, #667eea, #764ba2);
+}
+
+.stat-card.insurance::before {
+    background: linear-gradient(90deg, #ed8936, #dd6b20);
+}
+
+.stat-card.installments::before {
+    background: linear-gradient(90deg, #9f7aea, #805ad5);
+}
+
+/* ========== REPORTS SECTION ========== */
+.payment-reports-section h2 {
+    margin-bottom: 1.5rem;
+    color: #1a202c;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.reports-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.report-stat-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #e9ecef;
+}
+
+.report-stat-card h3 {
+    font-size: 1.125rem;
+    margin-bottom: 1rem;
+    color: #1a202c;
+}
+
+.report-stat-card p {
+    margin: 0.5rem 0;
+    font-size: 0.875rem;
+    color: #4a5568;
+}
+
+.report-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* ========== MOBILE RESPONSIVE STYLES ========== */
+@media (max-width: 768px) {
+    /* Container adjustments */
+    .payment-section {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    .payment-tab-content {
+        padding: 1rem;
+    }
+
+    /* Header adjustments */
+    .payment-header {
+        padding: 1.5rem 1rem;
+    }
+
+    .payment-header h1 {
+        font-size: 1.5rem;
+    }
+
+    /* Action bar mobile optimization */
+    .action-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .action-bar-title {
+        font-size: 1.25rem;
+        text-align: center;
+    }
+
+    .action-bar-actions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    /* Stats grid mobile optimization */
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .stat-card {
+        flex-direction: row;
+        align-items: center;
+        padding: 1rem;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+    }
+
+    /* Payment actions grid mobile optimization */
+    .payment-actions-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .payment-action-card {
+        padding: 1rem;
+        min-height: 100px;
+    }
+
+    .action-icon {
+        font-size: 2rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .action-content h3 {
+        font-size: 1rem;
+    }
+
+    .action-content p {
+        font-size: 0.8rem;
+    }
+
+    /* Quick payment form mobile optimization */
+    .quick-payment-section {
+        padding: 1rem;
+    }
+
+    .quick-form-row {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .quick-form-actions {
+        justify-content: stretch;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .quick-form-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Data table mobile optimization */
+    .data-table-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .data-table-title {
+        text-align: center;
+        font-size: 1rem;
+    }
+
+    .data-table-actions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .data-table-actions .btn {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    /* Tab optimization for mobile */
+    .payment-tabs {
+        padding: 4px;
+        gap: 2px;
+    }
+
+    .payment-tab {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+        min-width: 120px;
+    }
+
+    /* Reports section mobile optimization */
+    .reports-stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .report-actions {
+        flex-direction: column;
+    }
+
+    .report-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Modal mobile optimization */
+    .modal {
+        padding: 0.5rem;
+    }
+
+    /* Form elements mobile optimization */
+    .form-input, .form-textarea, .form-select {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+
+    /* Button improvements for mobile */
+    .btn {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+        min-height: 48px;
+        border-radius: 8px;
+    }
+
+    .btn-sm {
+        padding: 0.625rem 0.875rem;
+        font-size: 0.8rem;
+        min-height: 40px;
+    }
+}
+
+/* ========== EXTRA SMALL MOBILE (320px and below) ========== */
+@media (max-width: 320px) {
+    .payment-section {
+        padding: 0.75rem;
+    }
+
+    .quick-form-row {
+        gap: 0.5rem;
+    }
+
+    .payment-tab {
+        min-width: 100px;
+        font-size: 0.75rem;
+        padding: 0.5rem;
+    }
+
+    .stat-number {
+        font-size: 1.25rem;
+    }
+
+    .action-icon {
+        font-size: 1.5rem;
+    }
+}
+
+/* ========== PRINT STYLES ========== */
+@media print {
+    .truck-nav-container,
+    .action-bar-actions,
+    .quick-actions-grid,
+    .modal-actions,
+    .payment-tabs,
+    .quick-form-actions,
+    .data-table-actions {
+        display: none !important;
+    }
+
+    .payment-section {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+
+    .data-table {
+        font-size: 0.75rem;
+    }
+
+    .stat-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+}
+
+/* ========== ACCESSIBILITY IMPROVEMENTS ========== */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus improvements for keyboard navigation */
+.btn:focus,
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus,
+.payment-tab:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* Better touch targets for mobile */
+@media (hover: none) and (pointer: coarse) {
+    .btn {
+        min-height: 48px;
+        padding: 0.875rem 1rem;
+    }
+
+    .payment-tab {
+        min-height: 48px;
+        padding: 0.75rem 1rem;
+    }
 }
