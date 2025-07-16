@@ -8,9 +8,25 @@ Enhanced with comprehensive photo documentation system and truck repair manageme
 
 import sqlite3
 import bcrypt
+import sys
+import os
 from datetime import datetime
 from pathlib import Path
-from database.connection_manager import db_manager
+
+# Add the parent directory to the Python path so we can import from database
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+try:
+    from database.connection_manager import db_manager
+except ImportError:
+    # If running from database directory, try relative import
+    try:
+        from connection_manager import db_manager
+    except ImportError:
+        print("❌ Error: Could not import connection_manager")
+        print("💡 Please run this script from the project root directory:")
+        print("   python -m database.db_setup")
+        sys.exit(1)
 
 
 def create_tables():
@@ -28,9 +44,13 @@ def create_tables():
                 role TEXT NOT NULL DEFAULT 'user',
                 full_name TEXT,
                 email TEXT,
+                phone TEXT,
+                specialization TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 last_login TEXT,
-                is_active INTEGER DEFAULT 1
+                is_active INTEGER DEFAULT 1,
+                notes TEXT
             )
         """)
 
@@ -53,6 +73,111 @@ def create_tables():
             )
         """)
 
+        # Services table - Core service management
+        cursor.execute("""
+             CREATE TABLE IF NOT EXISTS services (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 customer_id INTEGER NOT NULL,
+                 vehicle_id INTEGER NOT NULL,
+                 service_type TEXT NOT NULL,
+                 description TEXT,
+                 status TEXT DEFAULT 'pending',
+                 priority TEXT DEFAULT 'normal',
+                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                 scheduled_date TEXT,
+                 completed_date TEXT,
+                 estimated_cost REAL DEFAULT 0.0,
+                 actual_cost REAL DEFAULT 0.0,
+                 labor_hours REAL DEFAULT 0.0,
+                 technician_id INTEGER,
+                 service_bay TEXT,
+                 mileage_in INTEGER,
+                 mileage_out INTEGER,
+                 customer_complaints TEXT,
+                 work_performed TEXT,
+                 quality_check_status TEXT DEFAULT 'pending',
+                 customer_satisfaction INTEGER,
+                 warranty_info TEXT,
+                 insurance_info TEXT,
+                 notes TEXT,
+                 tags TEXT,
+                 FOREIGN KEY (customer_id) REFERENCES customers (id),
+                 FOREIGN KEY (vehicle_id) REFERENCES vehicles (id),
+                 FOREIGN KEY (technician_id) REFERENCES users (id)
+             )
+         """)
+
+        # Service Items table for detailed service breakdown
+        cursor.execute("""
+             CREATE TABLE IF NOT EXISTS service_items (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 service_id INTEGER NOT NULL,
+                 item_name TEXT NOT NULL,
+                 description TEXT,
+                 quantity REAL DEFAULT 1.0,
+                 unit_price REAL DEFAULT 0.0,
+                 total_price REAL DEFAULT 0.0,
+                 category TEXT DEFAULT 'service',
+                 part_number TEXT,
+                 supplier TEXT,
+                 warranty_period INTEGER,
+                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                 FOREIGN KEY (service_id) REFERENCES services (id) ON DELETE CASCADE
+             )
+         """)
+
+        # Work Orders table for detailed task management
+        cursor.execute("""
+             CREATE TABLE IF NOT EXISTS work_orders (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 work_order_number TEXT UNIQUE NOT NULL,
+                 service_id INTEGER NOT NULL,
+                 status TEXT DEFAULT 'created',
+                 priority TEXT DEFAULT 'normal',
+                 assigned_technician INTEGER,
+                 created_by TEXT,
+                 instructions TEXT,
+                 estimated_time INTEGER,
+                 actual_time INTEGER,
+                 materials TEXT,
+                 steps TEXT,
+                 quality_checkpoints TEXT,
+                 notes TEXT,
+                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                 completed_at TEXT,
+                 FOREIGN KEY (service_id) REFERENCES services (id) ON DELETE CASCADE,
+                 FOREIGN KEY (assigned_technician) REFERENCES users (id)
+             )
+         """)
+
+        # Appointments table for scheduling
+        cursor.execute("""
+             CREATE TABLE IF NOT EXISTS appointments (
+                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                 customer_id INTEGER NOT NULL,
+                 vehicle_id INTEGER NOT NULL,
+                 service_id INTEGER,
+                 appointment_date TEXT NOT NULL,
+                 appointment_time TEXT NOT NULL,
+                 estimated_duration INTEGER DEFAULT 120,
+                 service_type TEXT NOT NULL,
+                 description TEXT,
+                 status TEXT DEFAULT 'scheduled',
+                 assigned_technician INTEGER,
+                 assigned_bay TEXT,
+                 reminder_sent INTEGER DEFAULT 0,
+                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                 notes TEXT,
+                 FOREIGN KEY (customer_id) REFERENCES customers (id),
+                 FOREIGN KEY (vehicle_id) REFERENCES vehicles (id),
+                 FOREIGN KEY (service_id) REFERENCES services (id),
+                 FOREIGN KEY (assigned_technician) REFERENCES users (id)
+             )
+         """)
+
         # Vehicles table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS vehicles (
@@ -73,31 +198,7 @@ def create_tables():
             )
         """)
 
-        # Services table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS services (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                customer_id INTEGER NOT NULL,
-                vehicle_id INTEGER NOT NULL,
-                service_type TEXT NOT NULL,
-                description TEXT,
-                status TEXT DEFAULT 'pending',
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                scheduled_date TEXT,
-                completed_date TEXT,
-                estimated_cost REAL DEFAULT 0.0,
-                actual_cost REAL DEFAULT 0.0,
-                technician_id INTEGER,
-                priority TEXT DEFAULT 'normal',
-                notes TEXT,
-                FOREIGN KEY (customer_id) REFERENCES customers (id),
-                FOREIGN KEY (vehicle_id) REFERENCES vehicles (id),
-                FOREIGN KEY (technician_id) REFERENCES users (id)
-            )
-        """)
-
-        # Enhanced Vehicle Photos Table for comprehensive documentation
+        # Enhanced Vehicle Photos Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS vehicle_photos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -117,14 +218,16 @@ def create_tables():
                 metadata TEXT,
                 image_width INTEGER,
                 image_height INTEGER,
-
+                is_damage_photo INTEGER DEFAULT 0,
+                damage_severity TEXT,
+                repair_required INTEGER DEFAULT 0,
                 FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
                 FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
                 FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
             )
         """)
 
-        # Photo Sessions Table (groups related photos)
+        # Photo Sessions Table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS photo_sessions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -139,7 +242,9 @@ def create_tables():
                 notes TEXT,
                 total_photos INTEGER DEFAULT 0,
                 status VARCHAR(50) DEFAULT 'active',
-
+                location TEXT,
+                weather_conditions TEXT,
+                lighting_conditions TEXT,
                 FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE,
                 FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
                 FOREIGN KEY (service_id) REFERENCES services(id) ON DELETE SET NULL
@@ -152,7 +257,7 @@ def create_tables():
                 session_id INTEGER NOT NULL,
                 photo_id INTEGER NOT NULL,
                 sequence_order INTEGER DEFAULT 0,
-
+                photo_purpose TEXT,
                 PRIMARY KEY (session_id, photo_id),
                 FOREIGN KEY (session_id) REFERENCES photo_sessions(id) ON DELETE CASCADE,
                 FOREIGN KEY (photo_id) REFERENCES vehicle_photos(id) ON DELETE CASCADE
@@ -178,52 +283,53 @@ def create_tables():
             )
         """)
 
-        # Damage reports table for vehicle damage tracking
+        # Damage Reports table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS damage_reports (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 customer_id INTEGER NOT NULL,
                 vehicle_id INTEGER NOT NULL,
+                service_id INTEGER,
                 vehicle_type TEXT NOT NULL,
                 damage_points TEXT DEFAULT '[]',
                 total_estimated_cost REAL DEFAULT 0.0,
+                inspector_name TEXT,
+                inspection_date TEXT DEFAULT CURRENT_TIMESTAMP,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 notes TEXT DEFAULT '',
                 status TEXT DEFAULT 'active',
+                severity_level TEXT DEFAULT 'minor',
+                repair_priority TEXT DEFAULT 'normal',
+                insurance_claim_number TEXT,
                 FOREIGN KEY (customer_id) REFERENCES customers (id),
-                FOREIGN KEY (vehicle_id) REFERENCES vehicles (id)
-            )
-        """)
-
-        # Service items table for detailed service breakdown
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS service_items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                service_id INTEGER NOT NULL,
-                item_name TEXT NOT NULL,
-                description TEXT,
-                quantity REAL DEFAULT 1.0,
-                unit_price REAL DEFAULT 0.0,
-                total_price REAL DEFAULT 0.0,
-                category TEXT DEFAULT 'service',
-                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (vehicle_id) REFERENCES vehicles (id),
                 FOREIGN KEY (service_id) REFERENCES services (id)
             )
         """)
 
         # TRUCK REPAIR MANAGEMENT TABLES
 
-        # Material Forms table for truck repair material requisitions
+        # Material Forms table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS material_forms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                form_number TEXT UNIQUE,
                 vehicle_registration TEXT,
-                date TEXT,
+                chassis_number TEXT,
+                engine_number TEXT,
+                date TEXT NOT NULL,
                 requester_name TEXT NOT NULL,
+                requester_department TEXT,
                 recipient_name TEXT,
+                recipient_department TEXT,
                 total_items INTEGER DEFAULT 0,
+                total_cost REAL DEFAULT 0.0,
                 service_id INTEGER,
+                project_code TEXT,
+                approval_status TEXT DEFAULT 'pending',
+                approved_by TEXT,
+                approved_date TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 status TEXT DEFAULT 'pending',
@@ -238,19 +344,25 @@ def create_tables():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 form_id INTEGER NOT NULL,
                 item_number INTEGER,
-                material_description TEXT,
+                material_description TEXT NOT NULL,
                 material_code TEXT,
+                thai_description TEXT,
                 quantity INTEGER DEFAULT 0,
-                unit TEXT,
+                unit TEXT DEFAULT 'pieces',
                 unit_cost REAL DEFAULT 0.0,
                 total_cost REAL DEFAULT 0.0,
                 supplier TEXT,
+                part_category TEXT,
+                location_code TEXT,
+                minimum_stock INTEGER DEFAULT 0,
+                current_stock INTEGER DEFAULT 0,
+                lead_time_days INTEGER DEFAULT 0,
                 notes TEXT,
                 FOREIGN KEY (form_id) REFERENCES material_forms (id) ON DELETE CASCADE
             )
         """)
 
-        # Repair Quotes table for truck repair estimates
+        # Repair Quotes table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS repair_quotes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -260,20 +372,33 @@ def create_tables():
                 engine_number TEXT,
                 damage_date TEXT,
                 quote_date TEXT NOT NULL,
+                valid_until TEXT,
                 customer_name TEXT,
+                customer_contact TEXT,
+                customer_address TEXT,
                 vehicle_make TEXT,
                 vehicle_model TEXT,
                 vehicle_year INTEGER,
                 vehicle_color TEXT,
+                vehicle_mileage INTEGER,
                 repair_type TEXT DEFAULT 'general',
+                damage_description TEXT,
+                repair_method TEXT,
+                parts_subtotal REAL DEFAULT 0,
+                labor_subtotal REAL DEFAULT 0,
+                paint_subtotal REAL DEFAULT 0,
                 total_amount REAL DEFAULT 0,
+                tax_rate REAL DEFAULT 7.0,
                 tax_amount REAL DEFAULT 0,
                 discount_amount REAL DEFAULT 0,
                 final_amount REAL DEFAULT 0,
                 status TEXT DEFAULT 'new',
                 service_id INTEGER,
+                prepared_by TEXT,
                 approved_by TEXT,
                 approved_date TEXT,
+                estimated_completion_days INTEGER DEFAULT 7,
+                warranty_period INTEGER DEFAULT 90,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 notes TEXT,
@@ -287,16 +412,23 @@ def create_tables():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 quote_id INTEGER NOT NULL,
                 item_number INTEGER,
+                category TEXT DEFAULT 'parts',
                 part_code TEXT,
-                description TEXT,
+                description TEXT NOT NULL,
+                thai_description TEXT,
                 color TEXT,
                 side TEXT,
+                condition_type TEXT,
                 quantity INTEGER DEFAULT 1,
+                unit TEXT DEFAULT 'piece',
                 unit_price REAL DEFAULT 0,
+                labor_hours REAL DEFAULT 0,
+                labor_rate REAL DEFAULT 0,
                 total_price REAL DEFAULT 0,
-                category TEXT DEFAULT 'parts',
                 supplier TEXT,
-                estimated_delivery TEXT,
+                part_origin TEXT,
+                estimated_delivery_days INTEGER DEFAULT 3,
+                warranty_period INTEGER DEFAULT 30,
                 notes TEXT,
                 FOREIGN KEY (quote_id) REFERENCES repair_quotes (id) ON DELETE CASCADE
             )
@@ -322,22 +454,35 @@ def create_tables():
             )
         """)
 
+        # PAYMENT SYSTEM TABLES
+
         # Payments table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS payments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                payment_number TEXT UNIQUE,
                 service_id INTEGER NOT NULL,
                 customer_id INTEGER NOT NULL,
                 vehicle_id INTEGER,
                 payment_method TEXT NOT NULL,
                 amount REAL NOT NULL,
                 fees REAL DEFAULT 0.0,
+                tax_amount REAL DEFAULT 0.0,
+                discount_amount REAL DEFAULT 0.0,
                 total_amount REAL NOT NULL,
+                currency TEXT DEFAULT 'THB',
+                exchange_rate REAL DEFAULT 1.0,
                 status TEXT DEFAULT 'pending',
                 processed_date TEXT,
+                due_date TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 receipt_number TEXT,
+                reference_number TEXT,
+                bank_reference TEXT,
+                processed_by TEXT,
+                payment_gateway TEXT,
+                gateway_transaction_id TEXT,
                 notes TEXT,
                 FOREIGN KEY (service_id) REFERENCES services (id),
                 FOREIGN KEY (customer_id) REFERENCES customers (id),
@@ -349,18 +494,31 @@ def create_tables():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS insurance_claims (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                claim_number TEXT UNIQUE NOT NULL,
                 service_id INTEGER,
                 customer_id INTEGER NOT NULL,
                 vehicle_id INTEGER NOT NULL,
-                claim_number TEXT UNIQUE NOT NULL,
-                insurance_company TEXT,
+                insurance_company TEXT NOT NULL,
+                policy_number TEXT,
+                claim_type TEXT DEFAULT 'repair',
+                incident_date TEXT,
+                incident_location TEXT,
+                incident_description TEXT,
+                police_report_number TEXT,
                 claim_amount REAL DEFAULT 0.0,
+                approved_amount REAL DEFAULT 0.0,
                 deductible REAL DEFAULT 0.0,
+                excess_amount REAL DEFAULT 0.0,
                 status TEXT DEFAULT 'pending',
+                adjuster_name TEXT,
+                adjuster_contact TEXT,
                 submitted_date TEXT,
                 approved_date TEXT,
+                settlement_date TEXT,
+                payment_date TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                documents_submitted TEXT,
                 notes TEXT,
                 FOREIGN KEY (service_id) REFERENCES services (id),
                 FOREIGN KEY (customer_id) REFERENCES customers (id),
@@ -372,24 +530,107 @@ def create_tables():
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS installment_plans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plan_number TEXT UNIQUE,
                 service_id INTEGER NOT NULL,
                 customer_id INTEGER NOT NULL,
                 vehicle_id INTEGER,
                 total_amount REAL NOT NULL,
                 down_payment REAL DEFAULT 0.0,
+                financed_amount REAL NOT NULL,
                 monthly_payment REAL NOT NULL,
                 number_of_months INTEGER NOT NULL,
                 interest_rate REAL DEFAULT 0.0,
+                processing_fee REAL DEFAULT 0.0,
+                insurance_fee REAL DEFAULT 0.0,
+                plan_start_date TEXT,
+                plan_end_date TEXT,
                 next_payment_date TEXT,
+                payments_made INTEGER DEFAULT 0,
+                remaining_balance REAL,
                 status TEXT DEFAULT 'active',
+                bank_name TEXT,
+                account_number TEXT,
+                approval_reference TEXT,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT,
                 FOREIGN KEY (service_id) REFERENCES services (id),
                 FOREIGN KEY (customer_id) REFERENCES customers (id),
                 FOREIGN KEY (vehicle_id) REFERENCES vehicles (id)
             )
         """)
 
+        # Installment Payments table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS installment_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plan_id INTEGER NOT NULL,
+                payment_number INTEGER NOT NULL,
+                due_date TEXT NOT NULL,
+                amount_due REAL NOT NULL,
+                amount_paid REAL DEFAULT 0.0,
+                late_fee REAL DEFAULT 0.0,
+                payment_date TEXT,
+                payment_method TEXT,
+                reference_number TEXT,
+                status TEXT DEFAULT 'pending',
+                notes TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (plan_id) REFERENCES installment_plans (id) ON DELETE CASCADE
+            )
+        """)
+
+        # Quality Checks table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS quality_checks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service_id INTEGER NOT NULL,
+                work_order_id INTEGER,
+                inspector_id INTEGER,
+                checklist_items TEXT,
+                overall_score INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                issues_found TEXT,
+                recommendations TEXT,
+                customer_signature_required INTEGER DEFAULT 1,
+                customer_signature_received INTEGER DEFAULT 0,
+                completed_at TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT,
+                FOREIGN KEY (service_id) REFERENCES services (id),
+                FOREIGN KEY (work_order_id) REFERENCES work_orders (id),
+                FOREIGN KEY (inspector_id) REFERENCES users (id)
+            )
+        """)
+
+        # Warranties table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS warranties (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                warranty_number TEXT UNIQUE,
+                service_id INTEGER NOT NULL,
+                vehicle_id INTEGER NOT NULL,
+                customer_id INTEGER NOT NULL,
+                warranty_type TEXT NOT NULL,
+                description TEXT,
+                coverage_start_date TEXT,
+                coverage_end_date TEXT,
+                mileage_coverage INTEGER,
+                current_mileage INTEGER,
+                terms_and_conditions TEXT,
+                exclusions TEXT,
+                status TEXT DEFAULT 'active',
+                claims_count INTEGER DEFAULT 0,
+                max_claims INTEGER DEFAULT 999,
+                transferable INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT,
+                FOREIGN KEY (service_id) REFERENCES services (id),
+                FOREIGN KEY (vehicle_id) REFERENCES vehicles (id),
+                FOREIGN KEY (customer_id) REFERENCES customers (id)
+            )
+        """)
 
         # Create indexes for better performance
 
@@ -411,7 +652,6 @@ def create_tables():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_repair_quotes_service_id ON repair_quotes(service_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_truck_parts_part_code ON truck_parts_inventory(part_code)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_truck_parts_category ON truck_parts_inventory(category)")
-
 
         # Payment system indexes
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_payments_service_id ON payments(service_id)")

@@ -663,16 +663,16 @@ const completeWorkflowModule = {
         // Implementation would go here - call payment processing module
     },
 
-    confirmPayment(workOrderId) {
+    confirmPayment(workOrderId) { {
         this.showToast('Confirming payment...', 'info');
         // Implementation would go here - confirm payment
-    }
+    },
 
-    viewWorkOrderDetails(workOrderId)  {
+    viewWorkOrderDetails(workOrderId) { {
         const currentOrder = window.workflowDataManager.getWorkOrder(workOrderId);
         if (!currentOrder) return;
 
-        const statusInfo = this.getWorkflowStates()[currentOrder.status] || { label: currentOrder.status };
+        const statusInfo = this.getWorkflowStates()[currentOrder.status] || { label: orderData.status };
         const paymentTypeInfo = this.getPaymentTypes()[currentOrder.payment_type] || { label: orderData.payment_type };
 
         alert(`Work Order Details:
@@ -1023,37 +1023,26 @@ window.completeWorkflowModule = completeWorkflowModule;estimateData.payment_type
             this.refreshCurrentView();
         } else {
             this.showToast('This work order has completed the workflow', 'info');
-        }
+        },
+
+
+    processPayment(workOrderId)
+        this.showToast('Opening payment processing...', 'info');
     },
 
-    processPayment(workOrderId) {
-        this.showToast('Opening payment processing...', 'info');
+
         // Implementation would go here - call payment processing module
+
     },
+
 
     confirmPayment(workOrderId) {
+
         this.showToast('Confirming payment...', 'info');
         // Implementation would go here - confirm payment
-    },
+
 
     viewWorkOrderDetails(workOrderId) {
-        const orderData = window.workflowDataManager.getWorkOrder(workOrderId);
-        if (!orderData) return;
-
-        const statusInfo = this.getWorkflowStates()[orderData.status] || { label: orderData.status };
-        const paymentTypeInfo = this.getPaymentTypes()[orderData.payment_type] || { label: orderData.payment_type };
-
-        alert(`Work Order Details:
-
-${orderData.work_order_number}
-Customer: ${orderData.customer_name}
-Vehicle: ${orderData.vehicle_registration} - ${orderData.vehicle_info}
-Status: ${statusInfo.label}
-Payment Type: ${paymentTypeInfo.label}
-Total: $${orderData.total_amount || '0.00'}
-
-Notes: ${orderData.notes || 'No notes'}`);
-    },
         const orderData = window.workflowDataManager.getWorkOrder(workOrderId);
         if (!orderData) return;
 

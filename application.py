@@ -2975,6 +2975,253 @@ def get_installment_plans():
 
 
 
+@app.route('/api/appointments', methods=['GET'])
+def get_appointments():
+    """Get appointments for a specific date"""
+    try:
+        date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT a.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   v.make || ' ' || v.model as vehicle_info
+            FROM appointments a
+            LEFT JOIN customers c ON a.customer_id = c.id
+            LEFT JOIN vehicles v ON a.vehicle_id = v.id
+            WHERE DATE(a.appointment_date) = ?
+            ORDER BY a.appointment_time
+        """, (date,))
+
+        appointments = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "appointments": appointments})
+    except Exception as e:
+        logger.error(f"Error getting appointments: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/users', methods=['GET'])
+def get_users():
+    """Get users by role"""
+    try:
+        role = request.args.get('role')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        query = "SELECT id, username, full_name, role, email, phone FROM users WHERE is_active = 1"
+        params = []
+
+        if role:
+            query += " AND role = ?"
+            params.append(role)
+
+        query += " ORDER BY full_name"
+
+        cursor.execute(query, params)
+        users = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "users": users})
+    except Exception as e:
+        logger.error(f"Error getting users: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/work-orders', methods=['GET'])
+def get_work_orders():
+    """Get all work orders"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT wo.*, 
+                   s.description as service_description,
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   v.make || ' ' || v.model as vehicle_info
+            FROM work_orders wo
+            LEFT JOIN services s ON wo.service_id = s.id
+            LEFT JOIN customers c ON s.customer_id = c.id
+            LEFT JOIN vehicles v ON s.vehicle_id = v.id
+            ORDER BY wo.created_at DESC
+        """)
+
+        work_orders = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "work_orders": work_orders})
+    except Exception as e:
+        logger.error(f"Error getting work orders: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/parts', methods=['GET'])
+def get_parts():
+    """Get parts (alias for truck-parts for compatibility)"""
+    try:
+        # This endpoint can redirect to truck-parts or provide a simplified view
+        return get_truck_parts()
+    except Exception as e:
+        logger.error(f"Error getting parts: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/estimates', methods=['GET'])
+def get_estimates():
+    """Get estimates (uses services with estimated costs)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT s.id, s.description, s.estimated_cost, s.created_at, s.status,
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   v.make || ' ' || v.model as vehicle_info
+            FROM services s
+            LEFT JOIN customers c ON s.customer_id = c.id
+            LEFT JOIN vehicles v ON s.vehicle_id = v.id
+            WHERE s.estimated_cost > 0
+            ORDER BY s.created_at DESC
+        """)
+
+        estimates = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "estimates": estimates})
+    except Exception as e:
+        logger.error(f"Error getting estimates: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/invoices', methods=['GET'])
+def get_invoices():
+    """Get invoices (uses completed services and payments)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT p.id, p.receipt_number as invoice_number, p.total_amount, p.created_at,
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   s.description as service_description
+            FROM payments p
+            LEFT JOIN customers c ON p.customer_id = c.id
+            LEFT JOIN services s ON p.service_id = s.id
+            WHERE p.status = 'completed'
+            ORDER BY p.created_at DESC
+        """)
+
+        invoices = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "invoices": invoices})
+    except Exception as e:
+        logger.error(f"Error getting invoices: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/warranties', methods=['GET'])
+def get_warranties():
+    """Get all warranties"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT w.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   v.make || ' ' || v.model as vehicle_info
+            FROM warranties w
+            LEFT JOIN customers c ON w.customer_id = c.id
+            LEFT JOIN vehicles v ON w.vehicle_id = v.id
+            ORDER BY w.created_at DESC
+        """)
+
+        warranties = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "warranties": warranties})
+    except Exception as e:
+        logger.error(f"Error getting warranties: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/inspections', methods=['GET'])
+def get_inspections():
+    """Get vehicle inspections (uses damage reports)"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT dr.id, dr.inspection_date, dr.status, dr.total_estimated_cost,
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   v.make || ' ' || v.model as vehicle_info
+            FROM damage_reports dr
+            LEFT JOIN customers c ON dr.customer_id = c.id
+            LEFT JOIN vehicles v ON dr.vehicle_id = v.id
+            ORDER BY dr.inspection_date DESC
+        """)
+
+        inspections = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "inspections": inspections})
+    except Exception as e:
+        logger.error(f"Error getting inspections: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/quality-checks', methods=['GET'])
+def get_quality_checks():
+    """Get all quality checks"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT qc.*, 
+                   s.description as service_description,
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name
+            FROM quality_checks qc
+            LEFT JOIN services s ON qc.service_id = s.id
+            LEFT JOIN customers c ON s.customer_id = c.id
+            ORDER BY qc.created_at DESC
+        """)
+
+        quality_checks = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "quality_checks": quality_checks})
+    except Exception as e:
+        logger.error(f"Error getting quality checks: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/material-forms', methods=['GET'])
+def get_material_forms_alt():
+    """Alternative endpoint for material forms (compatibility)"""
+    try:
+        return get_material_forms()
+    except Exception as e:
+        logger.error(f"Error getting material forms: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/repair-quotes', methods=['GET'])
+def get_repair_quotes_alt():
+    """Alternative endpoint for repair quotes (compatibility)"""
+    try:
+        return get_quotes()
+    except Exception as e:
+        logger.error(f"Error getting repair quotes: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # =============================================================================
 # HEALTH CHECK AND ERROR HANDLERS
 # =============================================================================
