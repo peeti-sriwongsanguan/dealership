@@ -12,6 +12,12 @@ Payment Workflow Styles
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
 
+.payment-section {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
 
 
 /* ========== HEADER ========== */
@@ -64,6 +70,11 @@ Payment Workflow Styles
 }
 
 /* ========== TABS ========== */
+.payment-tabs-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+}
 .payment-tabs {
     background: #ffffff;
     border-radius: 12px;
@@ -76,6 +87,12 @@ Payment Workflow Styles
     border-radius: 8px;
     transition: all 0.2s ease;
     font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    min-width: 160px;
+    text-align: center;
+    flex: 1 1 auto;
+    justify-content: center; /* or flex-start */
 }
 
 .payment-tab.active {
@@ -444,3 +461,220 @@ Payment Workflow Styles
     background: linear-gradient(90deg, #9f7aea, #805ad5);
 }
 
+
+/* ========== ACTION BAR (to match your vehicle page style) ========== */
+.action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.action-bar-title {
+    font-size: 1.5rem;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.action-bar-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+/* ========== STATS GRID (compatible with your existing stats) ========== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* ========== DATA TABLES (to match your existing table style) ========== */
+.data-table-container {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+}
+
+.data-table-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #ecf0f1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.data-table-title {
+    font-size: 1.2rem;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.data-table-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.data-table-content {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    background: #f8f9fa;
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #ecf0f1;
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.875rem;
+}
+
+.data-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    color: #1f2937;
+    font-size: 0.875rem;
+}
+
+.data-table tr:hover {
+    background: #f8f9fa;
+}
+
+/* ========== STATUS BADGES ========== */
+.status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-pending {
+    background: rgba(255, 193, 7, 0.1);
+    color: #f59e0b;
+}
+
+.status-completed {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.status-overdue {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+/* ========== EMPTY STATE ========== */
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #6b7280;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.empty-description {
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ========== FORM ENHANCEMENTS ========== */
+.form-select {
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    outline: none;
+}
+
+/* ========== BUTTON SIZES ========== */
+.btn-sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+/* ========== TAB CONTENT ========== */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* ========== PAYMENT ACTIONS GRID ========== */
+.payment-actions-section h2 {
+    margin-bottom: 1.5rem;
+    color: #1a202c;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.payment-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.payment-methods-section h2 {
+    margin-bottom: 1.5rem;
+    color: #1a202c;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.payment-methods-detailed {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+/* ========== MODAL STYLES ========== */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal.active {
+    display: flex;
+}

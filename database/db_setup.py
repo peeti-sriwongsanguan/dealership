@@ -322,6 +322,75 @@ def create_tables():
             )
         """)
 
+        # Payments table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service_id INTEGER NOT NULL,
+                customer_id INTEGER NOT NULL,
+                vehicle_id INTEGER,
+                payment_method TEXT NOT NULL,
+                amount REAL NOT NULL,
+                fees REAL DEFAULT 0.0,
+                total_amount REAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                processed_date TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                receipt_number TEXT,
+                notes TEXT,
+                FOREIGN KEY (service_id) REFERENCES services (id),
+                FOREIGN KEY (customer_id) REFERENCES customers (id),
+                FOREIGN KEY (vehicle_id) REFERENCES vehicles (id)
+            )
+        """)
+
+        # Insurance Claims table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS insurance_claims (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service_id INTEGER,
+                customer_id INTEGER NOT NULL,
+                vehicle_id INTEGER NOT NULL,
+                claim_number TEXT UNIQUE NOT NULL,
+                insurance_company TEXT,
+                claim_amount REAL DEFAULT 0.0,
+                deductible REAL DEFAULT 0.0,
+                status TEXT DEFAULT 'pending',
+                submitted_date TEXT,
+                approved_date TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT,
+                FOREIGN KEY (service_id) REFERENCES services (id),
+                FOREIGN KEY (customer_id) REFERENCES customers (id),
+                FOREIGN KEY (vehicle_id) REFERENCES vehicles (id)
+            )
+        """)
+
+        # Installment Plans table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS installment_plans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                service_id INTEGER NOT NULL,
+                customer_id INTEGER NOT NULL,
+                vehicle_id INTEGER,
+                total_amount REAL NOT NULL,
+                down_payment REAL DEFAULT 0.0,
+                monthly_payment REAL NOT NULL,
+                number_of_months INTEGER NOT NULL,
+                interest_rate REAL DEFAULT 0.0,
+                next_payment_date TEXT,
+                status TEXT DEFAULT 'active',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (service_id) REFERENCES services (id),
+                FOREIGN KEY (customer_id) REFERENCES customers (id),
+                FOREIGN KEY (vehicle_id) REFERENCES vehicles (id)
+            )
+        """)
+
+
         # Create indexes for better performance
 
         # Photo system indexes
@@ -342,6 +411,40 @@ def create_tables():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_repair_quotes_service_id ON repair_quotes(service_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_truck_parts_part_code ON truck_parts_inventory(part_code)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_truck_parts_category ON truck_parts_inventory(category)")
+
+
+        # Payment system indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_payments_service_id ON payments(service_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_payments_customer_id ON payments(customer_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_payments_payment_method ON payments(payment_method)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_insurance_claims_customer_id ON insurance_claims(customer_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_insurance_claims_status ON insurance_claims(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_installment_plans_customer_id ON installment_plans(customer_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_installment_plans_status ON installment_plans(status)")
+
+        # Insurance claims indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_insurance_claims_service_id ON insurance_claims(service_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_insurance_claims_customer_id ON insurance_claims(customer_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_insurance_claims_vehicle_id ON insurance_claims(vehicle_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_insurance_claims_status ON insurance_claims(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_insurance_claims_claim_number ON insurance_claims(claim_number)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_insurance_claims_insurance_company ON insurance_claims(insurance_company)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_insurance_claims_submitted_date ON insurance_claims(submitted_date)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_insurance_claims_approved_date ON insurance_claims(approved_date)")
+
+        # Installment plans indexes
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_installment_plans_service_id ON installment_plans(service_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_installment_plans_customer_id ON installment_plans(customer_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_installment_plans_vehicle_id ON installment_plans(vehicle_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_installment_plans_status ON installment_plans(status)")
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_installment_plans_next_payment_date ON installment_plans(next_payment_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_installment_plans_created_at ON installment_plans(created_at)")
 
         conn.commit()
         print("✅ Database tables created successfully")

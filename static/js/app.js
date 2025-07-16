@@ -575,16 +575,24 @@ class OLServiceApp {
         }
     }
 
-    // ADDED: Missing loadPaymentsSection method
     async loadPaymentsSection() {
         console.log('📄 Loading payments section...');
         try {
+            // Check if module exists
+            console.log('🔍 Checking for paymentsModule...');
+            console.log('paymentsModule exists:', typeof paymentsModule !== 'undefined');
+            console.log('window.paymentsModule exists:', typeof window.paymentsModule !== 'undefined');
+
             if (typeof paymentsModule !== 'undefined' && paymentsModule.loadModule) {
                 console.log('✅ Using paymentsModule');
-                return await paymentsModule.loadModule();
+                const result = await paymentsModule.loadModule();
+                console.log('✅ Module loaded successfully');
+                return result;
             } else if (typeof window.paymentsModule !== 'undefined' && window.paymentsModule.loadModule) {
                 console.log('✅ Using window.paymentsModule');
-                return await window.paymentsModule.loadModule();
+                const result = await window.paymentsModule.loadModule();
+                console.log('✅ Module loaded successfully');
+                return result;
             } else {
                 console.log('⚠️ paymentsModule not available, using simple content');
                 return this.getSimplePaymentsContent();

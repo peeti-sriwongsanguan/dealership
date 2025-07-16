@@ -2702,6 +2702,280 @@ def get_recent_activity():
 
 
 # =============================================================================
+# ENHANCED PAYMENT MANAGEMENT API
+# =============================================================================
+
+@app.route('/api/payments', methods=['GET'])
+def get_payments():
+    """Get all payments with enhanced filtering"""
+    try:
+        status = request.args.get('status')
+        customer_id = request.args.get('customer_id')
+        payment_method = request.args.get('payment_method')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT p.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   s.service_type, s.description as service_description,
+                   v.make || ' ' || v.model as vehicle_info
+            FROM payments p
+            LEFT JOIN customers c ON p.customer_id = c.id
+            LEFT JOIN services s ON p.service_id = s.id
+            LEFT JOIN vehicles v ON p.vehicle_id = v.id
+            WHERE 1=1
+        """
+        params = []
+
+        if status:
+            query += " AND p.status = ?"
+            params.append(status)
+
+        if customer_id:
+            query += " AND p.customer_id = ?"
+            params.append(customer_id)
+
+        if payment_method:
+            query += " AND p.payment_method = ?"
+            params.append(payment_method)
+
+        if date_from:
+            query += " AND DATE(p.created_at) >= ?"
+            params.append(date_from)
+
+        if date_to:
+            query += " AND DATE(p.created_at) <= ?"
+            params.append(date_to)
+
+        query += " ORDER BY p.created_at DESC"
+
+        cursor.execute(query, params)
+        payments = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "payments": payments})
+    except Exception as e:
+        logger.error(f"Error getting payments: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/payments', methods=['POST'])
+def create_payment():
+    """Create new payment with receipt generation"""
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ['service_id', 'customer_id', 'payment_method', 'amount', 'total_amount']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"success": False, "error": f"{field} is required"}), 400
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Generate receipt number
+        now = datetime.now()
+        receipt_number = f"REC-{now.strftime('%Y%m%d')}-{now.strftime('%H%M%S')}"
+
+        cursor.execute("""
+            INSERT INTO payments (
+                service_id, customer_id, vehicle_id, payment_method,
+                amount, fees, total_amount, status, processed_date, receipt_number, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data['service_id'],
+            data['customer_id'],
+            data.get('vehicle_id'),
+            data['payment_method'],
+            data['amount'],
+            data.get('fees', 0.0),
+            data['total_amount'],
+            'completed',
+            now.isoformat(),
+            receipt_number,
+            data.get('notes', '')
+        ))
+
+        payment_id = cursor.lastrowid
+
+        # Update service status if payment is complete
+        if data.get('update_service_status', True):
+            cursor.execute("""
+                UPDATE services 
+                SET status = 'completed', actual_cost = ?, completed_date = ?
+                WHERE id = ?
+            """, (data['total_amount'], now.isoformat(), data['service_id']))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Payment created successfully",
+            "payment_id": payment_id,
+            "receipt_number": receipt_number
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error creating payment: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/payments/pending-services', methods=['GET'])
+def get_pending_services():
+    """Get services that need payment"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT s.id, s.estimated_cost, s.description, s.service_type,
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   v.make || ' ' || v.model as vehicle_info
+            FROM services s
+            LEFT JOIN customers c ON s.customer_id = c.id
+            LEFT JOIN vehicles v ON s.vehicle_id = v.id
+            LEFT JOIN payments p ON s.id = p.service_id
+            WHERE s.status IN ('pending', 'in_progress') 
+            AND p.id IS NULL
+            ORDER BY s.created_at DESC
+        """)
+
+        services = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "pending_services": services
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting pending services: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/payments/statistics', methods=['GET'])
+def get_payment_statistics():
+    """Get payment statistics for dashboard"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        stats = {}
+
+        # Today's revenue
+        cursor.execute("""
+            SELECT SUM(total_amount) FROM payments 
+            WHERE DATE(created_at) = DATE('now') AND status = 'completed'
+        """)
+        result = cursor.fetchone()[0]
+        stats['today_revenue'] = result or 0
+
+        # This month's revenue
+        cursor.execute("""
+            SELECT SUM(total_amount) FROM payments 
+            WHERE strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now') 
+            AND status = 'completed'
+        """)
+        result = cursor.fetchone()[0]
+        stats['month_revenue'] = result or 0
+
+        # Payment count today
+        cursor.execute("""
+            SELECT COUNT(*) FROM payments 
+            WHERE DATE(created_at) = DATE('now')
+        """)
+        stats['payments_today'] = cursor.fetchone()[0]
+
+        # Pending payments
+        cursor.execute("""
+            SELECT COUNT(*) FROM services s
+            LEFT JOIN payments p ON s.id = p.service_id
+            WHERE s.status IN ('pending', 'in_progress') AND p.id IS NULL
+        """)
+        stats['pending_payments'] = cursor.fetchone()[0]
+
+        # Payment methods breakdown
+        cursor.execute("""
+            SELECT payment_method, COUNT(*) as count, SUM(total_amount) as total
+            FROM payments 
+            WHERE DATE(created_at) >= DATE('now', '-30 days')
+            GROUP BY payment_method
+        """)
+        stats['payment_methods'] = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify({
+            "success": True,
+            "statistics": stats
+        })
+
+    except Exception as e:
+        logger.error(f"Error getting payment statistics: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# Insurance Claims endpoints
+@app.route('/api/insurance-claims', methods=['GET'])
+def get_insurance_claims():
+    """Get all insurance claims"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT ic.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   v.make || ' ' || v.model as vehicle_info
+            FROM insurance_claims ic
+            LEFT JOIN customers c ON ic.customer_id = c.id
+            LEFT JOIN vehicles v ON ic.vehicle_id = v.id
+            ORDER BY ic.created_at DESC
+        """)
+
+        claims = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "claims": claims})
+    except Exception as e:
+        logger.error(f"Error getting insurance claims: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# Installment Plans endpoints
+@app.route('/api/installment-plans', methods=['GET'])
+def get_installment_plans():
+    """Get all installment plans"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT ip.*, 
+                   COALESCE(c.first_name || ' ' || c.last_name, c.first_name, 'Unknown') as customer_name,
+                   v.make || ' ' || v.model as vehicle_info
+            FROM installment_plans ip
+            LEFT JOIN customers c ON ip.customer_id = c.id
+            LEFT JOIN vehicles v ON ip.vehicle_id = v.id
+            ORDER BY ip.created_at DESC
+        """)
+
+        plans = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return jsonify({"success": True, "installment_plans": plans})
+    except Exception as e:
+        logger.error(f"Error getting installment plans: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+
+# =============================================================================
 # HEALTH CHECK AND ERROR HANDLERS
 # =============================================================================
 
