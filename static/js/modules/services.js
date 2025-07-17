@@ -1584,21 +1584,20 @@ const servicesModule = {
     },
 
     generateQualityChecklistCategories() {
-        const categories = this.getDefaultQualityChecks();
+        // Use the instance data instead of calling getDefaultQualityChecks()
+        if (!this.qualityChecklistData) {
+            this.qualityChecklistData = this.getDefaultQualityChecks();
+        }
 
-        return `
-            <div class="quality-categories">
-                ${categories.map((check, index) => `
-                    <div class="checklist-item">
-                        <div class="checklist-checkbox ${check.checked ? 'checked' : ''}" onclick="servicesModule.toggleQualityCheck(${index})">
-                            ${check.checked ? '✓' : ''}
-                        </div>
-                        <div class="checklist-text">${check.item}</div>
-                        <div class="checklist-status status-${check.status}">${check.status}</div>
-                    </div>
-                `).join('')}
+        return this.qualityChecklistData.map((check, index) => `
+            <div class="checklist-item ${check.checked ? 'completed' : ''}">
+                <div class="checklist-checkbox ${check.checked ? 'checked' : ''}" onclick="servicesModule.toggleQualityCheck(${check.id})">
+                    ${check.checked ? '✓' : ''}
+                </div>
+                <div class="checklist-text">${check.item}</div>
+                <div class="checklist-status status-${check.status}">${check.status}</div>
             </div>
-        `;
+        `).join('');
     },
 
     generateMaterialFormsContent() {
@@ -2267,16 +2266,26 @@ const servicesModule = {
     },
 
     toggleQualityCheck(checkId) {
+        console.log('Toggle quality check called with ID:', checkId);
+
+        if (!this.qualityChecklistData) {
+            console.log('No qualityChecklistData, initializing...');
+            this.qualityChecklistData = this.getDefaultQualityChecks();
+        }
+
         const check = this.qualityChecklistData.find(c => c.id === checkId);
+        console.log('Found check:', check);
+
         if (check) {
             check.checked = !check.checked;
             check.status = check.checked ? 'completed' : 'pending';
+            console.log('Updated check:', check);
             this.updateQualityCheckDisplay();
         }
     },
 
     updateQualityCheckDisplay() {
-        const container = document.querySelector('.quality-categories');
+        const container = document.querySelector('.checklist-categories');
         if (container) {
             container.innerHTML = this.generateQualityChecklistCategories();
         }
