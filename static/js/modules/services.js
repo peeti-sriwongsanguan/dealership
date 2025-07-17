@@ -453,7 +453,7 @@ const servicesModule = {
                     </div>
                 </div>
                 ${this.generateFloatingActions()}
-                ${this.generateNotificationCenter()}
+
             </div>
         `;
     },
@@ -578,14 +578,8 @@ const servicesModule = {
 
     generateRealTimeDashboard() {
         return `
-            <div class="real-time-dashboard">
-                <div class="dashboard-section">
-                    <h3>🏭 Service Bay Status</h3>
-                    <div class="bays-grid">
-                        ${this.generateServiceBaysStatus()}
-                    </div>
-                </div>
 
+               <div class="dashboard-content">
                 <div class="dashboard-section">
                     <h3>📅 Today's Schedule</h3>
                     <div class="todays-schedule">
@@ -593,12 +587,7 @@ const servicesModule = {
                     </div>
                 </div>
 
-                <div class="dashboard-section">
-                    <h3>⚠️ Priority Alerts</h3>
-                    <div class="priority-alerts">
-                        ${this.generatePriorityAlerts()}
-                    </div>
-                </div>
+               </div>
             </div>
         `;
     },
@@ -716,90 +705,109 @@ const servicesModule = {
     },
 
     generateEstimatesTabContent() {
-        if (this.estimates.length === 0) {
-            return `
-                <div class="no-selection">
-                    <h3>No Pending Estimates</h3>
-                    <p>No estimates are pending approval.</p>
-                    <button class="btn btn-primary" onclick="servicesModule.createNewEstimate()">
-                        ➕ Create Estimate
-                    </button>
-                </div>
-            `;
-        }
-
         return `
-            <div class="estimates-tab-content">
-                <div class="estimates-dashboard">
-                    <div class="estimates-stats">
-                        <div class="stat-card">
-                            <div class="stat-value">${this.estimates.length}</div>
-                            <div class="stat-label">Total Estimates</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getPendingEstimates().length}</div>
-                            <div class="stat-label">Pending Approval</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getApprovedEstimates().length}</div>
-                            <div class="stat-label">Approved</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.formatCurrency(this.getTotalEstimateValue())}</div>
-                            <div class="stat-label">Total Value</div>
-                        </div>
-                    </div>
-                    <div class="estimates-actions">
-                        <button class="btn btn-primary" onclick="servicesModule.createNewEstimate()">
-                            📋 Create Estimate
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">📋 Estimates Management</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-primary" onclick="servicesModule.createNewEstimate()">
+                            ➕ Create Estimate
                         </button>
                     </div>
                 </div>
-                <div class="estimates-list">
-                    ${this.generateEstimatesList()}
+                <div class="data-table-content">
+                    ${this.estimates.length === 0 ? `
+                        <div class="no-selection">
+                            <div class="empty-icon">📋</div>
+                            <div class="empty-text">No Pending Estimates</div>
+                            <p>No estimates are pending approval.</p>
+                        </div>
+                    ` : `
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">📋</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.estimates.length}</div>
+                                    <div class="stat-label">Total Estimates</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">⏳</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.getPendingEstimates().length}</div>
+                                    <div class="stat-label">Pending Approval</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">✅</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.getApprovedEstimates().length}</div>
+                                    <div class="stat-label">Approved</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">💰</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.formatCurrency(this.getTotalEstimateValue())}</div>
+                                    <div class="stat-label">Total Value</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="estimates-list">
+                            ${this.generateEstimatesList()}
+                        </div>
+                    `}
                 </div>
             </div>
         `;
     },
 
     generateWorkOrdersTabContent() {
-        if (this.workOrders.length === 0) {
-            return `
-                <div class="no-selection">
-                    <h3>No Work Orders</h3>
-                    <p>No work orders are currently active.</p>
-                    <button class="btn btn-primary" onclick="servicesModule.createWorkOrder()">
-                        ➕ Create Work Order
-                    </button>
-                </div>
-            `;
-        }
-
         return `
-            <div class="work-orders-tab-content">
-                <div class="work-orders-overview">
-                    <div class="overview-stats">
-                        <div class="stat-card">
-                            <div class="stat-value">${this.workOrders.length}</div>
-                            <div class="stat-label">Total Work Orders</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getActiveWorkOrders().length}</div>
-                            <div class="stat-label">Active</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getCompletedWorkOrders().length}</div>
-                            <div class="stat-label">Completed</div>
-                        </div>
-                    </div>
-                    <div class="work-order-actions">
-                        <button class="btn btn-primary" onclick="servicesModule.createWorkOrder()">
-                            📝 Create Work Order
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">📝 Work Orders</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-primary" onclick="servicesModule.createWorkOrder()">
+                            ➕ Create Work Order
                         </button>
                     </div>
                 </div>
-                <div class="work-orders-list">
-                    ${this.generateWorkOrdersList()}
+                <div class="data-table-content">
+                    ${this.workOrders.length === 0 ? `
+                        <div class="no-selection">
+                            <div class="empty-icon">📝</div>
+                            <div class="empty-text">No Work Orders</div>
+                            <p>No work orders are currently active.</p>
+                        </div>
+                    ` : `
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">📝</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.workOrders.length}</div>
+                                    <div class="stat-label">Total Work Orders</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">🔄</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.getActiveWorkOrders().length}</div>
+                                    <div class="stat-label">Active</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">✅</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.getCompletedWorkOrders().length}</div>
+                                    <div class="stat-label">Completed</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="work-orders-list">
+                            ${this.generateWorkOrdersList()}
+                        </div>
+                    `}
                 </div>
             </div>
         `;
@@ -807,36 +815,51 @@ const servicesModule = {
 
     generateQualityTabContent() {
         return `
-            <div class="quality-tab-content">
-                <div class="quality-dashboard">
-                    <div class="quality-stats">
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getPendingQualityChecks().length}</div>
-                            <div class="stat-label">Pending QC</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getPassedQualityChecks().length}</div>
-                            <div class="stat-label">Passed</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getFailedQualityChecks().length}</div>
-                            <div class="stat-label">Failed</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getQualityScore()}%</div>
-                            <div class="stat-label">Quality Score</div>
-                        </div>
-                    </div>
-                    <div class="quality-actions">
-                        <button class="btn btn-primary" onclick="servicesModule.performQualityCheck()">
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">✅ Quality Control</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-primary" onclick="servicesModule.performQualityCheck()">
                             ✅ Quality Check
                         </button>
                     </div>
                 </div>
-                <div class="quality-checklist">
-                    <h3>📋 Quality Control Checklist</h3>
-                    <div class="checklist-categories">
-                        ${this.generateQualityChecklistCategories()}
+                <div class="data-table-content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">⏳</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${this.getPendingQualityChecks().length}</div>
+                                <div class="stat-label">Pending QC</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${this.getPassedQualityChecks().length}</div>
+                                <div class="stat-label">Passed</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">❌</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${this.getFailedQualityChecks().length}</div>
+                                <div class="stat-label">Failed</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${this.getQualityScore()}%</div>
+                                <div class="stat-label">Quality Score</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="quality-checklist">
+                        <h4>📋 Quality Control Checklist</h4>
+                        <div class="checklist-categories">
+                            ${this.generateQualityChecklistCategories()}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -844,35 +867,51 @@ const servicesModule = {
     },
 
     generateTechniciansTabContent() {
-        if (this.technicians.length === 0) {
-            return `
-                <div class="no-selection">
-                    <h3>No Technicians</h3>
-                    <p>No technicians are registered in the system.</p>
-                </div>
-            `;
-        }
-
         return `
-            <div class="technicians-tab-content">
-                <div class="technicians-overview">
-                    <div class="overview-stats">
-                        <div class="stat-card">
-                            <div class="stat-value">${this.technicians.length}</div>
-                            <div class="stat-label">Total Technicians</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getAvailableTechnicians().length}</div>
-                            <div class="stat-label">Available</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.getBusyTechnicians().length}</div>
-                            <div class="stat-label">Working</div>
-                        </div>
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">👨‍🔧 Technicians</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-outline" onclick="servicesModule.manageTechnicians()">
+                            👥 Manage Team
+                        </button>
                     </div>
                 </div>
-                <div class="technicians-grid">
-                    ${this.generateTechnicianStatusCards()}
+                <div class="data-table-content">
+                    ${this.technicians.length === 0 ? `
+                        <div class="no-selection">
+                            <div class="empty-icon">👨‍🔧</div>
+                            <div class="empty-text">No Technicians</div>
+                            <p>No technicians are registered in the system.</p>
+                        </div>
+                    ` : `
+                        <div class="technicians-stats stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">👨‍🔧</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.technicians.length}</div>
+                                    <div class="stat-label">Total Technicians</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">✅</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.getAvailableTechnicians().length}</div>
+                                    <div class="stat-label">Available</div>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">🔧</div>
+                                <div class="stat-content">
+                                    <div class="stat-number">${this.getBusyTechnicians().length}</div>
+                                    <div class="stat-label">Working</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="technicians-grid">
+                            ${this.generateTechnicianStatusCards()}
+                        </div>
+                    `}
                 </div>
             </div>
         `;
@@ -880,40 +919,50 @@ const servicesModule = {
 
     generateTruckRepairTabContent() {
         return `
-            <div class="truck-repair-tab-content">
-                <div class="truck-repair-overview">
-                    <div class="overview-stats">
-                        <div class="stat-card">
-                            <div class="stat-value">${this.materialForms.length}</div>
-                            <div class="stat-label">Material Forms</div>
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">🚛 Truck Repair</h3>
+                    <div class="data-table-actions">
+                        <div class="nav-tabs-container">
+                            <button class="nav-tab active" onclick="servicesModule.showTruckTab('forms')">Material Forms</button>
+                            <button class="nav-tab" onclick="servicesModule.showTruckTab('quotes')">Repair Quotes</button>
+                            <button class="nav-tab" onclick="servicesModule.showTruckTab('parts')">Parts Inventory</button>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.repairQuotes.length}</div>
-                            <div class="stat-label">Repair Quotes</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">${this.truckParts.length}</div>
-                            <div class="stat-label">Truck Parts</div>
-                        </div>
-                    </div>
-                    <div class="truck-repair-actions">
-                        <button class="btn btn-primary" onclick="servicesModule.createMaterialForm()">
+                        <button class="button button-primary" onclick="servicesModule.createMaterialForm()">
                             📋 Material Form
                         </button>
-                        <button class="btn btn-warning" onclick="servicesModule.createRepairQuote()">
+                        <button class="button button-warning" onclick="servicesModule.createRepairQuote()">
                             🚛 Repair Quote
                         </button>
                     </div>
                 </div>
-
-                <div class="services-tabs">
-                    <button class="tab-btn active" onclick="servicesModule.showTruckTab('forms')">Material Forms</button>
-                    <button class="tab-btn" onclick="servicesModule.showTruckTab('quotes')">Repair Quotes</button>
-                    <button class="tab-btn" onclick="servicesModule.showTruckTab('parts')">Parts Inventory</button>
-                </div>
-
-                <div id="truck-repair-content">
-                    ${this.generateMaterialFormsContent()}
+                <div class="data-table-content">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">📋</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${this.materialForms.length}</div>
+                                <div class="stat-label">Material Forms</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🚛</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${this.repairQuotes.length}</div>
+                                <div class="stat-label">Repair Quotes</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📦</div>
+                            <div class="stat-content">
+                                <div class="stat-number">${this.truckParts.length}</div>
+                                <div class="stat-label">Truck Parts</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="truck-repair-content">
+                        ${this.generateMaterialFormsContent()}
+                    </div>
                 </div>
             </div>
         `;
@@ -922,65 +971,68 @@ const servicesModule = {
     generateDeliveryTabContent() {
         const readyForDelivery = this.services.filter(s => s.status === 'ready_delivery' || s.status === 'completed');
 
-        if (readyForDelivery.length === 0) {
-            return `
-                <div class="no-selection">
-                    <h3>No Vehicles Ready for Delivery</h3>
-                    <p>No completed services are ready for customer delivery.</p>
-                </div>
-            `;
-        }
-
         return `
-            <div class="delivery-section">
-                <div class="step-header">
-                    <div class="step-number">🚚</div>
-                    <div class="step-info">
-                        <h2>Vehicle Delivery - White Gloves Service</h2>
-                        <p>Premium delivery with professional presentation</p>
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">🚚 Vehicle Delivery - White Gloves Service</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-outline" onclick="servicesModule.refreshDeliveries()">
+                            🔄 Refresh
+                        </button>
                     </div>
                 </div>
-                <div class="delivery-list">
-                    ${readyForDelivery.map(service => `
-                        <div class="delivery-card ready">
-                            <div class="service-header">
-                                <div class="service-id">#${service.id}</div>
-                                <div class="service-priority priority-normal">READY</div>
-                            </div>
-                            <div class="service-details">
-                                <div class="detail-group">
-                                    <h5>Customer</h5>
-                                    <p>${service.customer_name}</p>
-                                </div>
-                                <div class="detail-group">
-                                    <h5>Vehicle</h5>
-                                    <p>${service.vehicle_info}</p>
-                                </div>
-                                <div class="detail-group">
-                                    <h5>Service</h5>
-                                    <p>${service.service_type}</p>
-                                </div>
-                                <div class="detail-group">
-                                    <h5>Completed</h5>
-                                    <p>${this.formatDateTime(service.completed_date)}</p>
-                                </div>
-                            </div>
-                            <div class="white-gloves">
-                                <div class="white-gloves-icon">🧤</div>
-                                <strong>White Gloves Service</strong>
-                                <p>Premium delivery with professional presentation and quality assurance</p>
-                            </div>
-                            <div class="action-buttons">
-                                <button class="btn btn-primary btn-sm">📋 Prepare Delivery</button>
-                                <button class="btn btn-success btn-sm">🚚 Start Delivery</button>
-                                <button class="btn btn-warning btn-sm">📞 Contact Customer</button>
-                            </div>
+                <div class="data-table-content">
+                    ${readyForDelivery.length === 0 ? `
+                        <div class="no-selection">
+                            <div class="empty-icon">🚚</div>
+                            <div class="empty-text">No Vehicles Ready for Delivery</div>
+                            <p>No completed services are ready for customer delivery.</p>
                         </div>
-                    `).join('')}
+                    ` : `
+                        <div class="delivery-list">
+                            ${readyForDelivery.map(service => `
+                                <div class="delivery-card ready">
+                                    <div class="service-header">
+                                        <div class="service-id">#${service.id}</div>
+                                        <div class="service-priority priority-normal">READY</div>
+                                    </div>
+                                    <div class="service-details">
+                                        <div class="detail-group">
+                                            <h5>Customer</h5>
+                                            <p>${service.customer_name}</p>
+                                        </div>
+                                        <div class="detail-group">
+                                            <h5>Vehicle</h5>
+                                            <p>${service.vehicle_info}</p>
+                                        </div>
+                                        <div class="detail-group">
+                                            <h5>Service</h5>
+                                            <p>${service.service_type}</p>
+                                        </div>
+                                        <div class="detail-group">
+                                            <h5>Completed</h5>
+                                            <p>${this.formatDateTime(service.completed_date)}</p>
+                                        </div>
+                                    </div>
+                                    <div class="white-gloves">
+                                        <div class="white-gloves-icon">🧤</div>
+                                        <strong>White Gloves Service</strong>
+                                        <p>Premium delivery with professional presentation and quality assurance</p>
+                                    </div>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-primary btn-sm">📋 Prepare Delivery</button>
+                                        <button class="btn btn-success btn-sm">🚚 Start Delivery</button>
+                                        <button class="btn btn-warning btn-sm">📞 Contact Customer</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `}
                 </div>
             </div>
         `;
     },
+
 
     generateReportsTabContent() {
         return `
