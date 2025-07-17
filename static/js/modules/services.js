@@ -443,18 +443,14 @@ const servicesModule = {
     // COMPLETE INTERFACE GENERATION
     generateCompleteInterface() {
         return `
-            <div class="complete-workflow-container">
-                ${this.generateSystemHeader()}
-                ${this.generateRealTimeDashboard()}
-                ${this.generateMainNavigation()}
-                <div class="services-content-area">
-                    <div id="servicesMainContent">
-                        ${this.generateDashboardContent()}
-                    </div>
+            <section id="dynamicContent" class="content-section" style="display: block;">
+                <div class="customers-section">
+                    ${this.generateActionBar()}
+                    ${this.generateStatisticsGrid()}
+                    ${this.generateNavigationSection()}
+                    ${this.generateFloatingActions()}
                 </div>
-                ${this.generateFloatingActions()}
-
-            </div>
+            </section>
         `;
     },
 
@@ -485,6 +481,60 @@ const servicesModule = {
         `;
     },
 
+    generateActionBar() {
+        return `
+            <div class="action-bar">
+                <h2 class="action-bar-title">🔧 Complete Services Management</h2>
+                <div class="action-bar-actions">
+                    <button class="button button-outline" onclick="servicesModule.switchTab('reports')">
+                        📤 Export
+                    </button>
+                    <button class="button button-primary" onclick="servicesModule.switchTab('services')">
+                        ➕ New Service
+                    </button>
+                </div>
+            </div>
+        `;
+    },
+
+    generateStatisticsGrid() {
+        const stats = this.calculateComprehensiveStats();
+        return `
+            <div class="stats-grid">
+                <div class="stat-card" onclick="servicesModule.switchTab('services')" style="cursor: pointer;">
+                    <div class="stat-icon">🔧</div>
+                    <div class="stat-content">
+                        <div class="stat-number">${stats.activeServices}</div>
+                        <div class="stat-label">Active Services</div>
+                    </div>
+                </div>
+
+                <div class="stat-card" onclick="servicesModule.switchTab('appointments')" style="cursor: pointer;">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <div class="stat-number">${stats.todayAppointments}</div>
+                        <div class="stat-label">Today's Appointments</div>
+                    </div>
+                </div>
+
+                <div class="stat-card" onclick="servicesModule.scrollToBays()" style="cursor: pointer;">
+                    <div class="stat-icon">🏭</div>
+                    <div class="stat-content">
+                        <div class="stat-number">${stats.availableBays}</div>
+                        <div class="stat-label">Available Bays</div>
+                    </div>
+                </div>
+
+                <div class="stat-card" onclick="servicesModule.switchTab('quality')" style="cursor: pointer;">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-content">
+                        <div class="stat-number">${stats.pendingQC}</div>
+                        <div class="stat-label">Pending QC</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
     generateMainNavigation() {
         return `
             <div class="services-main-navigation">
@@ -524,108 +574,181 @@ const servicesModule = {
         `;
     },
 
+    scrollToBays() {
+        // First switch to dashboard if not already there
+        this.switchTab('dashboard');
+
+        // Then scroll to the service bay section
+        setTimeout(() => {
+            const baySection = document.querySelector('[data-section="service-bays"]');
+            if (baySection) {
+                baySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+    },
+
+    generateNavigationSection() {
+        return `
+            <div class="services-main-navigation">
+                <div class="services-tabs">
+                    <button class="services-tab active" onclick="servicesModule.switchTab('dashboard')" data-tab="dashboard">
+                        📊 Dashboard
+                    </button>
+                    <button class="services-tab" onclick="servicesModule.switchTab('services')" data-tab="services">
+                        🔧 Active Services
+                    </button>
+                    <button class="services-tab" onclick="servicesModule.switchTab('appointments')" data-tab="appointments">
+                        📅 Appointments
+                    </button>
+                    <button class="services-tab" onclick="servicesModule.switchTab('estimates')" data-tab="estimates">
+                        📋 Estimates
+                    </button>
+                    <button class="services-tab" onclick="servicesModule.switchTab('work-orders')" data-tab="work-orders">
+                        📝 Work Orders
+                    </button>
+                    <button class="services-tab" onclick="servicesModule.switchTab('quality')" data-tab="quality">
+                        ✅ Quality Control
+                    </button>
+                    <button class="services-tab" onclick="servicesModule.switchTab('technicians')" data-tab="technicians">
+                        👨‍🔧 Technicians
+                    </button>
+                    <button class="services-tab" onclick="servicesModule.switchTab('truck-repair')" data-tab="truck-repair">
+                        🚛 Truck Repair
+                    </button>
+                    <button class="services-tab" onclick="servicesModule.switchTab('delivery')" data-tab="delivery">
+                        🚚 Delivery
+                    </button>
+                    <button class="services-tab" onclick="servicesModule.switchTab('reports')" data-tab="reports">
+                        📈 Reports
+                    </button>
+                </div>
+            </div>
+
+            <div class="data-table-container">
+                <div class="data-table-content">
+                    <div id="servicesMainContent">
+                        ${this.generateDashboardContent()}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
     generateDashboardContent() {
         return `
-            <div class="dashboard-content">
-                <div class="kpi-section">
-                    <h2>📊 Key Performance Indicators</h2>
-                    <div class="dashboard-grid">
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">📊 Key Performance Indicators</h3>
+                </div>
+                <div class="data-table-content">
+                    <div class="stats-grid">
                         ${this.generateKPICards()}
                     </div>
                 </div>
+            </div>
 
-                <div class="workflow-step-section">
-                    <div class="step-header">
-                        <div class="step-number">🏭</div>
-                        <div class="step-info">
-                            <h2>Service Bay Status</h2>
-                            <p>Real-time bay utilization and current services</p>
-                        </div>
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">📅 Today's Schedule</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-primary" onclick="servicesModule.scheduleNewAppointment()">
+                            ➕ Schedule Appointment
+                        </button>
+                        <button class="button button-outline" onclick="servicesModule.refreshSchedule()">
+                            🔄 Refresh
+                        </button>
                     </div>
+                </div>
+                <div class="data-table-content">
+                    ${this.generateTodaysScheduleCalendar()}
+                </div>
+            </div>
+
+            <div class="data-table-container" data-section="service-bays">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">🏭 Service Bay Status</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-outline" onclick="servicesModule.refreshBays()">
+                            🔄 Refresh Bays
+                        </button>
+                        <button class="button button-outline" onclick="servicesModule.manageBays()">
+                            ⚙️ Manage Bays
+                        </button>
+                    </div>
+                </div>
+                <div class="data-table-content">
                     <div class="bays-grid">
                         ${this.generateServiceBaysStatus()}
                     </div>
                 </div>
+            </div>
 
-                <div class="workflow-step-section">
-                    <div class="step-header">
-                        <div class="step-number">👨‍🔧</div>
-                        <div class="step-info">
-                            <h2>Technician Status</h2>
-                            <p>Current technician assignments and availability</p>
-                        </div>
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">👨‍🔧 Technician Status</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-outline" onclick="servicesModule.manageTechnicians()">
+                            👥 Manage Team
+                        </button>
                     </div>
+                </div>
+                <div class="data-table-content">
                     <div class="technicians-grid">
                         ${this.generateTechnicianStatusCards()}
                     </div>
                 </div>
+            </div>
 
-                <div class="workflow-step-section">
-                    <div class="step-header">
-                        <div class="step-number">⚠️</div>
-                        <div class="step-info">
-                            <h2>Priority Alerts</h2>
-                            <p>Emergency services and urgent notifications</p>
-                        </div>
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">⚠️ Priority Alerts</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-outline" onclick="servicesModule.refreshAlerts()">
+                            🔄 Refresh
+                        </button>
                     </div>
-                    <div class="priority-alerts">
-                        ${this.generatePriorityAlerts()}
-                    </div>
+                </div>
+                <div class="data-table-content">
+                    ${this.generatePriorityAlerts()}
                 </div>
             </div>
         `;
     },
 
-    generateRealTimeDashboard() {
-        return `
-
-               <div class="dashboard-content">
-                <div class="dashboard-section">
-                    <h3>📅 Today's Schedule</h3>
-                    <div class="todays-schedule">
-                        ${this.generateTodaysSchedule()}
-                    </div>
-                </div>
-
-               </div>
-            </div>
-        `;
-    },
 
     // TAB CONTENT GENERATORS
     generateServicesTabContent() {
         if (this.services.length === 0) {
             return `
-                <div class="no-selection">
-                    <h3>No Active Services</h3>
-                    <p>No services are currently being processed.</p>
-                    <button class="btn btn-primary" onclick="servicesModule.createNewService()">
-                        ➕ Create New Service
-                    </button>
+                <div class="data-table-container">
+                    <div class="data-table-content">
+                        <div class="no-selection">
+                            <div class="empty-icon">🔧</div>
+                            <div class="empty-text">No Active Services</div>
+                            <p>No services are currently being processed.</p>
+                            <button class="button button-primary" onclick="servicesModule.createNewService()">
+                                ➕ Create New Service
+                            </button>
+                        </div>
+                    </div>
                 </div>
             `;
         }
 
         return `
-            <div class="services-tab-content">
-                <div class="services-controls">
-                    <div class="filters-section">
-                        <h3>🔍 Filters</h3>
-                        <div class="filters-grid">
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">🔧 Active Services</h3>
+                    <div class="data-table-actions">
+                        <div class="filters-container">
                             ${this.generateServiceFilters()}
                         </div>
-                    </div>
-                    <div class="actions-section">
-                        <button class="btn btn-primary" onclick="servicesModule.createNewService()">
+                        <button class="button button-primary" onclick="servicesModule.createNewService()">
                             ➕ New Service
-                        </button>
-                        <button class="btn btn-secondary" onclick="servicesModule.refreshServiceData()">
-                            🔄 Refresh
                         </button>
                     </div>
                 </div>
-
-                <div class="services-list-container">
+                <div class="data-table-content">
                     <div class="services-list">
                         ${this.generateComprehensiveServicesList()}
                     </div>
@@ -635,70 +758,68 @@ const servicesModule = {
     },
 
     generateAppointmentsTabContent() {
-        if (this.appointments.length === 0) {
-            return `
-                <div class="no-selection">
-                    <h3>No Appointments Today</h3>
-                    <p>No appointments are scheduled for today.</p>
-                    <button class="btn btn-primary" onclick="servicesModule.scheduleNewAppointment()">
-                        ➕ Schedule Appointment
-                    </button>
-                </div>
-            `;
-        }
-
         return `
-            <div class="appointments-tab-content">
-                <div class="appointment-scheduler">
-                    <div class="scheduler-header">
-                        <h3>📅 Today's Appointments</h3>
-                        <button class="btn btn-primary" onclick="servicesModule.scheduleNewAppointment()">
+            <div class="data-table-container">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">📅 Appointments Management</h3>
+                    <div class="data-table-actions">
+                        <button class="button button-primary" onclick="servicesModule.scheduleNewAppointment()">
                             ➕ Schedule Appointment
                         </button>
                     </div>
-                    <div class="appointments-list">
-                        ${this.appointments.map(appointment => `
-                            <div class="service-item">
-                                <div class="service-header">
-                                    <div class="service-id">${this.formatDateTime(appointment.appointment_date)}</div>
-                                    <div class="service-priority priority-${appointment.status === 'confirmed' ? 'normal' : 'high'}">
-                                        ${(appointment.status || 'pending').toUpperCase()}
+                </div>
+                <div class="data-table-content">
+                    ${this.appointments.length === 0 ? `
+                        <div class="no-selection">
+                            <div class="empty-icon">📅</div>
+                            <div class="empty-text">No Appointments Today</div>
+                            <p>No appointments are scheduled for today.</p>
+                        </div>
+                    ` : `
+                        <div class="appointments-list">
+                            ${this.appointments.map(appointment => `
+                                <div class="appointment-item">
+                                    <div class="appointment-header">
+                                        <div class="appointment-id">${this.formatDateTime(appointment.appointment_date)}</div>
+                                        <div class="appointment-priority priority-${appointment.status === 'confirmed' ? 'normal' : 'high'}">
+                                            ${(appointment.status || 'pending').toUpperCase()}
+                                        </div>
+                                    </div>
+                                    <div class="appointment-details">
+                                        <div class="detail-group">
+                                            <h5>Customer</h5>
+                                            <p>${appointment.customer_name || 'Unknown'}</p>
+                                        </div>
+                                        <div class="detail-group">
+                                            <h5>Vehicle</h5>
+                                            <p>${appointment.vehicle_info || 'Not specified'}</p>
+                                        </div>
+                                        <div class="detail-group">
+                                            <h5>Service</h5>
+                                            <p>${appointment.service_type || 'General Service'}</p>
+                                        </div>
+                                        <div class="detail-group">
+                                            <h5>Time</h5>
+                                            <p>${this.formatTime(appointment.appointment_time)}</p>
+                                        </div>
+                                        <div class="detail-group">
+                                            <h5>Duration</h5>
+                                            <p>${appointment.estimated_duration || 120} min</p>
+                                        </div>
+                                        <div class="detail-group">
+                                            <h5>Technician</h5>
+                                            <p>${appointment.assigned_technician || 'Unassigned'}</p>
+                                        </div>
+                                    </div>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-primary btn-sm">📞 Call Customer</button>
+                                        <button class="btn btn-success btn-sm">✅ Confirm</button>
+                                        <button class="btn btn-warning btn-sm">📝 Reschedule</button>
                                     </div>
                                 </div>
-                                <div class="service-details">
-                                    <div class="detail-group">
-                                        <h5>Customer</h5>
-                                        <p>${appointment.customer_name || 'Unknown'}</p>
-                                    </div>
-                                    <div class="detail-group">
-                                        <h5>Vehicle</h5>
-                                        <p>${appointment.vehicle_info || 'Not specified'}</p>
-                                    </div>
-                                    <div class="detail-group">
-                                        <h5>Service</h5>
-                                        <p>${appointment.service_type || 'General Service'}</p>
-                                    </div>
-                                    <div class="detail-group">
-                                        <h5>Time</h5>
-                                        <p>${this.formatTime(appointment.appointment_time)}</p>
-                                    </div>
-                                    <div class="detail-group">
-                                        <h5>Duration</h5>
-                                        <p>${appointment.estimated_duration || 120} min</p>
-                                    </div>
-                                    <div class="detail-group">
-                                        <h5>Technician</h5>
-                                        <p>${appointment.assigned_technician || 'Unassigned'}</p>
-                                    </div>
-                                </div>
-                                <div class="action-buttons">
-                                    <button class="btn btn-primary btn-sm">📞 Call Customer</button>
-                                    <button class="btn btn-success btn-sm">✅ Confirm</button>
-                                    <button class="btn btn-warning btn-sm">📝 Reschedule</button>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
+                            `).join('')}
+                        </div>
+                    `}
                 </div>
             </div>
         `;
@@ -866,6 +987,123 @@ const servicesModule = {
         `;
     },
 
+    generateTodaysScheduleCalendar() {
+        if (this.appointments.length === 0) {
+            return `
+                <div class="schedule-empty-state">
+                    <div class="empty-icon">📅</div>
+                    <div class="empty-text">No appointments scheduled for today</div>
+                    <p>Schedule your first appointment to get started</p>
+                </div>
+            `;
+        }
+
+        // Generate time slots for the day
+        const timeSlots = this.generateTimeSlots();
+        const today = new Date().toISOString().split('T')[0];
+
+        return `
+            <div class="schedule-calendar">
+                <div class="schedule-header">
+                    <h4>📅 ${this.formatDate(today)} - Today's Schedule</h4>
+                    <div class="schedule-stats">
+                        <span class="schedule-stat">
+                            <strong>${this.appointments.length}</strong> appointments
+                        </span>
+                        <span class="schedule-stat">
+                            <strong>${this.getAvailableSlots().length}</strong> available slots
+                        </span>
+                    </div>
+                </div>
+
+                <div class="schedule-timeline">
+                    ${this.generateScheduleTimeline()}
+                </div>
+            </div>
+        `;
+    },
+
+    generateScheduleTimeline() {
+        const workingHours = this.generateWorkingHours();
+
+        return workingHours.map(hour => {
+            const hourAppointments = this.appointments.filter(apt => {
+                const aptHour = new Date(apt.appointment_time || apt.appointment_date).getHours();
+                return aptHour === hour;
+            });
+
+            return `
+                <div class="timeline-slot" data-hour="${hour}">
+                    <div class="timeline-time">
+                        <span class="time-hour">${hour.toString().padStart(2, '0')}:00</span>
+                        <span class="time-period">${hour < 12 ? 'AM' : 'PM'}</span>
+                    </div>
+                    <div class="timeline-content">
+                        ${hourAppointments.length > 0 ?
+                            hourAppointments.map(apt => `
+                                <div class="appointment-block ${apt.status}" onclick="servicesModule.manageAppointment(${apt.id})">
+                                    <div class="appointment-time">${this.formatTime(apt.appointment_time)}</div>
+                                    <div class="appointment-customer">${apt.customer_name || 'Unknown Customer'}</div>
+                                    <div class="appointment-service">${apt.service_type || 'General Service'}</div>
+                                    <div class="appointment-duration">${apt.estimated_duration || 120}min</div>
+                                </div>
+                            `).join('') :
+                            `<div class="timeline-empty" onclick="servicesModule.scheduleAtTime('${hour}:00')">
+                                <span>+ Schedule appointment</span>
+                            </div>`
+                        }
+                    </div>
+                </div>
+            `;
+        }).join('');
+    },
+
+    generateWorkingHours() {
+        // Generate working hours (8 AM to 6 PM)
+        const hours = [];
+        for (let i = 8; i <= 18; i++) {
+            hours.push(i);
+        }
+        return hours;
+    },
+
+    getAvailableSlots() {
+        const workingHours = this.generateWorkingHours();
+        const bookedHours = this.appointments.map(apt => {
+            return new Date(apt.appointment_time || apt.appointment_date).getHours();
+        });
+
+        return workingHours.filter(hour => !bookedHours.includes(hour));
+    },
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    },
+
+    // Action handlers for schedule
+    async scheduleAtTime(time) {
+        this.showNotification(`Opening scheduler for ${time}...`, 'info');
+        // Would open appointment scheduler with pre-filled time
+    },
+
+    async refreshSchedule() {
+        this.showNotification('Refreshing schedule...', 'info');
+        await this.loadAppointments();
+        this.switchTab('dashboard'); // Refresh current view
+        const content = this.generateDashboardContent();
+        document.getElementById('servicesMainContent').innerHTML = content;
+    },
+
+    async manageBays() {
+        this.showNotification('Opening bay management...', 'info');
+        // Would open bay management interface
+    },
     generateTechniciansTabContent() {
         return `
             <div class="data-table-container">
@@ -1183,6 +1421,15 @@ const servicesModule = {
     },
 
     generateTechnicianStatusCards() {
+        if (this.technicians.length === 0) {
+            return `
+                <div class="empty-state">
+                    <div class="empty-icon">👨‍🔧</div>
+                    <div class="empty-text">No technicians available</div>
+                </div>
+            `;
+        }
+
         return this.technicians.map(tech => `
             <div class="technician-card" onclick="servicesModule.manageTechnician(${tech.id})">
                 <div class="tech-header">
@@ -1667,16 +1914,22 @@ const servicesModule = {
     // TAB SWITCHING AND CONTENT MANAGEMENT
     switchTab(tabName) {
         // Remove active class from all tabs
-        document.querySelectorAll('.nav-tab').forEach(tab => {
+        document.querySelectorAll('.services-tab').forEach(tab => {
             tab.classList.remove('active');
         });
 
         // Add active class to current tab
-        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        const currentTab = document.querySelector(`[data-tab="${tabName}"]`);
+        if (currentTab) {
+            currentTab.classList.add('active');
+        }
 
         // Generate and display content
         const content = this.getTabContent(tabName);
-        document.getElementById('servicesMainContent').innerHTML = content;
+        const contentContainer = document.getElementById('servicesMainContent');
+        if (contentContainer) {
+            contentContainer.innerHTML = content;
+        }
 
         // Initialize tab-specific functionality
         this.initializeTabFunctionality(tabName);
