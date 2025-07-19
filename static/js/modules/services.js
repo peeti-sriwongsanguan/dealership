@@ -36,6 +36,8 @@ const servicesModule = {
         refreshInterval: 30000
     },
 
+
+
     // INITIALIZATION AND DATA LOADING
     async loadModule() {
         console.log('🔧 Loading TRULY COMPLETE Services Management Module...');
@@ -2231,6 +2233,8 @@ const servicesModule = {
         `;
     },
 
+
+
     async updatePart(event, partCode) {
         event.preventDefault();
         const formData = new FormData(event.target);
@@ -3179,23 +3183,40 @@ const servicesModule = {
         console.log('Cleared existing modals:', existingModals.length);
 
         try {
-            // Get all parts for autocomplete
-            let allParts = [];
-
-            // Try to get parts from partsDataManager first
-            if (window.partsDataManager && window.partsDataManager.isLoaded) {
-                allParts = window.partsDataManager.getParts();
-            } else if (this.truckParts && this.truckParts.length > 0) {
-                allParts = this.truckParts;
+            // Ensure parts data is loaded
+            if (!this.truckParts || this.truckParts.length === 0) {
+                console.log('📦 Loading parts data...');
+                await loadAutomotivePartsData();
             }
 
-            // Create part number options for datalist
-            const partNumberOptions = allParts.map(part => {
-                const partCode = part.code || part.part_code;
-                const partName = part.thai || part.part_name_thai;
-                const partPrice = part.price || part.selling_price || part.cost_price;
-                return `<option value="${partCode}" data-name="${partName}" data-price="${partPrice}">`;
-            }).join('');
+            // Create vehicle registration options from vehicles database
+            let vehicleOptions = '';
+            if (this.vehicles && this.vehicles.length > 0) {
+                vehicleOptions = this.vehicles.map(vehicle => {
+                    const make = vehicle.make || '';
+                    const model = vehicle.model || '';
+                    const year = vehicle.year || '';
+                    const description = `${make} ${model} ${year}`.trim();
+
+                    return `<option value="${vehicle.license_plate}" data-id="${vehicle.id}" data-make="${make}" data-model="${model}" data-year="${year}">
+                        ${vehicle.license_plate}${description ? ' - ' + description : ''}
+                    </option>`;
+                }).join('');
+                console.log(`✅ Created ${this.vehicles.length} vehicle options`);
+            } else {
+                vehicleOptions = '<option value="">ไม่มีข้อมูลรถ</option>';
+            }
+
+            // Create dynamic part number options from loaded data
+            let partNumberOptions = '';
+            if (this.truckParts && this.truckParts.length > 0) {
+                this.truckParts.forEach(part => {
+                    const partCode = part.code;
+                    const thaiName = part.thai;
+                    const price = part.price;
+                    partNumberOptions += `<option value="${partCode}" data-thai="${thaiName}" data-price="${price}">${partCode} - ${thaiName}</option>`;
+                });
+            }
 
             const materialFormHtml = `
                 <form id="materialForm" onsubmit="return window.servicesModule.saveMaterialForm(event)">
@@ -3214,11 +3235,18 @@ const servicesModule = {
 
                     <div class="vehicle-info">
                         <h2>ข้อมูลการเบิกวัสดุ</h2>
-
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="vehicleRegistration">ทะเบียนรถ:</label>
-                                <input type="text" id="vehicleRegistration" name="vehicle_registration" placeholder="เช่น กก-1234" required>
+                                <select id="vehicleRegistration" name="vehicle_registration" required
+                                        style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                    <option value="">เลือกทะเบียนรถ</option>
+                                    ${vehicleOptions}
+                                    <option value="__new__">🚗 รถใหม่ (ระบุเอง)</option>
+                                </select>
+                                <input type="text" id="newVehicleRegistration" name="new_vehicle_registration"
+                                       placeholder="เช่น กก-1234"
+                                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px; display: none;">
                             </div>
 
                             <div class="form-group">
@@ -3244,84 +3272,128 @@ const servicesModule = {
                                 </select>
                             </div>
                         </div>
+
+                        <!-- Vehicle Details Section -->
+                        <div id="vehicleDetailsSection" style="display: none; margin-top: 15px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;">
+                            <h4 style="margin: 0 0 10px 0; color: #495057;">ข้อมูลรถ</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                                <div><label style="font-weight: bold;">ยี่ห้อ:</label> <span id="vehicleMake">-</span></div>
+                                <div><label style="font-weight: bold;">รุ่น:</label> <span id="vehicleModel">-</span></div>
+                                <div><label style="font-weight: bold;">ปี:</label> <span id="vehicleYear">-</span></div>
+                            </div>
+                        </div>
                     </div>
 
                     <h2>รายการวัสดุที่ต้องการ</h2>
 
-                    <!-- Hidden datalist for part numbers -->
                     <datalist id="partNumbersList">
                         ${partNumberOptions}
                     </datalist>
 
-                    <table id="materialItemsTable">
+                    <table id="materialItemsTable" style="width: 100%; border-collapse: collapse;">
                         <thead>
-                            <tr>
-                                <th style="width: 50px;">ลำดับ</th>
-                                <th style="width: 120px;">รหัสชิ้นส่วน</th>
-                                <th>ชื่อวัสดุ</th>
-                                <th style="width: 80px;">จำนวน</th>
-                                <th style="width: 80px;">หน่วย</th>
-                                <th style="width: 100px;">ราคาต่อหน่วย</th>
-                                <th style="width: 80px;">ส่วนลด (%)</th>
-                                <th style="width: 100px;">ราคาหลังส่วนลด</th>
-                                <th style="width: 120px;">รวม</th>
-                                <th style="width: 60px;">ลบ</th>
+                            <tr style="background-color: #f8f9fa;">
+                                <th style="width: 40px; padding: 8px; border: 1px solid #ddd; text-align: center;">ลำดับ</th>
+                                <th style="width: 120px; padding: 8px; border: 1px solid #ddd;">รหัสชิ้นส่วน</th>
+                                <th style="width: 200px; padding: 8px; border: 1px solid #ddd;">ชื่อวัสดุ</th>
+                                <th style="width: 80px; padding: 8px; border: 1px solid #ddd; text-align: center;">จำนวน</th>
+                                <th style="width: 80px; padding: 8px; border: 1px solid #ddd;">หน่วย</th>
+                                <th style="width: 100px; padding: 8px; border: 1px solid #ddd; text-align: right;">ราคาต่อหน่วย</th>
+                                <th style="width: 80px; padding: 8px; border: 1px solid #ddd; text-align: center;">ส่วนลด (%)</th>
+                                <th style="width: 120px; padding: 8px; border: 1px solid #ddd; text-align: right;">ราคาหลังส่วนลด</th>
+                                <th style="width: 120px; padding: 8px; border: 1px solid #ddd; text-align: right;">รวม</th>
+                                <th style="width: 60px; padding: 8px; border: 1px solid #ddd; text-align: center;">ลบ</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td>1</td>
-                                <td>
-                                    <input type="text" name="part_number" list="partNumbersList" placeholder="เช่น TRK001"
-                                           onchange="window.servicesModule.populatePartDetails(this)">
+                                <td style="padding: 5px; border: 1px solid #ddd; text-align: center;">1</td>
+                                <td style="padding: 5px; border: 1px solid #ddd;">
+                                    <input type="text" name="part_number" list="partNumbersList"
+                                           placeholder="พิมพ์รหัสชิ้นส่วน"
+                                           onchange="window.servicesModule.populatePartDetails(this)"
+                                           style="width: 100%; padding: 5px; border: none; outline: none;">
                                 </td>
-                                <td><input type="text" name="item_name" placeholder="เช่น เบรคแพ็ด" required readonly style="background-color: #f5f5f5;"></td>
-                                <td><input type="number" name="quantity" min="1" value="1" onchange="window.servicesModule.calculateMaterialRowTotal(this)"></td>
-                                <td>
-                                    <select name="unit">
+                                <td style="padding: 5px; border: 1px solid #ddd;">
+                                    <input type="text" name="item_name" placeholder="ชื่อวัสดุ" required readonly
+                                           style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5;">
+                                </td>
+                                <td style="padding: 5px; border: 1px solid #ddd;">
+                                    <input type="number" name="quantity" min="1" value="1"
+                                           onchange="window.servicesModule.calculateMaterialRowTotal(this)"
+                                           style="width: 100%; padding: 5px; border: none; outline: none; text-align: center;">
+                                </td>
+                                <td style="padding: 5px; border: 1px solid #ddd;">
+                                    <select name="unit" style="width: 100%; padding: 5px; border: none; outline: none;">
                                         <option value="ชิ้น">ชิ้น</option>
                                         <option value="ชุด">ชุด</option>
                                         <option value="ลิตร">ลิตร</option>
                                         <option value="กิโลกรัม">กิโลกรัม</option>
                                         <option value="เมตร">เมตร</option>
+                                        <option value="แผ่น">แผ่น</option>
+                                        <option value="ก้อน">ก้อน</option>
+                                        <option value="คู่">คู่</option>
+                                        <option value="เส้น">เส้น</option>
                                     </select>
                                 </td>
-                                <td><input type="number" name="unit_price" min="0" step="0.01" placeholder="0.00" readonly style="background-color: #f5f5f5;"></td>
-                                <td><input type="number" name="discount" min="0" max="100" step="0.01" value="0" placeholder="0" onchange="window.servicesModule.calculateMaterialRowTotal(this)"></td>
-                                <td><input type="number" name="discounted_price" min="0" step="0.01" readonly style="background-color: #f5f5f5;"></td>
-                                <td><input type="number" name="total_cost" min="0" step="0.01" readonly style="background-color: #f5f5f5;"></td>
-                                <td><button type="button" class="remove-row" onclick="window.servicesModule.removeMaterialRow(this)">ลบ</button></td>
+                                <td style="padding: 5px; border: 1px solid #ddd;">
+                                    <input type="number" name="unit_price" min="0" step="0.01" placeholder="0.00" readonly
+                                           style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5; text-align: right;">
+                                </td>
+                                <td style="padding: 5px; border: 1px solid #ddd;">
+                                    <input type="number" name="discount" min="0" max="100" step="0.01" value="0" placeholder="0"
+                                           onchange="window.servicesModule.calculateMaterialRowTotal(this)"
+                                           style="width: 100%; padding: 5px; border: none; outline: none; text-align: center;">
+                                </td>
+                                <td style="padding: 5px; border: 1px solid #ddd;">
+                                    <input type="number" name="discounted_price" min="0" step="0.01" readonly
+                                           style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5; text-align: right;">
+                                </td>
+                                <td style="padding: 5px; border: 1px solid #ddd;">
+                                    <input type="number" name="total_cost" min="0" step="0.01" readonly
+                                           style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5; text-align: right;">
+                                </td>
+                                <td style="padding: 5px; border: 1px solid #ddd; text-align: center;">
+                                    <button type="button" class="remove-row" onclick="window.servicesModule.removeMaterialRow(this)"
+                                            style="background: #dc3545; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">ลบ</button>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
 
-                    <div class="quote-actions">
-                        <button type="button" class="add-row" onclick="window.servicesModule.addMaterialRow()">+ เพิ่มรายการ</button>
+                    <div class="quote-actions" style="margin: 20px 0;">
+                        <button type="button" class="add-row" onclick="window.servicesModule.addMaterialRow()"
+                                style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">+ เพิ่มรายการ</button>
 
-                        <div class="quote-totals">
-                            <div class="total-row">
-                                <label for="materialTotalAmount">ยอดรวมทั้งสิ้น:</label>
-                                <input type="number" id="materialTotalAmount" name="total_cost" readonly style="background-color: #f5f5f5;">
+                        <div class="quote-totals" style="float: right;">
+                            <div class="total-row" style="margin: 10px 0;">
+                                <label for="materialTotalAmount" style="font-weight: bold;">ยอดรวมทั้งสิ้น:</label>
+                                <input type="number" id="materialTotalAmount" name="total_cost" readonly
+                                       style="background-color: #f5f5f5; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-left: 10px;">
                             </div>
                         </div>
+                        <div style="clear: both;"></div>
                     </div>
 
-                    <div class="form-group full-width">
-                        <label for="materialNotes">หมายเหตุ:</label>
-                        <textarea id="materialNotes" name="notes" rows="3" placeholder="ระบุรายละเอียดเพิ่มเติม..."></textarea>
+                    <div class="form-group full-width" style="margin: 20px 0;">
+                        <label for="materialNotes" style="display: block; margin-bottom: 5px; font-weight: bold;">หมายเหตุ:</label>
+                        <textarea id="materialNotes" name="notes" rows="3" placeholder="ระบุรายละเอียดเพิ่มเติม..."
+                                  style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;"></textarea>
                     </div>
 
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">📋 บันทึกใบเบิกวัสดุ</button>
-                        <button type="button" class="btn btn-secondary" onclick="window.servicesModule.closeModal()">ยกเลิก</button>
+                    <div class="form-actions" style="text-align: center; margin: 20px 0;">
+                        <button type="submit" class="btn btn-primary"
+                                style="background: #007bff; color: white; border: none; padding: 12px 30px; border-radius: 5px; cursor: pointer; margin-right: 10px;">📋 บันทึกใบเบิกวัสดุ</button>
+                        <button type="button" class="btn btn-secondary" onclick="window.servicesModule.closeModal()"
+                                style="background: #6c757d; color: white; border: none; padding: 12px 30px; border-radius: 5px; cursor: pointer;">ยกเลิก</button>
                     </div>
                 </form>
             `;
 
             this.showModal('สร้างใบเบิกวัสดุ', materialFormHtml);
-            console.log('✅ Material Form modal created successfully');
+            console.log('✅ Material Form modal created with enhanced table structure');
 
-            // Force the modal to appear immediately
+            // Force the modal to appear
             setTimeout(() => {
                 const modals = document.querySelectorAll('#serviceModal, .modal-overlay');
                 const activeModal = Array.from(modals).find(modal => modal.innerHTML.length > 1000);
@@ -3348,18 +3420,37 @@ const servicesModule = {
                             background: white !important;
                             padding: 20px !important;
                             border-radius: 8px !important;
-                            max-width: 95vw !important;
-                            max-height: 90vh !important;
+                            max-width: 98vw !important;
+                            max-height: 95vh !important;
                             overflow: auto !important;
                             display: block !important;
                             visibility: visible !important;
                         `;
                     }
+                }
 
-                    // Enhance part number inputs if available
-                    if (this.enhancePartNumberInputs) {
-                        this.enhancePartNumberInputs();
-                    }
+                // Add vehicle dropdown event handlers
+                const vehicleSelect = document.getElementById('vehicleRegistration');
+                const newVehicleInput = document.getElementById('newVehicleRegistration');
+
+                if (vehicleSelect) {
+                    vehicleSelect.addEventListener('change', (event) => {
+                        this.populateVehicleInfoMaterial(event.target);
+                    });
+                    console.log('✅ Vehicle dropdown event handler attached');
+                }
+
+                if (newVehicleInput) {
+                    newVehicleInput.addEventListener('input', function() {
+                        const value = this.value.toUpperCase();
+                        if (value && !/^[ก-ฮA-Z0-9\s\-]+$/.test(value)) {
+                            this.style.borderColor = '#dc3545';
+                            this.title = 'รูปแบบทะเบียนรถไม่ถูกต้อง';
+                        } else {
+                            this.style.borderColor = '#ddd';
+                            this.title = '';
+                        }
+                    });
                 }
             }, 100);
 
@@ -3369,58 +3460,483 @@ const servicesModule = {
         }
     },
 
+    // Add method to populate vehicle info when selected
+
+    populateVehicleInfoMaterial: function(selectElement) {
+        const selectedValue = selectElement.value;
+        const selectedOption = selectElement.selectedOptions[0];
+
+        const newVehicleInput = document.getElementById('newVehicleRegistration');
+        const vehicleDetailsSection = document.getElementById('vehicleDetailsSection');
+        const vehicleMake = document.getElementById('vehicleMake');
+        const vehicleModel = document.getElementById('vehicleModel');
+        const vehicleYear = document.getElementById('vehicleYear');
+
+        console.log('🚗 Vehicle selection changed:', selectedValue);
+
+        if (selectedValue === '__new__') {
+            // Show manual input field for new vehicle
+            newVehicleInput.style.display = 'block';
+            newVehicleInput.required = true;
+            newVehicleInput.focus(); // Auto-focus for better UX
+            selectElement.required = false;
+
+            // Hide vehicle details section
+            vehicleDetailsSection.style.display = 'none';
+
+            console.log('✅ Manual vehicle input enabled');
+            this.showNotification('🚗 กรุณาระบุทะเบียนรถใหม่', 'info', 3000);
+
+        } else if (selectedValue && selectedValue !== '') {
+            // Auto-fill from existing vehicle data
+            newVehicleInput.style.display = 'none';
+            newVehicleInput.required = false;
+            newVehicleInput.value = ''; // Clear manual input
+            selectElement.required = true;
+
+            // Get vehicle data from the selected option
+            const vehicleId = selectedOption?.dataset.id;
+            const make = selectedOption?.dataset.make || '-';
+            const model = selectedOption?.dataset.model || '-';
+            const year = selectedOption?.dataset.year || '-';
+
+            // Show and populate vehicle details
+            vehicleDetailsSection.style.display = 'block';
+            vehicleMake.textContent = make;
+            vehicleModel.textContent = model;
+            vehicleYear.textContent = year;
+
+            console.log('✅ Vehicle auto-filled:', { registration: selectedValue, make, model, year });
+            this.showNotification(`✅ เลือกรถ: ${selectedValue} - ${make} ${model}`, 'success', 2000);
+
+        } else {
+            // No selection - hide everything
+            newVehicleInput.style.display = 'none';
+            newVehicleInput.required = false;
+            newVehicleInput.value = '';
+            selectElement.required = true;
+
+            vehicleDetailsSection.style.display = 'none';
+
+            console.log('🔄 Vehicle selection cleared');
+        }
+    },
+
+    // calculation method
+    calculateMaterialRowTotal: function(input) {
+        const row = input.closest('tr');
+        if (!row) return;
+
+        // Get values with multiple fallback field names to handle both old and new structures
+        const quantity = parseInt(row.querySelector('input[name="quantity"]').value) || 0;
+
+        // Try both unit_price and estimated_cost for backward compatibility
+        let unitPrice = 0;
+        const unitPriceInput = row.querySelector('input[name="unit_price"]');
+        const estimatedCostInput = row.querySelector('input[name="estimated_cost"]');
+
+        if (unitPriceInput && unitPriceInput.value) {
+            unitPrice = parseFloat(unitPriceInput.value) || 0;
+        } else if (estimatedCostInput && estimatedCostInput.value) {
+            unitPrice = parseFloat(estimatedCostInput.value) || 0;
+        }
+
+        const discount = parseFloat(row.querySelector('input[name="discount"]')?.value) || 0;
+
+        console.log('📊 Calculating row total:', { quantity, unitPrice, discount });
+
+        // Calculate discounted price
+        const discountAmount = unitPrice * (discount / 100);
+        const discountedPrice = unitPrice - discountAmount;
+
+        // Calculate total
+        const total = quantity * discountedPrice;
+
+        // Update fields (handle both new and old field names)
+        const discountedPriceInput = row.querySelector('input[name="discounted_price"]');
+        const totalCostInput = row.querySelector('input[name="total_cost"]');
+
+        if (discountedPriceInput) {
+            discountedPriceInput.value = discountedPrice.toFixed(2);
+            discountedPriceInput.style.backgroundColor = '#e8f5e8'; // Light green to show it's calculated
+        }
+
+        if (totalCostInput) {
+            totalCostInput.value = total.toFixed(2);
+            totalCostInput.style.backgroundColor = '#e8f5e8'; // Light green to show it's calculated
+        }
+
+        // Also update estimated_cost if it exists (for old structure compatibility)
+        if (estimatedCostInput && !unitPriceInput) {
+            // If we're using old structure, put total in estimated_cost field
+            const oldTotal = quantity * unitPrice; // Without discount for old structure
+            estimatedCostInput.value = unitPrice.toFixed(2);
+        }
+
+        console.log('✅ Row total calculated:', { discountedPrice: discountedPrice.toFixed(2), total: total.toFixed(2) });
+
+        // Update grand total
+        this.calculateMaterialTotal();
+    },
+
+    // material grand total calculation
+    calculateMaterialTotal: function() {
+        const table = document.getElementById('materialItemsTable');
+        if (!table) return;
+
+        let grandTotal = 0;
+        const rows = table.querySelectorAll('tbody tr');
+
+        rows.forEach(row => {
+            const totalInput = row.querySelector('input[name="total_cost"]');
+            if (totalInput && totalInput.value) {
+                grandTotal += parseFloat(totalInput.value) || 0;
+            }
+        });
+
+        const totalAmountInput = document.getElementById('materialTotalAmount');
+        if (totalAmountInput) {
+            totalAmountInput.value = grandTotal.toFixed(2);
+            console.log('💰 Grand total updated:', grandTotal.toFixed(2));
+        }
+    },
+
+    // material addMaterialRow method with consistent structure matching the header
+    addMaterialRow: function() {
+        const table = document.getElementById('materialItemsTable');
+        if (!table) return;
+
+        const tbody = table.getElementsByTagName('tbody')[0];
+        const rowCount = tbody.rows.length;
+        const newRow = tbody.insertRow();
+
+        // Create row that EXACTLY matches the header structure (10 columns)
+        newRow.innerHTML = `
+            <td style="padding: 5px; border: 1px solid #ddd; text-align: center;">${rowCount + 1}</td>
+            <td style="padding: 5px; border: 1px solid #ddd;">
+                <input type="text" name="part_number" list="partNumbersList"
+                       placeholder="พิมพ์รหัสชิ้นส่วน"
+                       onchange="window.servicesModule.populatePartDetails(this)"
+                       style="width: 100%; padding: 5px; border: none; outline: none;">
+            </td>
+            <td style="padding: 5px; border: 1px solid #ddd;">
+                <input type="text" name="item_name" placeholder="ชื่อวัสดุ" required readonly
+                       style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5;">
+            </td>
+            <td style="padding: 5px; border: 1px solid #ddd;">
+                <input type="number" name="quantity" min="1" value="1"
+                       onchange="window.servicesModule.calculateMaterialRowTotal(this)"
+                       style="width: 100%; padding: 5px; border: none; outline: none; text-align: center;">
+            </td>
+            <td style="padding: 5px; border: 1px solid #ddd;">
+                <select name="unit" style="width: 100%; padding: 5px; border: none; outline: none;">
+                    <option value="ชิ้น">ชิ้น</option>
+                    <option value="ชุด">ชุด</option>
+                    <option value="ลิตร">ลิตร</option>
+                    <option value="กิโลกรัม">กิโลกรัม</option>
+                    <option value="เมตร">เมตร</option>
+                    <option value="แผ่น">แผ่น</option>
+                    <option value="ก้อน">ก้อน</option>
+                    <option value="คู่">คู่</option>
+                    <option value="เส้น">เส้น</option>
+                </select>
+            </td>
+            <td style="padding: 5px; border: 1px solid #ddd;">
+                <input type="number" name="unit_price" min="0" step="0.01" placeholder="0.00" readonly
+                       style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5; text-align: right;">
+            </td>
+            <td style="padding: 5px; border: 1px solid #ddd;">
+                <input type="number" name="discount" min="0" max="100" step="0.01" value="0" placeholder="0"
+                       onchange="window.servicesModule.calculateMaterialRowTotal(this)"
+                       style="width: 100%; padding: 5px; border: none; outline: none; text-align: center;">
+            </td>
+            <td style="padding: 5px; border: 1px solid #ddd;">
+                <input type="number" name="discounted_price" min="0" step="0.01" readonly
+                       style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5; text-align: right;">
+            </td>
+            <td style="padding: 5px; border: 1px solid #ddd;">
+                <input type="number" name="total_cost" min="0" step="0.01" readonly
+                       style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5; text-align: right;">
+            </td>
+            <td style="padding: 5px; border: 1px solid #ddd; text-align: center;">
+                <button type="button" class="remove-row" onclick="window.servicesModule.removeMaterialRow(this)"
+                        style="background: #dc3545; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">ลบ</button>
+            </td>
+        `;
+
+        console.log('✅ New material row added with correct 10-column structure');
+    },
+
+    // material removeMaterialRow method
+    removeMaterialRow: function(button) {
+        const row = button.closest('tr');
+        if (!row) return;
+
+        const table = row.closest('table');
+        const tbody = table.getElementsByTagName('tbody')[0];
+
+        // Don't remove if it's the last row
+        if (tbody.rows.length <= 1) {
+            this.showNotification('⚠️ ต้องมีรายการอย่างน้อย 1 รายการ', 'warning');
+            return;
+        }
+
+        row.remove();
+
+        // Renumber all rows
+        const rows = tbody.querySelectorAll('tr');
+        rows.forEach((row, index) => {
+            const firstCell = row.querySelector('td:first-child');
+            if (firstCell) {
+                firstCell.textContent = index + 1;
+            }
+        });
+
+        // Recalculate total
+        this.calculateMaterialTotal();
+
+        console.log('✅ Material row removed and renumbered');
+    },
+
+    // material method to fix inconsistent table rows
+    fixTableStructure: function() {
+        const table = document.getElementById('materialItemsTable');
+        if (!table) return;
+
+        const tbody = table.getElementsByTagName('tbody')[0];
+        const rows = tbody.querySelectorAll('tr');
+
+        console.log('🔧 Fixing table structure for', rows.length, 'rows');
+
+        rows.forEach((row, index) => {
+            const cells = row.querySelectorAll('td');
+
+            // Check if row has the old structure (7-8 columns) vs new structure (10 columns)
+            if (cells.length < 10) {
+                console.log(`⚠️ Row ${index + 1} has ${cells.length} columns, needs fixing`);
+
+                // Remove old row and replace with correct structure
+                const rowNumber = index + 1;
+                row.remove();
+
+                // Add new correctly structured row
+                const newRow = tbody.insertRow(index);
+                newRow.innerHTML = `
+                    <td style="padding: 5px; border: 1px solid #ddd; text-align: center;">${rowNumber}</td>
+                    <td style="padding: 5px; border: 1px solid #ddd;">
+                        <input type="text" name="part_number" list="partNumbersList"
+                               placeholder="พิมพ์รหัสชิ้นส่วน"
+                               onchange="window.servicesModule.populatePartDetails(this)"
+                               style="width: 100%; padding: 5px; border: none; outline: none;">
+                    </td>
+                    <td style="padding: 5px; border: 1px solid #ddd;">
+                        <input type="text" name="item_name" placeholder="ชื่อวัสดุ" required readonly
+                               style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5;">
+                    </td>
+                    <td style="padding: 5px; border: 1px solid #ddd;">
+                        <input type="number" name="quantity" min="1" value="1"
+                               onchange="window.servicesModule.calculateMaterialRowTotal(this)"
+                               style="width: 100%; padding: 5px; border: none; outline: none; text-align: center;">
+                    </td>
+                    <td style="padding: 5px; border: 1px solid #ddd;">
+                        <select name="unit" style="width: 100%; padding: 5px; border: none; outline: none;">
+                            <option value="ชิ้น">ชิ้น</option>
+                            <option value="ชุด">ชุด</option>
+                            <option value="ลิตร">ลิตร</option>
+                            <option value="กิโลกรัม">กิโลกรัม</option>
+                            <option value="เมตร">เมตร</option>
+                            <option value="แผ่น">แผ่น</option>
+                            <option value="ก้อน">ก้อน</option>
+                            <option value="คู่">คู่</option>
+                            <option value="เส้น">เส้น</option>
+                        </select>
+                    </td>
+                    <td style="padding: 5px; border: 1px solid #ddd;">
+                        <input type="number" name="unit_price" min="0" step="0.01" placeholder="0.00" readonly
+                               style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5; text-align: right;">
+                    </td>
+                    <td style="padding: 5px; border: 1px solid #ddd;">
+                        <input type="number" name="discount" min="0" max="100" step="0.01" value="0" placeholder="0"
+                               onchange="window.servicesModule.calculateMaterialRowTotal(this)"
+                               style="width: 100%; padding: 5px; border: none; outline: none; text-align: center;">
+                    </td>
+                    <td style="padding: 5px; border: 1px solid #ddd;">
+                        <input type="number" name="discounted_price" min="0" step="0.01" readonly
+                               style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5; text-align: right;">
+                    </td>
+                    <td style="padding: 5px; border: 1px solid #ddd;">
+                        <input type="number" name="total_cost" min="0" step="0.01" readonly
+                               style="width: 100%; padding: 5px; border: none; outline: none; background-color: #f5f5f5; text-align: right;">
+                    </td>
+                    <td style="padding: 5px; border: 1px solid #ddd; text-align: center;">
+                        <button type="button" class="remove-row" onclick="window.servicesModule.removeMaterialRow(this)"
+                                style="background: #dc3545; color: white; border: none; padding: 5px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">ลบ</button>
+                    </td>
+                `;
+            }
+        });
+
+        console.log('✅ Table structure fixed');
+    },
+
+
+
+    // Add method to populate by part name (reverse lookup)
+    populatePartDetailsByName: function(nameInput) {
+        const partName = nameInput.value.trim();
+        const row = nameInput.closest('tr');
+
+        if (!partName) {
+            this.clearPartRow(row);
+            return;
+        }
+
+        // Find part by Thai or English name
+        let part = null;
+
+        if (this.truckParts && this.truckParts.length > 0) {
+            part = this.truckParts.find(p =>
+                p.thai === partName ||
+                p.english === partName ||
+                p.thai.toLowerCase() === partName.toLowerCase() ||
+                p.english.toLowerCase() === partName.toLowerCase()
+            );
+        }
+
+        if (part) {
+            // Populate the part code field
+            const codeInput = row.querySelector('input[name="part_number"]');
+            if (codeInput) {
+                codeInput.value = part.code;
+            }
+
+            // Use the regular populate function
+            this.populatePartDetails(codeInput);
+        }
+    },
+
     // New method to populate part details when part number is selected
-    populatePartDetails(partNumberInput) {
+    populatePartDetails: function(partNumberInput) {
+        console.log('🔍 populatePartDetails called with:', partNumberInput.value);
+
         const partCode = partNumberInput.value.trim();
         const row = partNumberInput.closest('tr');
+
+        // Better error checking
+        if (!row) {
+            console.log('❌ Could not find parent row');
+            return;
+        }
 
         if (!partCode) {
             this.clearPartRow(row);
             return;
         }
 
-        // Find part in database
+        console.log('🔍 Searching for part:', partCode);
+
+        // Search in truckParts with multiple matching strategies
         let part = null;
 
-        // Try partsDataManager first
-        if (window.partsDataManager && window.partsDataManager.isLoaded) {
-            part = window.partsDataManager.getPartByCode(partCode);
-        }
-
-        // Fallback to truckParts
-        if (!part && this.truckParts) {
+        if (this.truckParts && this.truckParts.length > 0) {
+            // Try exact match first
             part = this.truckParts.find(p =>
-                (p.code === partCode) ||
-                (p.part_code === partCode)
+                String(p.id) === partCode ||
+                String(p.part_code) === partCode ||
+                String(p.code) === partCode
             );
+
+            // If no exact match, try case-insensitive
+            if (!part) {
+                part = this.truckParts.find(p =>
+                    (p.part_code && String(p.part_code).toLowerCase() === partCode.toLowerCase()) ||
+                    (p.code && String(p.code).toLowerCase() === partCode.toLowerCase()) ||
+                    String(p.id) === partCode
+                );
+            }
+
+            console.log('🔍 truckParts search result:', part);
         }
 
         if (part) {
-            // Auto-populate part details
-            const partName = part.thai || part.part_name_thai || part.english || part.part_name_english || 'Unknown Part';
-            const partPrice = part.price || part.selling_price || part.cost_price || 0;
+            console.log('✅ Part found:', part);
 
-            // Fill in the fields
-            row.querySelector('input[name="item_name"]').value = partName;
-            row.querySelector('input[name="unit_price"]').value = parseFloat(partPrice).toFixed(2);
+            // Get part details with fallback options
+            const partName = part.thai ||
+                            part.part_name_thai ||
+                            part.english ||
+                            part.part_name_english ||
+                            part.name ||
+                            part.description ||
+                            `Part ${part.id}`;
 
-            // Calculate discounted price and total
-            this.calculateMaterialRowTotal(row.querySelector('input[name="quantity"]'));
+            const partPrice = part.cost_price ||
+                             part.selling_price ||
+                             part.price ||
+                             part.unit_price ||
+                             0;
 
-            console.log(`✅ Auto-populated part: ${partCode} - ${partName} - ฿${partPrice}`);
+            console.log('📝 Filling fields:', { name: partName, price: partPrice });
 
-            // Show notification
-            this.showNotification(`✅ พบชิ้นส่วน: ${partName} - ราคา ฿${partPrice}`, 'success', 2000);
+            // Find and fill the fields with better error checking
+            const nameInput = row.querySelector('input[name="item_name"]');
+            const priceInput = row.querySelector('input[name="unit_price"]');
+
+            if (nameInput) {
+                nameInput.value = partName;
+                nameInput.style.backgroundColor = '#e8f5e8'; // Light green
+                nameInput.readOnly = true;
+                console.log('✅ Set item name:', partName);
+            } else {
+                console.log('❌ Could not find item_name input');
+            }
+
+            if (priceInput) {
+                priceInput.value = parseFloat(partPrice).toFixed(2);
+                priceInput.style.backgroundColor = '#e8f5e8'; // Light green
+                priceInput.readOnly = true;
+                console.log('✅ Set unit price:', partPrice);
+            } else {
+                console.log('❌ Could not find unit_price input');
+            }
+
+            // Calculate totals if the calculation function exists
+            if (this.calculateMaterialRowTotal) {
+                const quantityInput = row.querySelector('input[name="quantity"]');
+                if (quantityInput) {
+                    this.calculateMaterialRowTotal(quantityInput);
+                }
+            }
+
+            // Show success notification
+            if (this.showNotification) {
+                this.showNotification(`✅ พบชิ้นส่วน: ${partName} - ราคา ฿${partPrice}`, 'success', 2000);
+            }
+
         } else {
-            // Part not found - allow manual entry
-            row.querySelector('input[name="item_name"]').value = '';
-            row.querySelector('input[name="item_name"]').readOnly = false;
-            row.querySelector('input[name="item_name"]').style.backgroundColor = 'white';
-            row.querySelector('input[name="unit_price"]').value = '';
-            row.querySelector('input[name="unit_price"]').readOnly = false;
-            row.querySelector('input[name="unit_price"]').style.backgroundColor = 'white';
+            console.log('❌ Part not found for code:', partCode);
 
-            this.showNotification(`⚠️ ไม่พบรหัสชิ้นส่วน: ${partCode} (สามารถกรอกข้อมูลเอง)`, 'warning', 3000);
+            // Part not found - allow manual entry
+            const nameInput = row.querySelector('input[name="item_name"]');
+            const priceInput = row.querySelector('input[name="unit_price"]');
+
+            if (nameInput) {
+                nameInput.value = '';
+                nameInput.readOnly = false;
+                nameInput.style.backgroundColor = 'white';
+                nameInput.placeholder = 'กรอกชื่อวัสดุ';
+            }
+
+            if (priceInput) {
+                priceInput.value = '';
+                priceInput.readOnly = false;
+                priceInput.style.backgroundColor = 'white';
+                priceInput.placeholder = '0.00';
+            }
+
+            if (this.showNotification) {
+                this.showNotification(`⚠️ ไม่พบรหัสชิ้นส่วน: ${partCode} (สามารถกรอกข้อมูลเอง)`, 'warning', 3000);
+            }
         }
     },
 
@@ -3433,58 +3949,9 @@ const servicesModule = {
         row.querySelector('input[name="total_cost"]').value = '';
     },
 
-    // Enhanced calculation with discount
-    calculateMaterialRowTotal(input) {
-        const row = input.closest('tr');
-        const quantity = parseInt(row.querySelector('input[name="quantity"]').value) || 0;
-        const unitPrice = parseFloat(row.querySelector('input[name="unit_price"]').value) || 0;
-        const discount = parseFloat(row.querySelector('input[name="discount"]').value) || 0;
 
-        // Calculate discounted price
-        const discountAmount = unitPrice * (discount / 100);
-        const discountedPrice = unitPrice - discountAmount;
 
-        // Calculate total
-        const total = quantity * discountedPrice;
 
-        // Update fields
-        row.querySelector('input[name="discounted_price"]').value = discountedPrice.toFixed(2);
-        row.querySelector('input[name="total_cost"]').value = total.toFixed(2);
-
-        // Update grand total
-        this.calculateMaterialTotal();
-    },
-
-    // Enhanced addMaterialRow with new columns
-    addMaterialRow() {
-        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
-        const rowCount = table.rows.length;
-        const newRow = table.insertRow();
-
-        newRow.innerHTML = `
-            <td>${rowCount + 1}</td>
-            <td>
-                <input type="text" name="part_number" list="partNumbersList" placeholder="เช่น TRK001"
-                       onchange="window.servicesModule.populatePartDetails(this)">
-            </td>
-            <td><input type="text" name="item_name" placeholder="เช่น เบรคแพ็ด" required readonly style="background-color: #f5f5f5;"></td>
-            <td><input type="number" name="quantity" min="1" value="1" onchange="window.servicesModule.calculateMaterialRowTotal(this)"></td>
-            <td>
-                <select name="unit">
-                    <option value="ชิ้น">ชิ้น</option>
-                    <option value="ชุด">ชุด</option>
-                    <option value="ลิตร">ลิตร</option>
-                    <option value="กิโลกรัม">กิโลกรัม</option>
-                    <option value="เมตร">เมตร</option>
-                </select>
-            </td>
-            <td><input type="number" name="unit_price" min="0" step="0.01" placeholder="0.00" readonly style="background-color: #f5f5f5;"></td>
-            <td><input type="number" name="discount" min="0" max="100" step="0.01" value="0" placeholder="0" onchange="window.servicesModule.calculateMaterialRowTotal(this)"></td>
-            <td><input type="number" name="discounted_price" min="0" step="0.01" readonly style="background-color: #f5f5f5;"></td>
-            <td><input type="number" name="total_cost" min="0" step="0.01" readonly style="background-color: #f5f5f5;"></td>
-            <td><button type="button" class="remove-row" onclick="window.servicesModule.removeMaterialRow(this)">ลบ</button></td>
-        `;
-    },
 
     // Save Material Form
     async saveMaterialForm(event) {
@@ -3494,6 +3961,7 @@ const servicesModule = {
         // Get basic form data
         const materialFormData = {
             id: this.materialForms.length + 1,
+            form_number: `MF-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`,
             vehicle_registration: formData.get('vehicle_registration'),
             requester_name: formData.get('requester_name'),
             department: formData.get('department'),
@@ -3504,7 +3972,8 @@ const servicesModule = {
             created_date: new Date().toISOString(),
             items: [],
             total_items: 0,
-            total_cost: 0
+            total_cost: 0,
+            total_discount: 0
         };
 
         // Get items from table
@@ -3516,20 +3985,26 @@ const servicesModule = {
             // Skip empty rows
             if (!itemName) continue;
 
+            const partNumber = row.querySelector('input[name="part_number"]').value || '';
             const quantity = parseInt(row.querySelector('input[name="quantity"]').value) || 1;
-            const estimatedCost = parseFloat(row.querySelector('input[name="estimated_cost"]').value) || 0;
-            const totalCost = quantity * estimatedCost;
+            const unitPrice = parseFloat(row.querySelector('input[name="unit_price"]').value) || 0;
+            const discount = parseFloat(row.querySelector('input[name="discount"]').value) || 0;
+            const discountedPrice = parseFloat(row.querySelector('input[name="discounted_price"]').value) || unitPrice;
+            const totalCost = parseFloat(row.querySelector('input[name="total_cost"]').value) || 0;
 
             materialFormData.items.push({
+                part_number: partNumber,
                 name: itemName,
-                part_number: row.querySelector('input[name="part_number"]').value || '',
                 quantity: quantity,
                 unit: row.querySelector('select[name="unit"]').value,
-                estimated_cost: estimatedCost,
+                unit_price: unitPrice,
+                discount: discount,
+                discounted_price: discountedPrice,
                 total_cost: totalCost
             });
 
             materialFormData.total_cost += totalCost;
+            materialFormData.total_discount += (unitPrice - discountedPrice) * quantity;
             materialFormData.total_items++;
         }
 
@@ -3563,10 +4038,13 @@ const servicesModule = {
         // Add to local data
         this.materialForms.push(materialFormData);
 
-        // Show success message
-        this.showNotification(`✅ บันทึกใบเบิกวัสดุสำเร็จ (เลขที่: MF-${materialFormData.id})`, 'success');
+        // Show success message with action buttons
+        this.showNotification(`✅ บันทึกใบเบิกวัสดุสำเร็จ (เลขที่: ${materialFormData.form_number})`, 'success');
 
-        // Close modal and refresh view
+        // Show action modal for email/print
+        this.showFormActionModal('material', materialFormData);
+
+        // Close modal
         this.closeModal();
 
         // Refresh truck repair tab if currently viewing
@@ -3888,79 +4366,79 @@ const servicesModule = {
         document.querySelector('input[name="vehicle_year"]').value = '';
         document.querySelector('input[name="vehicle_color"]').value = '';
     },
-    // Material Form Helper Functions
-    addMaterialRow() {
-        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
-        const rowCount = table.rows.length;
-        const newRow = table.insertRow();
+//    // Material Form Helper Functions
+//    addMaterialRow() {
+//        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
+//        const rowCount = table.rows.length;
+//        const newRow = table.insertRow();
+//
+//        newRow.innerHTML = `
+//            <td>${rowCount + 1}</td>
+//            <td><input type="text" name="part_number" list="parts-codes" placeholder="เช่น TRK001"></td>
+//            <td><input type="text" name="item_name" list="parts-list" placeholder="เช่น เบรคแพ็ด" required></td>
+//            <td><input type="number" name="quantity" min="1" value="1" onchange="servicesModule.calculateMaterialRowTotal(this)"></td>
+//            <td>
+//                <select name="unit">
+//                    <option value="ชิ้น">ชิ้น</option>
+//                    <option value="ชุด">ชุด</option>
+//                    <option value="ลิตร">ลิตร</option>
+//                    <option value="กิโลกรัม">กิโลกรัม</option>
+//                    <option value="เมตร">เมตร</option>
+//                </select>
+//            </td>
+//            <td><input type="number" name="estimated_cost" min="0" step="0.01" placeholder="0.00" onchange="servicesModule.calculateMaterialRowTotal(this)"></td>
+//            <td><input type="number" name="total_cost" min="0" step="0.01" readonly></td>
+//            <td><button type="button" class="remove-row" onclick="servicesModule.removeMaterialRow(this)">ลบ</button></td>
+//        `;
+//    },
 
-        newRow.innerHTML = `
-            <td>${rowCount + 1}</td>
-            <td><input type="text" name="part_number" list="parts-codes" placeholder="เช่น TRK001"></td>
-            <td><input type="text" name="item_name" list="parts-list" placeholder="เช่น เบรคแพ็ด" required></td>
-            <td><input type="number" name="quantity" min="1" value="1" onchange="servicesModule.calculateMaterialRowTotal(this)"></td>
-            <td>
-                <select name="unit">
-                    <option value="ชิ้น">ชิ้น</option>
-                    <option value="ชุด">ชุด</option>
-                    <option value="ลิตร">ลิตร</option>
-                    <option value="กิโลกรัม">กิโลกรัม</option>
-                    <option value="เมตร">เมตร</option>
-                </select>
-            </td>
-            <td><input type="number" name="estimated_cost" min="0" step="0.01" placeholder="0.00" onchange="servicesModule.calculateMaterialRowTotal(this)"></td>
-            <td><input type="number" name="total_cost" min="0" step="0.01" readonly></td>
-            <td><button type="button" class="remove-row" onclick="servicesModule.removeMaterialRow(this)">ลบ</button></td>
-        `;
-    },
+//    removeMaterialRow(button) {
+//        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
+//        const row = button.closest('tr');
+//
+//        if (table.rows.length > 1) {
+//            row.remove();
+//            this.updateMaterialRowNumbers();
+//            this.calculateMaterialTotal();
+//        } else {
+//            // Clear the last row instead of removing it
+//            row.querySelectorAll('input').forEach(input => {
+//                if (input.name === 'quantity') input.value = '1';
+//                else input.value = '';
+//            });
+//            row.querySelector('select[name="unit"]').selectedIndex = 0;
+//            this.calculateMaterialTotal();
+//        }
+//    },
 
-    removeMaterialRow(button) {
-        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
-        const row = button.closest('tr');
+//    updateMaterialRowNumbers() {
+//        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
+//        for (let i = 0; i < table.rows.length; i++) {
+//            table.rows[i].cells[0].textContent = i + 1;
+//        }
+//    },
 
-        if (table.rows.length > 1) {
-            row.remove();
-            this.updateMaterialRowNumbers();
-            this.calculateMaterialTotal();
-        } else {
-            // Clear the last row instead of removing it
-            row.querySelectorAll('input').forEach(input => {
-                if (input.name === 'quantity') input.value = '1';
-                else input.value = '';
-            });
-            row.querySelector('select[name="unit"]').selectedIndex = 0;
-            this.calculateMaterialTotal();
-        }
-    },
+//    calculateMaterialRowTotal(input) {
+//        const row = input.closest('tr');
+//        const quantity = parseInt(row.querySelector('input[name="quantity"]').value) || 0;
+//        const cost = parseFloat(row.querySelector('input[name="estimated_cost"]').value) || 0;
+//        const total = quantity * cost;
+//
+//        row.querySelector('input[name="total_cost"]').value = total.toFixed(2);
+//        this.calculateMaterialTotal();
+//    },
 
-    updateMaterialRowNumbers() {
-        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
-        for (let i = 0; i < table.rows.length; i++) {
-            table.rows[i].cells[0].textContent = i + 1;
-        }
-    },
-
-    calculateMaterialRowTotal(input) {
-        const row = input.closest('tr');
-        const quantity = parseInt(row.querySelector('input[name="quantity"]').value) || 0;
-        const cost = parseFloat(row.querySelector('input[name="estimated_cost"]').value) || 0;
-        const total = quantity * cost;
-
-        row.querySelector('input[name="total_cost"]').value = total.toFixed(2);
-        this.calculateMaterialTotal();
-    },
-
-    calculateMaterialTotal() {
-        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
-        let total = 0;
-
-        for (let i = 0; i < table.rows.length; i++) {
-            const rowTotal = parseFloat(table.rows[i].querySelector('input[name="total_cost"]').value) || 0;
-            total += rowTotal;
-        }
-
-        document.getElementById('materialTotalAmount').value = total.toFixed(2);
-    },
+//    calculateMaterialTotal() {
+//        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
+//        let total = 0;
+//
+//        for (let i = 0; i < table.rows.length; i++) {
+//            const rowTotal = parseFloat(table.rows[i].querySelector('input[name="total_cost"]').value) || 0;
+//            total += rowTotal;
+//        }
+//
+//        document.getElementById('materialTotalAmount').value = total.toFixed(2);
+//    },
 
     // Repair Quote Helper Functions
     addRepairRow() {
@@ -4038,7 +4516,7 @@ const servicesModule = {
     // Save Repair Quote
 
 
-    saveRepairQuote: async function(event) {
+    async saveRepairQuote(event) {
         event.preventDefault();
         console.log('💾 Saving repair quote...');
 
@@ -4085,7 +4563,7 @@ const servicesModule = {
                 quote_number: `TRQ-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`,
                 customer_name: customerName,
                 vehicle_registration: formData.get('vehicle_registration'),
-                vehicle_make: formData.get('vehicle_make'),
+                vehicle_make: formData.get('vehicle_make') || formData.get('custom_vehicle_make'),
                 vehicle_model: formData.get('vehicle_model'),
                 vehicle_year: parseInt(formData.get('vehicle_year')) || null,
                 vehicle_color: formData.get('vehicle_color') || '',
@@ -4128,6 +4606,9 @@ const servicesModule = {
             // Show success message
             this.showNotification(`✅ บันทึกใบเสนอราคาสำเร็จ (เลขที่: ${repairQuoteData.quote_number})`, 'success');
 
+            // Show action modal for email/print
+            this.showFormActionModal('quote', repairQuoteData);
+
             // Close modal
             const modal = document.getElementById('repairQuoteModal');
             if (modal) {
@@ -4145,6 +4626,379 @@ const servicesModule = {
         }
     },
 
+    // Show action modal for email/print after saving
+    showFormActionModal(type, data) {
+        const isQuote = type === 'quote';
+        const title = isQuote ? 'ใบเสนอราคาซ่อม' : 'ใบเบิกวัสดุ';
+        const number = isQuote ? data.quote_number : data.form_number;
+
+        const actionModalHTML = `
+            <div id="formActionModal" style="
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                background: rgba(0, 0, 0, 0.8) !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                z-index: 999999 !important;
+            ">
+                <div style="
+                    background: white !important;
+                    padding: 40px !important;
+                    border-radius: 15px !important;
+                    text-align: center !important;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+                    max-width: 500px !important;
+                ">
+                    <h2 style="color: #28a745; margin-bottom: 20px;">✅ บันทึกสำเร็จ!</h2>
+                    <p style="font-size: 18px; margin-bottom: 30px;">
+                        ${title}<br>
+                        <strong>เลขที่: ${number}</strong>
+                    </p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <button onclick="servicesModule.emailForm('${type}', ${JSON.stringify(data).replace(/"/g, '&quot;')})" style="
+                            background: #007bff;
+                            color: white;
+                            padding: 15px 20px;
+                            border: none;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 16px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 10px;
+                        ">
+                            📧 ส่งอีเมล
+                        </button>
+
+                        <button onclick="servicesModule.printForm('${type}', ${JSON.stringify(data).replace(/"/g, '&quot;')})" style="
+                            background: #28a745;
+                            color: white;
+                            padding: 15px 20px;
+                            border: none;
+                            border-radius: 8px;
+                            cursor: pointer;
+                            font-size: 16px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 10px;
+                        ">
+                            🖨️ พิมพ์
+                        </button>
+                    </div>
+
+                    <button onclick="document.getElementById('formActionModal').remove()" style="
+                        background: #6c757d;
+                        color: white;
+                        padding: 12px 30px;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 16px;
+                    ">
+                        ปิด
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', actionModalHTML);
+    },
+
+    // Email form function
+    emailForm(type, data) {
+        console.log(`📧 Emailing ${type}:`, data);
+
+        // Create email modal
+        const isQuote = type === 'quote';
+        const title = isQuote ? 'ส่งอีเมลใบเสนอราคา' : 'ส่งอีเมลใบเบิกวัสดุ';
+
+        const emailModalHTML = `
+            <div id="emailModal" style="
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 100vh !important;
+                background: rgba(0, 0, 0, 0.8) !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                z-index: 9999999 !important;
+            ">
+                <div style="
+                    background: white !important;
+                    padding: 30px !important;
+                    border-radius: 10px !important;
+                    max-width: 600px !important;
+                    width: 90vw !important;
+                ">
+                    <h3>${title}</h3>
+                    <form onsubmit="servicesModule.sendEmail('${type}', ${JSON.stringify(data).replace(/"/g, '&quot;')}, event); return false;">
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">ส่งถึง (อีเมล):</label>
+                            <input type="email" name="to_email" required placeholder="customer@example.com" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">หัวข้อ:</label>
+                            <input type="text" name="subject" value="${isQuote ? 'ใบเสนอราคาซ่อมรถ' : 'ใบเบิกวัสดุ'} - ${isQuote ? data.quote_number : data.form_number}" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        </div>
+
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">ข้อความ:</label>
+                            <textarea name="message" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">เรียน คุณลูกค้า
+
+    ส่งเอกสาร${isQuote ? 'ใบเสนอราคาซ่อมรถ' : 'ใบเบิกวัสดุ'} เลขที่ ${isQuote ? data.quote_number : data.form_number} มาให้ตรวจสอบ
+
+    ขอบคุณครับ</textarea>
+                        </div>
+
+                        <div style="text-align: center;">
+                            <button type="submit" style="background: #007bff; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">📧 ส่งอีเมล</button>
+                            <button type="button" onclick="document.getElementById('emailModal').remove()" style="background: #6c757d; color: white; padding: 12px 30px; border: none; border-radius: 5px; cursor: pointer;">ยกเลิก</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', emailModalHTML);
+    },
+
+    // Send email function
+    async sendEmail(type, data, event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+
+        const emailData = {
+            to_email: formData.get('to_email'),
+            subject: formData.get('subject'),
+            message: formData.get('message'),
+            type: type,
+            form_data: data
+        };
+
+        try {
+            this.showNotification('⏳ กำลังส่งอีเมล...', 'info');
+
+            const response = await fetch('/api/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(emailData)
+            });
+
+            if (response.ok) {
+                this.showNotification('✅ ส่งอีเมลสำเร็จ!', 'success');
+                document.getElementById('emailModal').remove();
+            } else {
+                throw new Error('Failed to send email');
+            }
+        } catch (error) {
+            console.warn('Email API not available:', error);
+            this.showNotification('⚠️ ระบบอีเมลไม่พร้อมใช้งาน (บันทึกข้อมูลแล้ว)', 'warning');
+            document.getElementById('emailModal').remove();
+        }
+    },
+
+    // Print form function
+    printForm(type, data) {
+        console.log(`🖨️ Printing ${type}:`, data);
+
+        const isQuote = type === 'quote';
+
+        // Create printable HTML
+        let printHTML = '';
+
+        if (isQuote) {
+            printHTML = this.generateRepairQuotePrintHTML(data);
+        } else {
+            printHTML = this.generateMaterialFormPrintHTML(data);
+        }
+
+        // Open print window
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        printWindow.document.write(printHTML);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    },
+
+    // Generate repair quote print HTML
+    generateRepairQuotePrintHTML(data) {
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>ใบเสนอราคาซ่อมรถ - ${data.quote_number}</title>
+                <meta charset="utf-8">
+                <style>
+                    body { font-family: 'Sarabun', Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .header h1 { color: #2c3e50; margin-bottom: 10px; }
+                    .info-section { margin-bottom: 20px; }
+                    .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+                    .label { font-weight: bold; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                    th { background-color: #f8f9fa; font-weight: bold; }
+                    .total-section { margin-top: 20px; text-align: right; }
+                    .total-amount { font-size: 18px; font-weight: bold; color: #e74c3c; }
+                    @media print { body { margin: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>ใบเสนอราคาซ่อมรถบรรทุก</h1>
+                    <p>เลขที่: ${data.quote_number}</p>
+                    <p>วันที่: ${data.quote_date}</p>
+                </div>
+
+                <div class="info-section">
+                    <h3>ข้อมูลลูกค้าและรถ</h3>
+                    <div class="info-row">
+                        <span><span class="label">ชื่อลูกค้า:</span> ${data.customer_name}</span>
+                        <span><span class="label">ทะเบียนรถ:</span> ${data.vehicle_registration}</span>
+                    </div>
+                    <div class="info-row">
+                        <span><span class="label">ยี่ห้อ:</span> ${data.vehicle_make}</span>
+                        <span><span class="label">รุ่น:</span> ${data.vehicle_model || 'ไม่ระบุ'}</span>
+                        <span><span class="label">ปี:</span> ${data.vehicle_year || 'ไม่ระบุ'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span><span class="label">ประเภทการซ่อม:</span> ${data.repair_type}</span>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>รายละเอียดความเสียหาย</h3>
+                    <p>${data.damage_description}</p>
+                </div>
+
+                <div class="total-section">
+                    <p class="total-amount">ราคาประมาณการ: ฿${data.total_amount.toLocaleString()}</p>
+                </div>
+
+                ${data.notes ? `<div class="info-section"><h3>หมายเหตุ</h3><p>${data.notes}</p></div>` : ''}
+
+                <div style="margin-top: 40px; text-align: center;">
+                    <p>บริษัท OL Service จำกัด</p>
+                    <p>โทร: [เบอร์โทร] | อีเมล: [อีเมล]</p>
+                </div>
+            </body>
+            </html>
+        `;
+    },
+
+    // Generate material form print HTML
+    generateMaterialFormPrintHTML(data) {
+        const itemsHTML = data.items.map((item, index) => `
+            <tr>
+                <td>${index + 1}</td>
+                <td>${item.part_number}</td>
+                <td>${item.name}</td>
+                <td>${item.quantity}</td>
+                <td>${item.unit}</td>
+                <td>฿${item.unit_price.toLocaleString()}</td>
+                <td>${item.discount}%</td>
+                <td>฿${item.discounted_price.toLocaleString()}</td>
+                <td>฿${item.total_cost.toLocaleString()}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>ใบเบิกวัสดุ - ${data.form_number}</title>
+                <meta charset="utf-8">
+                <style>
+                    body { font-family: 'Sarabun', Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .header h1 { color: #2c3e50; margin-bottom: 10px; }
+                    .info-section { margin-bottom: 20px; }
+                    .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+                    .label { font-weight: bold; }
+                    table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f8f9fa; font-weight: bold; }
+                    .total-section { margin-top: 20px; text-align: right; }
+                    .total-amount { font-size: 16px; font-weight: bold; color: #e74c3c; }
+                    @media print { body { margin: 0; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>ใบเบิกวัสดุ</h1>
+                    <p>เลขที่: ${data.form_number}</p>
+                    <p>วันที่: ${data.date}</p>
+                </div>
+
+                <div class="info-section">
+                    <h3>ข้อมูลการเบิก</h3>
+                    <div class="info-row">
+                        <span><span class="label">ทะเบียนรถ:</span> ${data.vehicle_registration}</span>
+                        <span><span class="label">ผู้เบิก:</span> ${data.requester_name}</span>
+                    </div>
+                    <div class="info-row">
+                        <span><span class="label">แผนก:</span> ${data.department}</span>
+                        <span><span class="label">ความเร่งด่วน:</span> ${data.priority}</span>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>รหัสชิ้นส่วน</th>
+                            <th>ชื่อวัสดุ</th>
+                            <th>จำนวน</th>
+                            <th>หน่วย</th>
+                            <th>ราคาต่อหน่วย</th>
+                            <th>ส่วนลด</th>
+                            <th>ราคาหลังส่วนลด</th>
+                            <th>รวม</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHTML}
+                    </tbody>
+                </table>
+
+                <div class="total-section">
+                    <p>จำนวนรายการ: ${data.total_items} รายการ</p>
+                    <p>ส่วนลดรวม: ฿${data.total_discount.toLocaleString()}</p>
+                    <p class="total-amount">ยอดรวมทั้งสิ้น: ฿${data.total_cost.toLocaleString()}</p>
+                </div>
+
+                ${data.notes ? `<div class="info-section"><h3>หมายเหตุ</h3><p>${data.notes}</p></div>` : ''}
+
+                <div style="margin-top: 40px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <div style="text-align: center;">
+                            <p>ผู้เบิก</p>
+                            <br><br>
+                            <p>(_______________________)</p>
+                            <p>วันที่: _______________</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <p>ผู้อนุมัติ</p>
+                            <br><br>
+                            <p>(_______________________)</p>
+                            <p>วันที่: _______________</p>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+    },
 
     // SERVICE MANAGEMENT ACTIONS
     async createNewService() {
@@ -5430,6 +6284,80 @@ const servicesModule = {
         console.log('🧹 Services module cleaned up');
     }
 };
+
+// Place this AFTER your servicesModule definition
+async function loadAutomotivePartsData() {
+    console.log('🔄 Loading automotive parts data...');
+
+    // Check if servicesModule exists
+    if (typeof servicesModule === 'undefined') {
+        console.error('❌ servicesModule is not defined yet!');
+        return;
+    }
+
+    try {
+        // Method 1: Use PartsDataManager if available
+        if (window.partsDataManager) {
+            try {
+                await window.partsDataManager.loadData();
+                const parts = window.partsDataManager.getParts();
+
+                if (parts && parts.length > 0) {
+                    servicesModule.truckParts = parts;
+                    console.log(`✅ Loaded ${parts.length} parts from PartsDataManager`);
+                    console.log('Sample parts:', parts.slice(0, 3));
+                    return;
+                }
+            } catch (managerError) {
+                console.log('⚠️ PartsDataManager failed:', managerError);
+            }
+        }
+
+        // Method 2: Direct fetch from JSON file
+        console.log('📡 Fetching from JSON file...');
+        const response = await fetch('/static/js/data/automotive-parts.json');
+
+        if (response.ok) {
+            const data = await response.json();
+
+            if (data && data.automotive_parts && Array.isArray(data.automotive_parts)) {
+                servicesModule.truckParts = data.automotive_parts;
+                console.log(`✅ Loaded ${data.automotive_parts.length} parts from JSON file`);
+                console.log('Sample parts:', data.automotive_parts.slice(0, 3));
+                return;
+            } else {
+                throw new Error('Invalid JSON structure');
+            }
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+    } catch (error) {
+        console.error('❌ Error loading automotive parts:', error);
+        console.log('🔄 Using fallback parts data...');
+
+        // Fallback: Use the sample data
+        servicesModule.truckParts = [
+            { thai: "ขากระจก", english: "Mirror Bracket", code: "MIR1", category: "exterior", price: 850, unit: "ชิ้น", in_stock: 25 },
+            { thai: "ไฟหน้า", english: "Headlight", code: "HEA1", category: "lighting", price: 2500, unit: "ชิ้น", in_stock: 15 },
+            { thai: "ประตู", english: "Door", code: "DOO1", category: "body", price: 15000, unit: "ชิ้น", in_stock: 8 },
+            { thai: "กระจก", english: "Window/Glass", code: "WIN1", category: "glass", price: 3200, unit: "แผ่น", in_stock: 12 },
+            { thai: "ไฟท้าย", english: "Tail Light", code: "TAI1", category: "lighting", price: 1200, unit: "ชิ้น", in_stock: 20 },
+            { thai: "น้ำมันเครื่อง", english: "Engine Oil", code: "OIL1", category: "fluids", price: 350, unit: "ลิตร", in_stock: 100 }
+        ];
+        console.log('✅ Fallback parts loaded:', servicesModule.truckParts.length, 'parts');
+    }
+}
+
+// Delayed execution to ensure servicesModule is ready
+setTimeout(() => {
+    if (typeof servicesModule !== 'undefined') {
+        console.log('🚀 Starting parts data load...');
+        loadAutomotivePartsData();
+    } else {
+        console.error('❌ servicesModule still not available after timeout');
+    }
+}, 2000); // Wait 2 seconds for everything to load
 
 window.servicesModule = servicesModule;
 
