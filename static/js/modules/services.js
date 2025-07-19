@@ -3169,12 +3169,33 @@ const servicesModule = {
     },
 
     // Create Material Form button handler
+
     createMaterialForm: async function() {
         console.log('🔧 Creating Material Form...');
 
+        // Clear any existing modals first
+        const existingModals = document.querySelectorAll('#serviceModal, .modal-overlay');
+        existingModals.forEach(modal => modal.remove());
+        console.log('Cleared existing modals:', existingModals.length);
+
         try {
-            // Ensure modal overlay exists
-            this.ensureModalContainer();
+            // Get all parts for autocomplete
+            let allParts = [];
+
+            // Try to get parts from partsDataManager first
+            if (window.partsDataManager && window.partsDataManager.isLoaded) {
+                allParts = window.partsDataManager.getParts();
+            } else if (this.truckParts && this.truckParts.length > 0) {
+                allParts = this.truckParts;
+            }
+
+            // Create part number options for datalist
+            const partNumberOptions = allParts.map(part => {
+                const partCode = part.code || part.part_code;
+                const partName = part.thai || part.part_name_thai;
+                const partPrice = part.price || part.selling_price || part.cost_price;
+                return `<option value="${partCode}" data-name="${partName}" data-price="${partPrice}">`;
+            }).join('');
 
             const materialFormHtml = `
                 <form id="materialForm" onsubmit="return window.servicesModule.saveMaterialForm(event)">
@@ -3227,6 +3248,11 @@ const servicesModule = {
 
                     <h2>รายการวัสดุที่ต้องการ</h2>
 
+                    <!-- Hidden datalist for part numbers -->
+                    <datalist id="partNumbersList">
+                        ${partNumberOptions}
+                    </datalist>
+
                     <table id="materialItemsTable">
                         <thead>
                             <tr>
@@ -3235,7 +3261,9 @@ const servicesModule = {
                                 <th>ชื่อวัสดุ</th>
                                 <th style="width: 80px;">จำนวน</th>
                                 <th style="width: 80px;">หน่วย</th>
-                                <th style="width: 120px;">ราคาประมาณ</th>
+                                <th style="width: 100px;">ราคาต่อหน่วย</th>
+                                <th style="width: 80px;">ส่วนลด (%)</th>
+                                <th style="width: 100px;">ราคาหลังส่วนลด</th>
                                 <th style="width: 120px;">รวม</th>
                                 <th style="width: 60px;">ลบ</th>
                             </tr>
@@ -3243,8 +3271,11 @@ const servicesModule = {
                         <tbody>
                             <tr>
                                 <td>1</td>
-                                <td><input type="text" name="part_number" placeholder="เช่น TRK001"></td>
-                                <td><input type="text" name="item_name" placeholder="เช่น เบรคแพ็ด" required></td>
+                                <td>
+                                    <input type="text" name="part_number" list="partNumbersList" placeholder="เช่น TRK001"
+                                           onchange="window.servicesModule.populatePartDetails(this)">
+                                </td>
+                                <td><input type="text" name="item_name" placeholder="เช่น เบรคแพ็ด" required readonly style="background-color: #f5f5f5;"></td>
                                 <td><input type="number" name="quantity" min="1" value="1" onchange="window.servicesModule.calculateMaterialRowTotal(this)"></td>
                                 <td>
                                     <select name="unit">
@@ -3255,8 +3286,10 @@ const servicesModule = {
                                         <option value="เมตร">เมตร</option>
                                     </select>
                                 </td>
-                                <td><input type="number" name="estimated_cost" min="0" step="0.01" placeholder="0.00" onchange="window.servicesModule.calculateMaterialRowTotal(this)"></td>
-                                <td><input type="number" name="total_cost" min="0" step="0.01" readonly></td>
+                                <td><input type="number" name="unit_price" min="0" step="0.01" placeholder="0.00" readonly style="background-color: #f5f5f5;"></td>
+                                <td><input type="number" name="discount" min="0" max="100" step="0.01" value="0" placeholder="0" onchange="window.servicesModule.calculateMaterialRowTotal(this)"></td>
+                                <td><input type="number" name="discounted_price" min="0" step="0.01" readonly style="background-color: #f5f5f5;"></td>
+                                <td><input type="number" name="total_cost" min="0" step="0.01" readonly style="background-color: #f5f5f5;"></td>
                                 <td><button type="button" class="remove-row" onclick="window.servicesModule.removeMaterialRow(this)">ลบ</button></td>
                             </tr>
                         </tbody>
@@ -3268,7 +3301,7 @@ const servicesModule = {
                         <div class="quote-totals">
                             <div class="total-row">
                                 <label for="materialTotalAmount">ยอดรวมทั้งสิ้น:</label>
-                                <input type="number" id="materialTotalAmount" name="total_cost" readonly>
+                                <input type="number" id="materialTotalAmount" name="total_cost" readonly style="background-color: #f5f5f5;">
                             </div>
                         </div>
                     </div>
@@ -3288,10 +3321,169 @@ const servicesModule = {
             this.showModal('สร้างใบเบิกวัสดุ', materialFormHtml);
             console.log('✅ Material Form modal created successfully');
 
+            // Force the modal to appear immediately
+            setTimeout(() => {
+                const modals = document.querySelectorAll('#serviceModal, .modal-overlay');
+                const activeModal = Array.from(modals).find(modal => modal.innerHTML.length > 1000);
+
+                if (activeModal) {
+                    activeModal.style.cssText = `
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 100vw !important;
+                        height: 100vh !important;
+                        background-color: rgba(0, 0, 0, 0.8) !important;
+                        display: flex !important;
+                        visibility: visible !important;
+                        opacity: 1 !important;
+                        z-index: 999999 !important;
+                        justify-content: center !important;
+                        align-items: center !important;
+                    `;
+
+                    const container = activeModal.querySelector('.modal-container');
+                    if (container) {
+                        container.style.cssText = `
+                            background: white !important;
+                            padding: 20px !important;
+                            border-radius: 8px !important;
+                            max-width: 95vw !important;
+                            max-height: 90vh !important;
+                            overflow: auto !important;
+                            display: block !important;
+                            visibility: visible !important;
+                        `;
+                    }
+
+                    // Enhance part number inputs if available
+                    if (this.enhancePartNumberInputs) {
+                        this.enhancePartNumberInputs();
+                    }
+                }
+            }, 100);
+
         } catch (error) {
             console.error('❌ Error creating material form:', error);
             this.showNotification('❌ เกิดข้อผิดพลาดในการสร้างฟอร์ม: ' + error.message, 'error');
         }
+    },
+
+    // New method to populate part details when part number is selected
+    populatePartDetails(partNumberInput) {
+        const partCode = partNumberInput.value.trim();
+        const row = partNumberInput.closest('tr');
+
+        if (!partCode) {
+            this.clearPartRow(row);
+            return;
+        }
+
+        // Find part in database
+        let part = null;
+
+        // Try partsDataManager first
+        if (window.partsDataManager && window.partsDataManager.isLoaded) {
+            part = window.partsDataManager.getPartByCode(partCode);
+        }
+
+        // Fallback to truckParts
+        if (!part && this.truckParts) {
+            part = this.truckParts.find(p =>
+                (p.code === partCode) ||
+                (p.part_code === partCode)
+            );
+        }
+
+        if (part) {
+            // Auto-populate part details
+            const partName = part.thai || part.part_name_thai || part.english || part.part_name_english || 'Unknown Part';
+            const partPrice = part.price || part.selling_price || part.cost_price || 0;
+
+            // Fill in the fields
+            row.querySelector('input[name="item_name"]').value = partName;
+            row.querySelector('input[name="unit_price"]').value = parseFloat(partPrice).toFixed(2);
+
+            // Calculate discounted price and total
+            this.calculateMaterialRowTotal(row.querySelector('input[name="quantity"]'));
+
+            console.log(`✅ Auto-populated part: ${partCode} - ${partName} - ฿${partPrice}`);
+
+            // Show notification
+            this.showNotification(`✅ พบชิ้นส่วน: ${partName} - ราคา ฿${partPrice}`, 'success', 2000);
+        } else {
+            // Part not found - allow manual entry
+            row.querySelector('input[name="item_name"]').value = '';
+            row.querySelector('input[name="item_name"]').readOnly = false;
+            row.querySelector('input[name="item_name"]').style.backgroundColor = 'white';
+            row.querySelector('input[name="unit_price"]').value = '';
+            row.querySelector('input[name="unit_price"]').readOnly = false;
+            row.querySelector('input[name="unit_price"]').style.backgroundColor = 'white';
+
+            this.showNotification(`⚠️ ไม่พบรหัสชิ้นส่วน: ${partCode} (สามารถกรอกข้อมูลเอง)`, 'warning', 3000);
+        }
+    },
+
+    // Clear part row fields
+    clearPartRow(row) {
+        row.querySelector('input[name="item_name"]').value = '';
+        row.querySelector('input[name="unit_price"]').value = '';
+        row.querySelector('input[name="discount"]').value = '0';
+        row.querySelector('input[name="discounted_price"]').value = '';
+        row.querySelector('input[name="total_cost"]').value = '';
+    },
+
+    // Enhanced calculation with discount
+    calculateMaterialRowTotal(input) {
+        const row = input.closest('tr');
+        const quantity = parseInt(row.querySelector('input[name="quantity"]').value) || 0;
+        const unitPrice = parseFloat(row.querySelector('input[name="unit_price"]').value) || 0;
+        const discount = parseFloat(row.querySelector('input[name="discount"]').value) || 0;
+
+        // Calculate discounted price
+        const discountAmount = unitPrice * (discount / 100);
+        const discountedPrice = unitPrice - discountAmount;
+
+        // Calculate total
+        const total = quantity * discountedPrice;
+
+        // Update fields
+        row.querySelector('input[name="discounted_price"]').value = discountedPrice.toFixed(2);
+        row.querySelector('input[name="total_cost"]').value = total.toFixed(2);
+
+        // Update grand total
+        this.calculateMaterialTotal();
+    },
+
+    // Enhanced addMaterialRow with new columns
+    addMaterialRow() {
+        const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
+        const rowCount = table.rows.length;
+        const newRow = table.insertRow();
+
+        newRow.innerHTML = `
+            <td>${rowCount + 1}</td>
+            <td>
+                <input type="text" name="part_number" list="partNumbersList" placeholder="เช่น TRK001"
+                       onchange="window.servicesModule.populatePartDetails(this)">
+            </td>
+            <td><input type="text" name="item_name" placeholder="เช่น เบรคแพ็ด" required readonly style="background-color: #f5f5f5;"></td>
+            <td><input type="number" name="quantity" min="1" value="1" onchange="window.servicesModule.calculateMaterialRowTotal(this)"></td>
+            <td>
+                <select name="unit">
+                    <option value="ชิ้น">ชิ้น</option>
+                    <option value="ชุด">ชุด</option>
+                    <option value="ลิตร">ลิตร</option>
+                    <option value="กิโลกรัม">กิโลกรัม</option>
+                    <option value="เมตร">เมตร</option>
+                </select>
+            </td>
+            <td><input type="number" name="unit_price" min="0" step="0.01" placeholder="0.00" readonly style="background-color: #f5f5f5;"></td>
+            <td><input type="number" name="discount" min="0" max="100" step="0.01" value="0" placeholder="0" onchange="window.servicesModule.calculateMaterialRowTotal(this)"></td>
+            <td><input type="number" name="discounted_price" min="0" step="0.01" readonly style="background-color: #f5f5f5;"></td>
+            <td><input type="number" name="total_cost" min="0" step="0.01" readonly style="background-color: #f5f5f5;"></td>
+            <td><button type="button" class="remove-row" onclick="window.servicesModule.removeMaterialRow(this)">ลบ</button></td>
+        `;
     },
 
     // Save Material Form
@@ -3384,74 +3576,167 @@ const servicesModule = {
     },
 
     // Create Repair Quote button handler
+    // Enhanced populateVehicleDetails that auto-populates from vehicle database
+    populateVehicleDetails(vehicleId) {
+        if (!vehicleId) {
+            this.clearVehicleFields();
+            return;
+        }
+
+        const vehicle = this.vehicles.find(v => v.id == vehicleId);
+        if (!vehicle) return;
+
+        // Populate all vehicle fields automatically from database
+        document.querySelector('input[name="vehicle_registration"]').value = vehicle.license_plate || '';
+        document.querySelector('input[name="vehicle_model"]').value = vehicle.model || '';
+        document.querySelector('input[name="vehicle_year"]').value = vehicle.year || '';
+        document.querySelector('input[name="vehicle_color"]').value = vehicle.color || '';
+
+        // Auto-populate vehicle make from database
+        const makeSelect = document.querySelector('select[name="vehicle_make"]');
+        const vehicleMake = vehicle.make || '';
+
+        if (vehicleMake) {
+            // Check if the make exists in dropdown options
+            const makeExists = Array.from(makeSelect.options).some(option => option.value === vehicleMake);
+
+            if (makeExists) {
+                // Make exists in dropdown, select it
+                makeSelect.value = vehicleMake;
+            } else {
+                // Make doesn't exist, add it dynamically to dropdown
+                const newOption = document.createElement('option');
+                newOption.value = vehicleMake;
+                newOption.textContent = vehicleMake;
+                makeSelect.appendChild(newOption);
+                makeSelect.value = vehicleMake;
+
+                console.log(`✅ Added new vehicle make to dropdown: ${vehicleMake}`);
+            }
+        }
+
+        console.log('✅ Vehicle details auto-populated from database:', vehicle.license_plate);
+    },
+
+    // Enhanced createRepairQuote with dynamic vehicle make dropdown
     createRepairQuote: async function() {
         console.log('🚛 Creating Repair Quote...');
 
+        // Clear any existing modals first
+        document.querySelectorAll('[id*="modal"], [class*="modal"], .modal-overlay, #serviceModal').forEach(el => el.remove());
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Get customer list for dropdown
+        const customerOptions = this.customers && this.customers.length > 0
+            ? this.customers.map(customer =>
+                `<option value="${customer.id}" data-email="${customer.email || ''}">${customer.first_name} ${customer.last_name}${customer.email ? ' - ' + customer.email : ''}</option>`
+              ).join('')
+            : '<option value="">No customers found</option>';
+
+        // Get all unique vehicle makes from database for dropdown
+        const uniqueMakes = [...new Set(this.vehicles.map(v => v.make).filter(make => make))].sort();
+        const vehicleMakeOptions = uniqueMakes.map(make => `<option value="${make}">${make}</option>`).join('');
+
         try {
-            // Ensure modal overlay exists
-            this.ensureModalContainer();
+            const modalHTML = `
+                <div id="repairQuoteModal" style="
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    background: rgba(0, 0, 0, 0.8) !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: center !important;
+                    z-index: 999999 !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                ">
+                    <div style="
+                        background: white !important;
+                        padding: 30px !important;
+                        border-radius: 10px !important;
+                        max-width: 90vw !important;
+                        max-height: 90vh !important;
+                        overflow: auto !important;
+                        position: relative !important;
+                        box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+                    ">
+                        <button onclick="document.getElementById('repairQuoteModal').remove()" style="
+                            position: absolute;
+                            top: 10px;
+                            right: 15px;
+                            background: #dc3545;
+                            color: white;
+                            border: none;
+                            border-radius: 50%;
+                            width: 30px;
+                            height: 30px;
+                            cursor: pointer;
+                            font-size: 16px;
+                        ">×</button>
 
-            const repairQuoteHtml = `
-                <form id="repairQuoteForm" onsubmit="return window.servicesModule.saveRepairQuote(event)">
-                    <div class="quote-header">
-                        <div class="quote-number">
-                            <label>เลขที่:</label>
-                            <input type="text" id="repairQuoteNumber" value="TRQ-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}" readonly>
-                        </div>
-                        <div class="dates">
-                            <div class="form-group">
-                                <label for="repairQuoteDate">วันที่เสนอราคา:</label>
-                                <input type="date" id="repairQuoteDate" name="quote_date" value="${new Date().toISOString().split('T')[0]}" required>
+                        <h2 style="margin-top: 0; color: #333;">สร้างใบเสนอราคาซ่อมรถบรรทุก</h2>
+
+                        <form id="repairQuoteForm" onsubmit="window.servicesModule.saveRepairQuote(event); return false;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">ชื่อลูกค้า:</label>
+                                    <select name="customer_name" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" onchange="window.servicesModule.loadCustomerVehicles(this.value)">
+                                        <option value="">เลือกลูกค้า</option>
+                                        ${customerOptions}
+                                        <option value="__new__">+ เพิ่มลูกค้าใหม่</option>
+                                    </select>
+                                    <input type="text" name="new_customer_name" placeholder="ชื่อลูกค้าใหม่" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px; display: none;">
+                                </div>
+
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">เลือกรถ:</label>
+                                    <select name="vehicle_selector" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" onchange="window.servicesModule.populateVehicleDetails(this.value)" disabled>
+                                        <option value="">เลือกลูกค้าก่อน</option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="vehicle-info">
-                        <h2>ข้อมูลลูกค้าและรถ</h2>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">ทะเบียนรถ:</label>
+                                    <input type="text" name="vehicle_registration" required placeholder="เช่น กท-1234" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="repairCustomerName">ชื่อลูกค้า:</label>
-                                <input type="text" id="repairCustomerName" name="customer_name" placeholder="ชื่อบริษัทหรือบุคคล" required>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">ยี่ห้อรถ:</label>
+                                    <select name="vehicle_make" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                        <option value="">เลือกยี่ห้อ</option>
+                                        ${vehicleMakeOptions}
+                                        <option value="__other__">🔧 อื่นๆ (ระบุเอง)</option>
+                                    </select>
+                                    <input type="text" name="custom_vehicle_make" placeholder="ระบุยี่ห้อรถ" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-top: 5px; display: none;">
+                                </div>
+
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">รุ่น:</label>
+                                    <input type="text" name="vehicle_model" placeholder="เช่น NPR" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="repairVehicleReg">ทะเบียนรถ:</label>
-                                <input type="text" id="repairVehicleReg" name="vehicle_registration" placeholder="เช่น กท-1234" required>
-                            </div>
-                        </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">ปี:</label>
+                                    <input type="number" name="vehicle_year" min="1990" max="2025" placeholder="2020" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="repairVehicleMake">ยี่ห้อ:</label>
-                                <select id="repairVehicleMake" name="vehicle_make" required>
-                                    <option value="">เลือกยี่ห้อ</option>
-                                    <option value="Isuzu">Isuzu</option>
-                                    <option value="Hino">Hino</option>
-                                    <option value="Mitsubishi Fuso">Mitsubishi Fuso</option>
-                                    <option value="UD Trucks">UD Trucks</option>
-                                    <option value="Scania">Scania</option>
-                                    <option value="Volvo">Volvo</option>
-                                    <option value="Mercedes-Benz">Mercedes-Benz</option>
-                                    <option value="MAN">MAN</option>
-                                </select>
+                                <div>
+                                    <label style="display: block; margin-bottom: 5px; font-weight: bold;">สี:</label>
+                                    <input type="text" name="vehicle_color" placeholder="เช่น ขาว, แดง" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                                </div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="repairVehicleModel">รุ่น:</label>
-                                <input type="text" id="repairVehicleModel" name="vehicle_model" placeholder="เช่น NPR, 300 Series" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="repairVehicleYear">ปี:</label>
-                                <input type="number" id="repairVehicleYear" name="vehicle_year" min="1990" max="2025" placeholder="เช่น 2020">
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="repairType">ประเภทการซ่อม:</label>
-                                <select id="repairType" name="repair_type" required>
+                            <!-- Rest of the form remains the same -->
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">ประเภทการซ่อม:</label>
+                                <select name="repair_type" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
                                     <option value="">เลือกประเภท</option>
                                     <option value="Engine Repair">ซ่อมเครื่องยนต์</option>
                                     <option value="Transmission Repair">ซ่อมเกียร์</option>
@@ -3463,78 +3748,77 @@ const servicesModule = {
                                     <option value="General Maintenance">บำรุงรักษาทั่วไป</option>
                                 </select>
                             </div>
-                        </div>
 
-                        <div class="form-group full-width">
-                            <label for="damageDescription">รายละเอียดความเสียหาย:</label>
-                            <textarea id="damageDescription" name="damage_description" rows="3" placeholder="อธิบายปัญหาและความเสียหายที่พบ..." required></textarea>
-                        </div>
-                    </div>
-
-                    <h2>รายการซ่อม</h2>
-
-                    <table id="repairItemsTable">
-                        <thead>
-                            <tr>
-                                <th style="width: 50px;">ลำดับ</th>
-                                <th>รายการซ่อม</th>
-                                <th style="width: 100px;">ชั่วโมงงาน</th>
-                                <th style="width: 120px;">ค่าแรง/ชม.</th>
-                                <th style="width: 120px;">ค่าอะไหล่</th>
-                                <th style="width: 120px;">รวม</th>
-                                <th style="width: 60px;">ลบ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>1</td>
-                                <td><input type="text" name="repair_item" placeholder="เช่น เปลี่ยนน้ำมันเครื่อง" required></td>
-                                <td><input type="number" name="labor_hours" placeholder="0.5" step="0.5" min="0" onchange="window.servicesModule.calculateRepairRowTotal(this)"></td>
-                                <td><input type="number" name="labor_rate" placeholder="800" step="0.01" min="0" value="800" onchange="window.servicesModule.calculateRepairRowTotal(this)"></td>
-                                <td><input type="number" name="parts_cost" placeholder="0.00" step="0.01" min="0" onchange="window.servicesModule.calculateRepairRowTotal(this)"></td>
-                                <td><input type="number" name="item_total" step="0.01" readonly></td>
-                                <td><button type="button" class="remove-row" onclick="window.servicesModule.removeRepairRow(this)">ลบ</button></td>
-                            </tr>
-                        </tbody>
-                    </table>
-
-                    <div class="quote-actions">
-                        <button type="button" class="add-row" onclick="window.servicesModule.addRepairRow()">+ เพิ่มรายการ</button>
-
-                        <div class="quote-totals">
-                            <div class="total-row">
-                                <label>ยอดย่อย:</label>
-                                <input type="number" id="repairSubtotal" readonly>
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">รายละเอียดความเสียหาย:</label>
+                                <textarea name="damage_description" rows="3" placeholder="อธิบายปัญหาและความเสียหายที่พบ..." required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; resize: vertical;"></textarea>
                             </div>
-                            <div class="total-row">
-                                <label for="vatRate">ภาษี (%):</label>
-                                <input type="number" id="vatRate" name="vat_rate" value="7" min="0" max="100" step="0.01" onchange="window.servicesModule.calculateRepairTotal()">
-                            </div>
-                            <div class="total-row">
-                                <label>ภาษี:</label>
-                                <input type="number" id="vatAmount" readonly>
-                            </div>
-                            <div class="total-row">
-                                <label for="repairTotalAmount">ยอดรวมทั้งสิ้น:</label>
-                                <input type="number" id="repairTotalAmount" name="total_amount" readonly>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="form-group full-width">
-                        <label for="repairNotes">หมายเหตุ:</label>
-                        <textarea id="repairNotes" name="notes" rows="3" placeholder="เงื่อนไขการชำระเงิน หรือข้อมูลเพิ่มเติม..."></textarea>
-                    </div>
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold;">ราคาประมาณการ:</label>
+                                <input type="number" name="total_amount" step="0.01" min="0" placeholder="0.00" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            </div>
 
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">🚛 บันทึกใบเสนอราคา</button>
-                        <button type="button" class="btn btn-secondary" onclick="window.servicesModule.closeModal()">ยกเลิก</button>
+                            <div style="text-align: center; margin-top: 30px;">
+                                <button type="submit" style="
+                                    background: #007bff;
+                                    color: white;
+                                    padding: 12px 30px;
+                                    border: none;
+                                    border-radius: 5px;
+                                    cursor: pointer;
+                                    font-size: 16px;
+                                    margin-right: 10px;
+                                ">🚛 บันทึกใบเสนอราคา</button>
+
+                                <button type="button" onclick="document.getElementById('repairQuoteModal').remove()" style="
+                                    background: #6c757d;
+                                    color: white;
+                                    padding: 12px 30px;
+                                    border: none;
+                                    border-radius: 5px;
+                                    cursor: pointer;
+                                    font-size: 16px;
+                                ">ยกเลิก</button>
+                            </div>
+                        </form>
                     </div>
-                </form>
+                </div>
             `;
 
-            this.showModal('สร้างใบเสนอราคาซ่อมรถบรรทุก', repairQuoteHtml);
-            console.log('✅ Repair Quote modal created successfully');
+            // Add to page
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+            // Add customer dropdown functionality
+            const customerSelect = document.querySelector('select[name="customer_name"]');
+            const newCustomerInput = document.querySelector('input[name="new_customer_name"]');
+            const makeSelect = document.querySelector('select[name="vehicle_make"]');
+            const customMakeInput = document.querySelector('input[name="custom_vehicle_make"]');
+
+            customerSelect.addEventListener('change', function() {
+                if (this.value === '__new__') {
+                    newCustomerInput.style.display = 'block';
+                    newCustomerInput.required = true;
+                } else {
+                    newCustomerInput.style.display = 'none';
+                    newCustomerInput.required = false;
+                }
+            });
+
+            // Handle custom vehicle make
+            makeSelect.addEventListener('change', function() {
+                if (this.value === '__other__') {
+                    customMakeInput.style.display = 'block';
+                    customMakeInput.required = true;
+                    this.required = false;
+                } else {
+                    customMakeInput.style.display = 'none';
+                    customMakeInput.required = false;
+                    this.required = true;
+                }
+            });
+
+            console.log('✅ Repair Quote modal created with auto-populated vehicle makes from database');
 
         } catch (error) {
             console.error('❌ Error creating repair quote:', error);
@@ -3542,6 +3826,68 @@ const servicesModule = {
         }
     },
 
+    // Add these helper methods to handle vehicle population
+    loadCustomerVehicles(customerId) {
+        const vehicleSelector = document.querySelector('select[name="vehicle_selector"]');
+
+        if (!customerId || customerId === '__new__') {
+            vehicleSelector.innerHTML = '<option value="">เลือกลูกค้าก่อน</option>';
+            vehicleSelector.disabled = true;
+            this.clearVehicleFields();
+            return;
+        }
+
+        // Find vehicles for this customer
+        const customerVehicles = this.vehicles.filter(vehicle => vehicle.customer_id == customerId);
+
+        if (customerVehicles.length === 0) {
+            vehicleSelector.innerHTML = '<option value="">ลูกค้านี้ไม่มีรถจดทะเบียน</option>';
+            vehicleSelector.disabled = true;
+            this.clearVehicleFields();
+            return;
+        }
+
+        // Populate vehicle dropdown
+        vehicleSelector.innerHTML = '<option value="">เลือกรถ</option>' +
+            customerVehicles.map(vehicle =>
+                `<option value="${vehicle.id}">${vehicle.license_plate} - ${vehicle.year} ${vehicle.make} ${vehicle.model}</option>`
+            ).join('');
+
+        vehicleSelector.disabled = false;
+
+        // If only one vehicle, auto-select it
+        if (customerVehicles.length === 1) {
+            vehicleSelector.value = customerVehicles[0].id;
+            this.populateVehicleDetails(customerVehicles[0].id);
+        }
+    },
+
+    populateVehicleDetails(vehicleId) {
+        if (!vehicleId) {
+            this.clearVehicleFields();
+            return;
+        }
+
+        const vehicle = this.vehicles.find(v => v.id == vehicleId);
+        if (!vehicle) return;
+
+        // Populate vehicle fields
+        document.querySelector('input[name="vehicle_registration"]').value = vehicle.license_plate || '';
+        document.querySelector('select[name="vehicle_make"]').value = vehicle.make || '';
+        document.querySelector('input[name="vehicle_model"]').value = vehicle.model || '';
+        document.querySelector('input[name="vehicle_year"]').value = vehicle.year || '';
+        document.querySelector('input[name="vehicle_color"]').value = vehicle.color || '';
+
+        console.log('✅ Vehicle details populated:', vehicle.license_plate);
+    },
+
+    clearVehicleFields() {
+        document.querySelector('input[name="vehicle_registration"]').value = '';
+        document.querySelector('select[name="vehicle_make"]').value = '';
+        document.querySelector('input[name="vehicle_model"]').value = '';
+        document.querySelector('input[name="vehicle_year"]').value = '';
+        document.querySelector('input[name="vehicle_color"]').value = '';
+    },
     // Material Form Helper Functions
     addMaterialRow() {
         const table = document.getElementById('materialItemsTable').getElementsByTagName('tbody')[0];
@@ -3690,104 +4036,112 @@ const servicesModule = {
     },
 
     // Save Repair Quote
-    async saveRepairQuote(event) {
+
+
+    saveRepairQuote: async function(event) {
         event.preventDefault();
-        const formData = new FormData(event.target);
-
-        // Get basic form data
-        const repairQuoteData = {
-            id: this.repairQuotes.length + 1,
-            quote_number: document.getElementById('repairQuoteNumber').value,
-            customer_name: formData.get('customer_name'),
-            vehicle_registration: formData.get('vehicle_registration'),
-            vehicle_make: formData.get('vehicle_make'),
-            vehicle_model: formData.get('vehicle_model'),
-            vehicle_year: parseInt(formData.get('vehicle_year')) || null,
-            repair_type: formData.get('repair_type'),
-            damage_description: formData.get('damage_description'),
-            quote_date: formData.get('quote_date'),
-            notes: formData.get('notes'),
-            status: 'pending',
-            created_date: new Date().toISOString(),
-            items: [],
-            subtotal: 0,
-            vat_rate: parseFloat(formData.get('vat_rate')) || 7,
-            vat_amount: 0,
-            total_amount: 0
-        };
-
-        // Get items from table
-        const table = document.getElementById('repairItemsTable').getElementsByTagName('tbody')[0];
-        for (let i = 0; i < table.rows.length; i++) {
-            const row = table.rows[i];
-            const repairItem = row.querySelector('input[name="repair_item"]').value.trim();
-
-            // Skip empty rows
-            if (!repairItem) continue;
-
-            const laborHours = parseFloat(row.querySelector('input[name="labor_hours"]').value) || 0;
-            const laborRate = parseFloat(row.querySelector('input[name="labor_rate"]').value) || 0;
-            const partsCost = parseFloat(row.querySelector('input[name="parts_cost"]').value) || 0;
-
-            const laborCost = laborHours * laborRate;
-            const itemTotal = laborCost + partsCost;
-
-            repairQuoteData.items.push({
-                description: repairItem,
-                labor_hours: laborHours,
-                labor_rate: laborRate,
-                labor_cost: laborCost,
-                parts_cost: partsCost,
-                total: itemTotal
-            });
-
-            repairQuoteData.subtotal += itemTotal;
-        }
-
-        // Validate that we have at least one item
-        if (repairQuoteData.items.length === 0) {
-            this.showNotification('❌ กรุณาระบุรายการซ่อมอย่างน้อย 1 รายการ', 'error');
-            return;
-        }
-
-        // Calculate totals
-        repairQuoteData.vat_amount = repairQuoteData.subtotal * (repairQuoteData.vat_rate / 100);
-        repairQuoteData.total_amount = repairQuoteData.subtotal + repairQuoteData.vat_amount;
-        repairQuoteData.final_amount = repairQuoteData.total_amount; // For compatibility
+        console.log('💾 Saving repair quote...');
 
         try {
-            // Show loading
-            this.showNotification('⏳ กำลังบันทึกใบเสนอราคา...', 'info');
+            const form = event.target;
+            const formData = new FormData(form);
 
-            // Try to save to API
-            const response = await fetch('/api/repair-quotes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(repairQuoteData)
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                repairQuoteData.id = result.id || repairQuoteData.id;
-            } else {
-                throw new Error('API Error');
+            // Get customer name (handle both dropdown and new customer input)
+            let customerName = formData.get('customer_name');
+            if (customerName === '__new__') {
+                customerName = formData.get('new_customer_name');
+            } else if (customerName && customerName !== '') {
+                // If it's a customer ID, get the actual name
+                const customer = this.customers.find(c => c.id == customerName);
+                if (customer) {
+                    customerName = `${customer.first_name} ${customer.last_name}`;
+                }
             }
+
+            // Validate required fields
+            if (!customerName) {
+                this.showNotification('❌ กรุณาระบุชื่อลูกค้า', 'error');
+                return;
+            }
+
+            if (!formData.get('vehicle_registration')) {
+                this.showNotification('❌ กรุณาระบุทะเบียนรถ', 'error');
+                return;
+            }
+
+            if (!formData.get('repair_type')) {
+                this.showNotification('❌ กรุณาเลือกประเภทการซ่อม', 'error');
+                return;
+            }
+
+            if (!formData.get('damage_description')) {
+                this.showNotification('❌ กรุณาระบุรายละเอียดความเสียหาย', 'error');
+                return;
+            }
+
+            // Create repair quote data
+            const repairQuoteData = {
+                id: this.repairQuotes.length + 1,
+                quote_number: `TRQ-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`,
+                customer_name: customerName,
+                vehicle_registration: formData.get('vehicle_registration'),
+                vehicle_make: formData.get('vehicle_make'),
+                vehicle_model: formData.get('vehicle_model'),
+                vehicle_year: parseInt(formData.get('vehicle_year')) || null,
+                vehicle_color: formData.get('vehicle_color') || '',
+                repair_type: formData.get('repair_type'),
+                damage_description: formData.get('damage_description'),
+                total_amount: parseFloat(formData.get('total_amount')) || 0,
+                quote_date: new Date().toISOString().split('T')[0],
+                status: 'pending',
+                created_date: new Date().toISOString(),
+                notes: formData.get('notes') || '',
+                final_amount: parseFloat(formData.get('total_amount')) || 0
+            };
+
+            console.log('📋 Repair quote data:', repairQuoteData);
+
+            try {
+                // Show loading
+                this.showNotification('⏳ กำลังบันทึกใบเสนอราคา...', 'info');
+
+                // Try to save to API
+                const response = await fetch('/api/repair-quotes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(repairQuoteData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    repairQuoteData.id = result.id || repairQuoteData.id;
+                } else {
+                    throw new Error('API Error');
+                }
+            } catch (error) {
+                console.warn('API not available, saving locally:', error);
+            }
+
+            // Add to local data
+            this.repairQuotes.push(repairQuoteData);
+
+            // Show success message
+            this.showNotification(`✅ บันทึกใบเสนอราคาสำเร็จ (เลขที่: ${repairQuoteData.quote_number})`, 'success');
+
+            // Close modal
+            const modal = document.getElementById('repairQuoteModal');
+            if (modal) {
+                modal.remove();
+            }
+
+            // Refresh truck repair tab if currently viewing
+            if (this.currentTruckTab === 'quotes') {
+                this.showTruckTab('quotes');
+            }
+
         } catch (error) {
-            console.warn('API not available, saving locally:', error);
-        }
-
-        // Add to local data
-        this.repairQuotes.push(repairQuoteData);
-
-        // Show success message
-        this.showNotification(`✅ บันทึกใบเสนอราคาสำเร็จ (เลขที่: ${repairQuoteData.quote_number})`, 'success');
-
-        // Close modal and refresh view
-        this.closeModal();
-
-        // Refresh truck repair tab if currently viewing
-        if (this.currentTruckTab === 'quotes') {
-            this.showTruckTab('quotes');
+            console.error('❌ Error saving repair quote:', error);
+            this.showNotification('❌ เกิดข้อผิดพลาดในการบันทึก: ' + error.message, 'error');
         }
     },
 
@@ -4214,6 +4568,229 @@ const servicesModule = {
     },
 
 
+    // Enhanced autocomplete system for part numbers
+    enhancePartNumberInputs() {
+        // Sample part numbers (this would come from database)
+        let partNumbers = [
+            'TRK001', 'TRK002', 'TRK003', 'ENG001', 'ENG002', 'BRK001', 'BRK002',
+            'TRS001', 'TRS002', 'ELC001', 'ELC002', 'AC001', 'AC002'
+        ];
+
+        // Function to save new part number (simulate database save)
+        const savePartNumber = (partNumber) => {
+            if (!partNumbers.includes(partNumber)) {
+                partNumbers.push(partNumber);
+                console.log('✅ Saved new part number:', partNumber);
+                // Here you would make an API call to save to database
+                // fetch('/api/part-numbers', { method: 'POST', body: JSON.stringify({part_number: partNumber}) })
+            }
+        };
+
+        // Find all part number inputs
+        const partInputs = document.querySelectorAll('input[name="part_number"]');
+
+        partInputs.forEach(input => {
+            // Create datalist for suggestions
+            const datalistId = 'part-numbers-' + Math.random().toString(36).substr(2, 9);
+            const datalist = document.createElement('datalist');
+            datalist.id = datalistId;
+
+            // Populate datalist with existing part numbers
+            partNumbers.forEach(partNum => {
+                const option = document.createElement('option');
+                option.value = partNum;
+                datalist.appendChild(option);
+            });
+
+            // Add datalist to input
+            input.setAttribute('list', datalistId);
+            input.parentElement.appendChild(datalist);
+
+            // Enhanced autocomplete with manual add functionality
+            let suggestionDiv = null;
+
+            input.addEventListener('input', function(e) {
+                const value = e.target.value.toUpperCase();
+
+                // Remove existing suggestions
+                if (suggestionDiv) {
+                    suggestionDiv.remove();
+                }
+
+                if (value.length >= 1) {
+                    // Filter matching part numbers
+                    const matches = partNumbers.filter(part =>
+                        part.toUpperCase().includes(value)
+                    );
+
+                    if (matches.length > 0 || value.length >= 3) {
+                        // Create suggestion dropdown
+                        suggestionDiv = document.createElement('div');
+                        suggestionDiv.className = 'part-suggestions';
+                        suggestionDiv.style.cssText = `
+                            position: absolute;
+                            top: 100%;
+                            left: 0;
+                            right: 0;
+                            background: white;
+                            border: 1px solid #ddd;
+                            border-top: none;
+                            max-height: 200px;
+                            overflow-y: auto;
+                            z-index: 1000;
+                            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                        `;
+
+                        // Add existing matches
+                        matches.forEach(part => {
+                            const item = document.createElement('div');
+                            item.className = 'suggestion-item';
+                            item.style.cssText = `
+                                padding: 8px 12px;
+                                cursor: pointer;
+                                border-bottom: 1px solid #eee;
+                            `;
+                            item.textContent = part;
+
+                            item.addEventListener('mouseenter', () => {
+                                item.style.backgroundColor = '#f0f0f0';
+                            });
+
+                            item.addEventListener('mouseleave', () => {
+                                item.style.backgroundColor = 'white';
+                            });
+
+                            item.addEventListener('click', () => {
+                                input.value = part;
+                                suggestionDiv.remove();
+                                suggestionDiv = null;
+                                input.dispatchEvent(new Event('change'));
+                            });
+
+                            suggestionDiv.appendChild(item);
+                        });
+
+                        // Add "Add new" option if value doesn't exist and is long enough
+                        if (value.length >= 3 && !partNumbers.includes(value)) {
+                            const addNewItem = document.createElement('div');
+                            addNewItem.className = 'suggestion-item add-new';
+                            addNewItem.style.cssText = `
+                                padding: 8px 12px;
+                                cursor: pointer;
+                                border-bottom: 1px solid #eee;
+                                background-color: #e8f5e8;
+                                color: #2d5a2d;
+                                font-weight: bold;
+                            `;
+                            addNewItem.innerHTML = `➕ เพิ่มรหัสใหม่: "${value}"`;
+
+                            addNewItem.addEventListener('mouseenter', () => {
+                                addNewItem.style.backgroundColor = '#d4edda';
+                            });
+
+                            addNewItem.addEventListener('mouseleave', () => {
+                                addNewItem.style.backgroundColor = '#e8f5e8';
+                            });
+
+                            addNewItem.addEventListener('click', () => {
+                                input.value = value;
+                                savePartNumber(value);
+
+                                // Update datalist
+                                const option = document.createElement('option');
+                                option.value = value;
+                                datalist.appendChild(option);
+
+                                suggestionDiv.remove();
+                                suggestionDiv = null;
+                                input.dispatchEvent(new Event('change'));
+
+                                // Show success message
+                                const successMsg = document.createElement('div');
+                                successMsg.style.cssText = `
+                                    position: absolute;
+                                    top: 100%;
+                                    left: 0;
+                                    right: 0;
+                                    background: #d4edda;
+                                    color: #155724;
+                                    padding: 5px 10px;
+                                    border: 1px solid #c3e6cb;
+                                    font-size: 12px;
+                                    z-index: 1001;
+                                `;
+                                successMsg.textContent = `✅ บันทึกรหัส "${value}" เรียบร้อยแล้ว`;
+                                input.parentElement.appendChild(successMsg);
+
+                                setTimeout(() => successMsg.remove(), 3000);
+                            });
+
+                            suggestionDiv.appendChild(addNewItem);
+                        }
+
+                        // Position relative to input
+                        input.parentElement.style.position = 'relative';
+                        input.parentElement.appendChild(suggestionDiv);
+                    }
+                }
+            });
+
+            // Close suggestions when clicking outside
+            document.addEventListener('click', function(e) {
+                if (suggestionDiv && !input.contains(e.target) && !suggestionDiv.contains(e.target)) {
+                    suggestionDiv.remove();
+                    suggestionDiv = null;
+                }
+            });
+
+            // Handle keyboard navigation
+            input.addEventListener('keydown', function(e) {
+                if (!suggestionDiv) return;
+
+                const items = suggestionDiv.querySelectorAll('.suggestion-item');
+                let currentIndex = Array.from(items).findIndex(item =>
+                    item.style.backgroundColor === 'rgb(240, 240, 240)' ||
+                    item.style.backgroundColor === '#d4edda'
+                );
+
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    currentIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+                    this.highlightItem(items, currentIndex);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    currentIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+                    this.highlightItem(items, currentIndex);
+                } else if (e.key === 'Enter' && currentIndex >= 0) {
+                    e.preventDefault();
+                    items[currentIndex].click();
+                } else if (e.key === 'Escape') {
+                    suggestionDiv.remove();
+                    suggestionDiv = null;
+                }
+            });
+
+            const highlightItem = (items, index) => {
+                items.forEach((item, i) => {
+                    if (i === index) {
+                        if (item.classList.contains('add-new')) {
+                            item.style.backgroundColor = '#d4edda';
+                        } else {
+                            item.style.backgroundColor = '#f0f0f0';
+                        }
+                    } else {
+                        if (item.classList.contains('add-new')) {
+                            item.style.backgroundColor = '#e8f5e8';
+                        } else {
+                            item.style.backgroundColor = 'white';
+                        }
+                    }
+                });
+            };
+        });
+
+        console.log('✅ Enhanced part number inputs with autocomplete and add functionality');
+    },
 
 
     // UTILITY AND HELPER METHODS
