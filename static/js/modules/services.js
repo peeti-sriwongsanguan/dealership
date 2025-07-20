@@ -3174,6 +3174,7 @@ const servicesModule = {
 
     // Create Material Form button handler
 
+     // Enhanced createMaterialForm with better parts loading
     createMaterialForm: async function() {
         console.log('🔧 Creating Material Form...');
 
@@ -3183,13 +3184,32 @@ const servicesModule = {
         console.log('Cleared existing modals:', existingModals.length);
 
         try {
-            // Ensure parts data is loaded
-            if (!this.truckParts || this.truckParts.length === 0) {
-                console.log('📦 Loading parts data...');
+            // FORCE load parts data
+            console.log('📦 Force loading parts data...');
+
+            // Method 1: Try loadAutomotivePartsData if it exists
+            if (typeof loadAutomotivePartsData === 'function') {
                 await loadAutomotivePartsData();
             }
 
-            // Create vehicle registration options from vehicles database
+            // Method 2: Direct fallback if still no data
+            if (!this.truckParts || this.truckParts.length === 0) {
+                console.log('⚠️ No parts data, using fallback...');
+                this.truckParts = [
+                    { thai: "ขากระจก", english: "Mirror Bracket", code: "MIR1", category: "exterior", price: 850, unit: "ชิ้น", in_stock: 25 },
+                    { thai: "ไฟหน้า", english: "Headlight", code: "HEA1", category: "lighting", price: 2500, unit: "ชิ้น", in_stock: 15 },
+                    { thai: "ประตู", english: "Door", code: "DOO1", category: "body", price: 15000, unit: "ชิ้น", in_stock: 8 },
+                    { thai: "กระจก", english: "Window/Glass", code: "WIN1", category: "glass", price: 3200, unit: "แผ่น", in_stock: 12 },
+                    { thai: "ไฟท้าย", english: "Tail Light", code: "TAI1", category: "lighting", price: 1200, unit: "ชิ้น", in_stock: 20 },
+                    { thai: "น้ำมันเครื่อง", english: "Engine Oil", code: "OIL1", category: "fluids", price: 350, unit: "ลิตร", in_stock: 100 },
+                    { thai: "แบตเตอรี่", english: "Battery", code: "BAT1", category: "electrical", price: 3200, unit: "ก้อน", in_stock: 20 },
+                    { thai: "ไส้กรองอากาศ", english: "Air Filter", code: "FIL1", category: "filters", price: 450, unit: "ชิ้น", in_stock: 25 }
+                ];
+            }
+
+            console.log(`📋 Using ${this.truckParts.length} parts for dropdown`);
+
+            // Create vehicle registration options
             let vehicleOptions = '';
             if (this.vehicles && this.vehicles.length > 0) {
                 vehicleOptions = this.vehicles.map(vehicle => {
@@ -3202,20 +3222,27 @@ const servicesModule = {
                         ${vehicle.license_plate}${description ? ' - ' + description : ''}
                     </option>`;
                 }).join('');
-                console.log(`✅ Created ${this.vehicles.length} vehicle options`);
             } else {
                 vehicleOptions = '<option value="">ไม่มีข้อมูลรถ</option>';
             }
 
-            // Create dynamic part number options from loaded data
+            // Create dynamic part number options - ENHANCED VERSION
             let partNumberOptions = '';
             if (this.truckParts && this.truckParts.length > 0) {
                 this.truckParts.forEach(part => {
                     const partCode = part.code;
-                    const thaiName = part.thai;
-                    const price = part.price;
-                    partNumberOptions += `<option value="${partCode}" data-thai="${thaiName}" data-price="${price}">${partCode} - ${thaiName}</option>`;
+                    const thaiName = part.thai || part.part_name_thai || '';
+                    const englishName = part.english || part.part_name_english || '';
+                    const price = part.price || part.cost_price || part.selling_price || 0;
+
+                    // Create option with comprehensive data
+                    partNumberOptions += `<option value="${partCode}" data-thai="${thaiName}" data-english="${englishName}" data-price="${price}">${partCode} - ${thaiName}</option>\n`;
                 });
+                console.log(`✅ Created ${this.truckParts.length} part options`);
+                console.log('Sample options:', partNumberOptions.substring(0, 200));
+            } else {
+                console.log('❌ No parts available for dropdown');
+                partNumberOptions = '<option value="">ไม่มีข้อมูลชิ้นส่วน</option>';
             }
 
             const materialFormHtml = `
@@ -3286,6 +3313,13 @@ const servicesModule = {
 
                     <h2>รายการวัสดุที่ต้องการ</h2>
 
+                    <!-- Debug info -->
+                    <div style="background: #e8f5e8; padding: 10px; margin: 10px 0; border-radius: 5px; font-size: 12px;">
+                        <strong>📋 Parts Data Status:</strong> ${this.truckParts.length} parts loaded
+                        <br><strong>🔍 Try these codes:</strong> ${this.truckParts.slice(0, 3).map(p => p.code).join(', ')}
+                    </div>
+
+                    <!-- Enhanced datalist with debug -->
                     <datalist id="partNumbersList">
                         ${partNumberOptions}
                     </datalist>
@@ -3310,7 +3344,7 @@ const servicesModule = {
                                 <td style="padding: 5px; border: 1px solid #ddd; text-align: center;">1</td>
                                 <td style="padding: 5px; border: 1px solid #ddd;">
                                     <input type="text" name="part_number" list="partNumbersList"
-                                           placeholder="พิมพ์รหัสชิ้นส่วน"
+                                           placeholder="พิมพ์รหัสชิ้นส่วน (เช่น MIR1, HEA1)"
                                            onchange="window.servicesModule.populatePartDetails(this)"
                                            style="width: 100%; padding: 5px; border: none; outline: none;">
                                 </td>
@@ -3391,9 +3425,9 @@ const servicesModule = {
             `;
 
             this.showModal('สร้างใบเบิกวัสดุ', materialFormHtml);
-            console.log('✅ Material Form modal created with enhanced table structure');
+            console.log('✅ Material Form modal created with enhanced parts data');
 
-            // Force the modal to appear
+            // Force the modal to appear and add debug info
             setTimeout(() => {
                 const modals = document.querySelectorAll('#serviceModal, .modal-overlay');
                 const activeModal = Array.from(modals).find(modal => modal.innerHTML.length > 1000);
@@ -3429,10 +3463,15 @@ const servicesModule = {
                     }
                 }
 
+                // Debug the datalist after modal creation
+                const datalist = document.getElementById('partNumbersList');
+                console.log('🔍 Datalist after creation:');
+                console.log('- Exists:', !!datalist);
+                console.log('- Options count:', datalist?.children.length || 0);
+                console.log('- Sample content:', datalist?.innerHTML.substring(0, 100));
+
                 // Add vehicle dropdown event handlers
                 const vehicleSelect = document.getElementById('vehicleRegistration');
-                const newVehicleInput = document.getElementById('newVehicleRegistration');
-
                 if (vehicleSelect) {
                     vehicleSelect.addEventListener('change', (event) => {
                         this.populateVehicleInfoMaterial(event.target);
@@ -3440,6 +3479,7 @@ const servicesModule = {
                     console.log('✅ Vehicle dropdown event handler attached');
                 }
 
+                const newVehicleInput = document.getElementById('newVehicleRegistration');
                 if (newVehicleInput) {
                     newVehicleInput.addEventListener('input', function() {
                         const value = this.value.toUpperCase();
